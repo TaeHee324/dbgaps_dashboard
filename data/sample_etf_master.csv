@@ -1,0 +1,5 @@
+raw_ticker,code,name,aum_억원,benchmark,risk_type,asset_class
+A069500,069500,KODEX 200,100000,KOSPI 200,위험,국내주식_지수
+A360750,360750,TIGER 미국S&P500,140000,S&P 500,위험,해외주식_지수
+A148070,148070,KOSEF 국고채10년,20000,KTB 10Y,안전,국내채권_종합
+A411060,411060,ACE KRX금현물,52000,KRX 금현물지수,위험,FX 및 원자재

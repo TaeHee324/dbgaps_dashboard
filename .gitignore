@@ -1,0 +1,41 @@
+# Python 캐시
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# 가상환경
+venv/
+.venv/
+env/
+.env/
+
+# 환경변수
+.env
+.env.local
+*.env
+
+# 실행 결과물 (자동 생성)
+output/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 빌드/배포
+dist/
+build/
+*.egg-info/
+
+# 로그
+*.log
+
+# Jupyter
+.ipynb_checkpoints/
