@@ -1,1 +1,4 @@
 pandas>=2.0
+pykrx>=1.0.0
+pytest>=8.0
+matplotlib>=3.8

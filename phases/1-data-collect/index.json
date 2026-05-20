@@ -1,0 +1,19 @@
+{
+  "project": "DBGAPS 포트폴리오 자동화 대시보드",
+  "phase": "data-collect",
+  "description": "실제 ETF 188개 가격 데이터 수집 및 검증",
+  "steps": [
+    {
+      "step": 0,
+      "name": "price-fetch",
+      "description": "update_prices.py로 실제 ETF 가격 데이터 수집",
+      "status": "pending"
+    },
+    {
+      "step": 1,
+      "name": "data-validation",
+      "description": "prices_daily.csv 스키마 및 품질 검증 테스트 작성",
+      "status": "pending"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "project": "DBGAPS 포트폴리오 자동화 대시보드",
+  "phase": "foundation",
+  "description": "테스트 환경 정비 및 기존 모듈 smoke test",
+  "steps": [
+    {
+      "step": 0,
+      "name": "requirements-setup",
+      "description": "pykrx, pytest, matplotlib을 requirements.txt에 추가",
+      "status": "pending"
+    },
+    {
+      "step": 1,
+      "name": "smoke-tests",
+      "description": "기존 6개 계산 모듈에 대한 pytest smoke test 작성",
+      "status": "pending"
+    }
+  ]
+}

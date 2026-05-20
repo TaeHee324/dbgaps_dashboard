@@ -39,3 +39,6 @@ build/
 
 # Jupyter
 .ipynb_checkpoints/
+
+# Harness 실행 산출물
+phases/**/step*-output.json

@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -c \"import subprocess,pathlib,sys; p=pathlib.Path('tests'); fs=list(p.glob('test_*.py')) if p.exists() else []; (print('no tests yet') or sys.exit(0)) if not fs else sys.exit(subprocess.run(['python','-m','pytest','tests/','-q']).returncode)\""
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -c \"import os,sys; t=os.environ.get('CLAUDE_TOOL_INPUT',''); [sys.exit(print('BLOCKED: 위험한 명령어 감지됨 —',b,file=sys.stderr) or 1) for b in ['rm -rf','git push --force','git reset --hard','DROP TABLE'] if b.lower() in t.lower()]\""
+          }
+        ]
+      }
+    ]
+  }
+}
