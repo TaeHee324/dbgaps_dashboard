@@ -19,7 +19,7 @@ def render_kpi_strip(summary_df: pd.DataFrame):
         return
 
     row = summary_df.iloc[0]
-    cols = st.columns(5)
+    cols = st.columns(7)
 
     def _get(key, default=None):
         return row[key] if key in summary_df.columns else default
@@ -39,6 +39,12 @@ def render_kpi_strip(summary_df: pd.DataFrame):
     with cols[4]:
         val = _get("annual_volatility")
         st.metric("연간변동성", f"{val*100:.2f}%" if val is not None else "—")
+    with cols[5]:
+        val = _get("alpha")
+        st.metric("Alpha", f"{val*100:.2f}%" if val is not None else "—")
+    with cols[6]:
+        val = _get("beta")
+        st.metric("Beta", f"{val:.2f}" if val is not None else "—")
 
 
 def render_nav_chart(backtest_df: pd.DataFrame) -> go.Figure:

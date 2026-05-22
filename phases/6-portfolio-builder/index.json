@@ -1,0 +1,28 @@
+{
+  "project": "DBGAPS 포트폴리오 자동화 대시보드",
+  "phase": "portfolio-builder",
+  "description": "포트폴리오 빌더 — ETF 선택 + 비중 입력 → 실시간 백테스트 + 지표 시각화",
+  "depends_on": ["multipage-structure"],
+  "parallel_with": ["5-etf-explorer"],
+  "architecture_note": "이 페이지는 실시간 백테스트를 위해 src/backtest.py와 src/metrics.py를 직접 import한다. CRITICAL-1의 예외 — 포트폴리오 빌더는 계산 없이 동작 불가. CRITICAL-2(pykrx 금지)는 엄격히 유지.",
+  "steps": [
+    {
+      "step": 0,
+      "name": "etf-selector-and-weights",
+      "description": "ETF 다중 선택 + 비중 입력 UI (합계 100% 검증 포함)",
+      "status": "pending"
+    },
+    {
+      "step": 1,
+      "name": "backtest-and-metrics",
+      "description": "선택된 포트폴리오로 백테스트 실행 → KPI + NAV 차트 + Drawdown 차트 표시",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "benchmark-and-compare",
+      "description": "벤치마크(069500) 비교선 추가 + 월별수익률 bar",
+      "status": "pending"
+    }
+  ]
+}

@@ -95,15 +95,34 @@
 
 ## 남은 것
 
+### 즉시 (독립 실행)
+
+- [ ] `python src/run_engine.py` 실행 → output/backtest_nav.csv 등 생성 → 대시보드 NAV·월별수익률·비교 섹션 표시
+- [ ] 대회 첫날 실제 매수 후 `data/trades.csv` 기입 → `run_engine.py` 재실행
+
+### Phase 5 — ETF 탐색기 (미구현)
+
+- [ ] Step 0: app.py → `web/pages/` multipage 구조 전환
+- [ ] Step 1: `web/pages/1_ETF_탐색기.py` — 188개 ETF 검색/필터 테이블
+- [ ] Step 2: ETF 선택 → 주가 차트 (1M/3M/6M/1Y/전체)
+
+### Phase 6 — 포트폴리오 빌더 (미구현, Phase 5와 병렬 가능)
+
+- [ ] Step 0: `web/pages/2_포트폴리오_빌더.py` — ETF 선택 + 비중 입력 UI
+- [ ] Step 1: 백테스트 실행 → KPI + NAV + Drawdown + 월별수익률
+- [ ] Step 2: 벤치마크 비교선 + Alpha/Beta + 포트폴리오 저장
+
+→ 상세 계획: `PLAN.md`
+
 ### 운영 관련
 
 - [ ] Railway 배포 시작 명령을 `run_engine.py` 기반으로 업데이트 확인
 - [ ] `python src/update_prices.py` 를 Railway 스케줄 또는 GitHub Actions 로 자동화
-- [ ] 대회 규칙 위반 항목 해소 (KODEX 200 43.6%, TIGER US S&P500 27.5% — 개별 ETF 20% 초과)
+- [ ] 대회 규칙 위반 항목 해소 (실제 포트폴리오 확정 후 재검토)
 
 ### 선택적 개선
 
-- [ ] NAV 차트 벤치마크 선: backtest_nav.csv 에 benchmark_value 컬럼 추가 시 자동 표시 (현재 데이터 없어 미표시)
+- [ ] NAV 차트 벤치마크 선: backtest_nav.csv 에 benchmark_value 컬럼 추가 시 자동 표시
 - [ ] `src/charts.py` 구현: 정적 PNG 출력 (월간보고서 첨부용)
 
 ---
