@@ -7,6 +7,7 @@ from pathlib import Path
 import pandas as pd
 
 from backtest import benchmark_nav, load_prices, load_weights, run_backtest, summarize_backtest
+from metrics import monthly_returns
 from portfolio import evaluate_holdings, load_trades
 from rules import check_portfolio_rules
 from turnover import check_turnover_limits
@@ -32,15 +33,6 @@ def build_rules_check(rule_result: dict[str, object]) -> pd.DataFrame:
     return pd.concat([individual, risk_asset], ignore_index=True, sort=False)
 
 
-def build_turnover_check(turnover_result: dict[str, object]) -> pd.DataFrame:
-    initial = pd.DataFrame([{**turnover_result["initial"], "period": "initial"}])
-    weekly = turnover_result["weekly"].copy()
-    weekly.insert(0, "period", "weekly")
-    monthly = turnover_result["monthly"].copy()
-    monthly.insert(0, "period", "monthly")
-    return pd.concat([initial, weekly, monthly], ignore_index=True, sort=False)
-
-
 def main() -> None:
     OUTPUT.mkdir(parents=True, exist_ok=True)
 
@@ -52,10 +44,14 @@ def main() -> None:
     weights = load_weights(ROOT / "portfolios" / "base.csv")
 
     backtest = run_backtest(prices, weights, initial_value=INITIAL_VALUE)
-    benchmark = benchmark_nav(prices, BENCHMARK_CODE, initial_value=INITIAL_VALUE)
+    try:
+        benchmark = benchmark_nav(prices, BENCHMARK_CODE, initial_value=INITIAL_VALUE)
+    except ValueError:
+        benchmark = None
     summary = summarize_backtest(backtest, benchmark)
 
     backtest.to_csv(OUTPUT / "backtest_nav.csv", index=False)
+    monthly_returns(backtest).to_csv(OUTPUT / "monthly_returns.csv", index=False)
     pd.DataFrame([summary]).to_csv(OUTPUT / "portfolio_summary.csv", index=False)
 
     trades = load_trades(DATA / "trades.csv")
@@ -71,7 +67,9 @@ def main() -> None:
         capital_base=INITIAL_VALUE,
         initial_end_date="2026-01-02",
     )
-    build_turnover_check(turnover_result).to_csv(OUTPUT / "turnover.csv", index=False)
+    pd.DataFrame([turnover_result["initial"]]).to_csv(OUTPUT / "turnover_initial.csv", index=False)
+    turnover_result["weekly"].to_csv(OUTPUT / "turnover_weekly.csv", index=False)
+    turnover_result["monthly"].to_csv(OUTPUT / "turnover_monthly.csv", index=False)
 
     start_date = backtest["date"].min().date()
     end_date = backtest["date"].max().date()
@@ -86,7 +84,11 @@ def main() -> None:
         f"annual_volatility={format_pct(summary['annual_volatility'])}, "
         f"sharpe={sharpe}"
     )
-    print("outputs: backtest_nav.csv, portfolio_holdings.csv, rules_check.csv, turnover.csv")
+    print(
+        "outputs: backtest_nav.csv, portfolio_holdings.csv, rules_check.csv, "
+        "turnover_initial.csv, turnover_weekly.csv, turnover_monthly.csv, "
+        "monthly_returns.csv"
+    )
 
 
 if __name__ == "__main__":

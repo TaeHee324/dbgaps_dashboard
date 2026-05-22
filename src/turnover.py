@@ -1,4 +1,4 @@
-"""Turnover calculations for initial, weekly, and monthly checks."""
+"""Turnover calculations for actual trades and theoretical rebalancing."""
 
 from __future__ import annotations
 
@@ -29,7 +29,9 @@ def turnover_by_period(
     grouped = data.groupby(pd.Grouper(key="date", freq=freq))["amount"].sum().reset_index()
     grouped = grouped[grouped["amount"] > 0].copy()
     grouped["turnover"] = grouped["amount"] / capital_base
-    return grouped.rename(columns={"amount": "traded_value"})
+    grouped = grouped.rename(columns={"amount": "traded_value"})
+    grouped["turnover_source"] = "actual_trades"
+    return grouped
 
 
 def initial_turnover(
@@ -37,7 +39,7 @@ def initial_turnover(
     capital_base: float,
     start_date: str | pd.Timestamp | None = None,
     end_date: str | pd.Timestamp | None = None,
-) -> dict[str, float]:
+) -> dict[str, float | str]:
     if capital_base <= 0:
         raise ValueError("capital_base must be positive")
     data = trade_values(trades)
@@ -46,7 +48,28 @@ def initial_turnover(
     if end_date is not None:
         data = data[data["date"] <= pd.to_datetime(end_date)]
     traded_value = float(data["amount"].sum())
-    return {"traded_value": traded_value, "turnover": traded_value / capital_base}
+    return {
+        "traded_value": traded_value,
+        "turnover": traded_value / capital_base,
+        "turnover_source": "actual_trades",
+    }
+
+
+def actual_trade_turnover(
+    trades: pd.DataFrame,
+    capital_base: float,
+    freq: str,
+) -> pd.DataFrame:
+    return turnover_by_period(trades, capital_base, freq)
+
+
+def actual_trade_initial_turnover(
+    trades: pd.DataFrame,
+    capital_base: float,
+    start_date: str | pd.Timestamp | None = None,
+    end_date: str | pd.Timestamp | None = None,
+) -> dict[str, float | str]:
+    return initial_turnover(trades, capital_base, start_date=start_date, end_date=end_date)
 
 
 def weekly_turnover(trades: pd.DataFrame, capital_base: float) -> pd.DataFrame:
@@ -55,6 +78,50 @@ def weekly_turnover(trades: pd.DataFrame, capital_base: float) -> pd.DataFrame:
 
 def monthly_turnover(trades: pd.DataFrame, capital_base: float) -> pd.DataFrame:
     return turnover_by_period(trades, capital_base, "ME")
+
+
+def rebalance_turnover(
+    prices: pd.DataFrame,
+    weights: pd.Series,
+    rebalance: str,
+) -> pd.DataFrame:
+    """Calculate theoretical turnover needed to reset drifted weights.
+
+    This is a target-weight backtest concept, not a competition rule check.
+    The returned turnover is one-way traded value divided by portfolio value.
+    """
+
+    weights = weights.astype(float)
+    total = weights.sum()
+    if total <= 0:
+        raise ValueError("weights must sum to a positive value")
+    target_weights = weights / total
+
+    matrix = prices.pivot(index="date", columns="code", values="close").sort_index()
+    matrix = matrix.reindex(columns=target_weights.index).dropna()
+    if matrix.empty:
+        raise ValueError("no complete price history for requested portfolio")
+
+    returns = matrix.pct_change().fillna(0)
+    current_weights = target_weights.copy()
+    periods = matrix.index.to_period(rebalance)
+    rows: list[dict[str, object]] = []
+
+    for i in range(1, len(matrix)):
+        drifted = current_weights * (1 + returns.iloc[i])
+        current_weights = drifted / drifted.sum()
+        if periods[i] != periods[i - 1]:
+            turnover = (target_weights - current_weights).abs().sum() / 2
+            rows.append(
+                {
+                    "date": matrix.index[i],
+                    "turnover": float(turnover),
+                    "turnover_source": "rebalance",
+                }
+            )
+            current_weights = target_weights.copy()
+
+    return pd.DataFrame(rows, columns=["date", "turnover", "turnover_source"])
 
 
 def check_turnover_limits(

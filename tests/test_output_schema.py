@@ -46,6 +46,11 @@ OUTPUT_SCHEMAS = {
         "cumulative_return",
         "drawdown",
     ],
+    "monthly_returns.csv": [
+        "year",
+        "month",
+        "monthly_return",
+    ],
     "rule_individual_etf.csv": [
         "code",
         "name",
@@ -64,6 +69,7 @@ OUTPUT_SCHEMAS = {
     "turnover_initial.csv": [
         "traded_value",
         "turnover",
+        "turnover_source",
         "limit",
         "passed",
     ],
@@ -71,6 +77,7 @@ OUTPUT_SCHEMAS = {
         "date",
         "traded_value",
         "turnover",
+        "turnover_source",
         "limit",
         "passed",
     ],
@@ -78,6 +85,7 @@ OUTPUT_SCHEMAS = {
         "date",
         "traded_value",
         "turnover",
+        "turnover_source",
         "limit",
         "passed",
     ],
@@ -128,3 +136,12 @@ def test_no_sample_prefixed_output_files():
         pytest.skip("output/ not found - run src/run_sample_engine.py first")
     sample_files = sorted(path.name for path in OUTPUT.glob("sample_*.csv"))
     assert sample_files == []
+
+
+@pytest.mark.parametrize(
+    "filename",
+    ["turnover_initial.csv", "turnover_weekly.csv", "turnover_monthly.csv"],
+)
+def test_turnover_outputs_are_actual_trade_source(filename: str):
+    df = _load(filename)
+    assert set(df["turnover_source"]) == {"actual_trades"}

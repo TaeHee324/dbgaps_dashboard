@@ -104,6 +104,8 @@ def beta(
     portfolio_returns: pd.Series,
     benchmark_returns: pd.Series,
 ) -> float | None:
+    if portfolio_returns is None or benchmark_returns is None:
+        return None
     aligned = pd.concat(
         [
             pd.to_numeric(portfolio_returns, errors="coerce").rename("portfolio"),
@@ -114,9 +116,11 @@ def beta(
     if len(aligned) < 2:
         return None
     benchmark_variance = aligned["benchmark"].var(ddof=1)
-    if benchmark_variance == 0:
+    if pd.isna(benchmark_variance) or benchmark_variance == 0:
         return None
     covariance = aligned["portfolio"].cov(aligned["benchmark"])
+    if pd.isna(covariance):
+        return None
     return float(covariance / benchmark_variance)
 
 
@@ -137,13 +141,15 @@ def alpha(
         ],
         axis=1,
     ).dropna()
-    if aligned.empty:
+    if len(aligned) < 2:
         return None
 
     rf_period = risk_free_rate / periods_per_year
     period_alpha = (aligned["portfolio"].mean() - rf_period) - b * (
         aligned["benchmark"].mean() - rf_period
     )
+    if pd.isna(period_alpha):
+        return None
     return float(period_alpha * periods_per_year)
 
 
@@ -170,6 +176,31 @@ def calmar_ratio(nav: pd.Series, periods_per_year: int = TRADING_DAYS_PER_YEAR) 
     if max_drawdown == 0:
         return None
     return float(cagr(nav, periods_per_year=periods_per_year) / max_drawdown)
+
+
+def monthly_returns(backtest_result: pd.DataFrame) -> pd.DataFrame:
+    """Aggregate daily returns into calendar-month compounded returns."""
+
+    required = {"date", "daily_return"}
+    missing = required - set(backtest_result.columns)
+    if missing:
+        raise ValueError(f"backtest result missing columns: {sorted(missing)}")
+
+    data = backtest_result.loc[:, ["date", "daily_return"]].copy()
+    data["date"] = pd.to_datetime(data["date"], errors="coerce")
+    data["daily_return"] = pd.to_numeric(data["daily_return"], errors="coerce")
+    data = data.dropna(subset=["date", "daily_return"])
+    if data.empty:
+        return pd.DataFrame(columns=["year", "month", "monthly_return"])
+
+    data["year"] = data["date"].dt.year.astype(int)
+    data["month"] = data["date"].dt.month.astype(int)
+    result = (
+        data.groupby(["year", "month"], as_index=False)["daily_return"]
+        .agg(lambda returns: float((1 + returns).prod() - 1))
+        .rename(columns={"daily_return": "monthly_return"})
+    )
+    return result[["year", "month", "monthly_return"]]
 
 
 def summarize_performance(
