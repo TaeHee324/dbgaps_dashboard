@@ -36,6 +36,16 @@ def load_backtest_nav() -> pd.DataFrame:
 
 
 @st.cache_data(ttl=300)
+def load_monthly_returns() -> pd.DataFrame:
+    df = _read("monthly_returns.csv")
+    if not df.empty:
+        for column in ["year", "month"]:
+            if column in df.columns:
+                df[column] = df[column].astype(int)
+    return df
+
+
+@st.cache_data(ttl=300)
 def load_rule_results() -> dict[str, pd.DataFrame]:
     return {
         "individual": _read("rule_individual_etf.csv"),

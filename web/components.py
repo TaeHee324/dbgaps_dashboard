@@ -66,6 +66,17 @@ def render_nav_chart(backtest_df: pd.DataFrame) -> go.Figure:
             name="벤치마크(069500)",
             line=dict(color="#64748B", width=1.5, dash="dash"),
         ))
+    elif "benchmark_cumulative_return" in df.columns:
+        bm_nav = (1 + df["benchmark_cumulative_return"]) * 100
+        fig.add_trace(go.Scatter(
+            x=x, y=bm_nav,
+            mode="lines",
+            name="Benchmark",
+            line=dict(color="#64748B", width=1.5, dash="dash"),
+        ))
+    else:
+        # 벤치마크 데이터 없음
+        pass
 
     fig.update_layout(
         yaxis_title="NAV (기준 100)",
@@ -73,6 +84,85 @@ def render_nav_chart(backtest_df: pd.DataFrame) -> go.Figure:
         margin=dict(l=0, r=0, t=32, b=0),
         plot_bgcolor="#F8FAFC",
         paper_bgcolor="#FFFFFF",
+    )
+    return fig
+
+def _is_passed(value) -> bool:
+    if isinstance(value, str):
+        return value.strip().lower() == "true"
+    return bool(value)
+
+
+def _format_percent(value) -> str:
+    return f"{float(value) * 100:.1f}%"
+
+
+def _render_pass_badge(passed: bool):
+    color = _SUCCESS if passed else _DANGER
+    label = "passed" if passed else "failed"
+    st.markdown(
+        f"<span style='display:inline-block;padding:0.2rem 0.55rem;"
+        f"border-radius:999px;background:{color};color:white;"
+        f"font-size:0.8rem;font-weight:700'>{label}</span>",
+        unsafe_allow_html=True,
+    )
+
+
+def render_turnover_section(turnover_dict: dict):
+    st.subheader("회전율")
+
+    if not turnover_dict:
+        st.warning("회전율 데이터 없음")
+        return
+
+    items = [
+        ("초기 누적 회전율", turnover_dict.get("initial")),
+        ("주간 회전율 최근값", turnover_dict.get("weekly")),
+        ("월간 회전율 최근값", turnover_dict.get("monthly")),
+    ]
+
+    cols = st.columns(3)
+    for col, (label, df) in zip(cols, items):
+        with col:
+            if df is None or df.empty or "turnover" not in df.columns:
+                st.metric(label, "N/A")
+                _render_pass_badge(False)
+                continue
+
+            row = df.iloc[-1]
+            st.metric(label, _format_percent(row["turnover"]))
+            _render_pass_badge(_is_passed(row.get("passed", False)))
+
+
+def render_monthly_returns_chart(monthly_df: pd.DataFrame) -> go.Figure:
+    if monthly_df.empty or "monthly_return" not in monthly_df.columns:
+        st.warning("월별 수익률 데이터 없음")
+        return go.Figure()
+
+    df = monthly_df.copy()
+    if {"year", "month"}.issubset(df.columns):
+        x = df.apply(lambda row: f"{int(row['year']):04d}-{int(row['month']):02d}", axis=1)
+    else:
+        x = df.index.astype(str)
+
+    returns = df["monthly_return"] * 100
+    colors = ["#2563EB" if value >= 0 else _DANGER for value in returns]
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=x,
+        y=returns,
+        marker_color=colors,
+        name="Monthly Return",
+    ))
+    fig.update_layout(
+        title="월별 수익률",
+        yaxis_title="수익률 (%)",
+        xaxis_title="",
+        margin=dict(l=0, r=0, t=40, b=0),
+        plot_bgcolor="#F8FAFC",
+        paper_bgcolor="#FFFFFF",
+        showlegend=False,
     )
     return fig
 
