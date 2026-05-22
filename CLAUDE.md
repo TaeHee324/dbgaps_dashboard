@@ -7,6 +7,7 @@ DB GAPS 대회용 ETF 포트폴리오 자동화 시스템. 팀이 선택한 ETF 
 - Python 3.12, pandas >= 2.0
 - pykrx (ETF 일별 가격 수집 — update_prices.py 전용)
 - matplotlib (정적 그래프 PNG 출력)
+- streamlit >= 1.35, plotly >= 5.0 (웹 대시보드)
 - 저장소: CSV 파일 (Git 관리)
 - 배포: Railway (웹 대시보드, 기술스택 미결정)
 
@@ -29,6 +30,10 @@ dbgaps_dashboard/
 │   ├── update_prices.py    # pykrx → prices_daily.csv 증분 업데이트 (수집 전용)
 │   ├── charts.py           # 그래프 생성 — phase-2에서 추가 예정
 │   └── report_builder.py   # 월간보고서 Markdown 생성 — phase-3에서 추가 예정
+├── web/                    # 웹 대시보드 (output/ CSV 읽기 전용)
+│   ├── app.py              # Streamlit 메인 앱
+│   ├── components.py       # UI 컴포넌트
+│   └── data_loader.py      # output/ CSV 로더
 ├── output/                 # 계산 결과물 (Git 제외, 실행 시 자동 생성)
 ├── tests/                  # pytest 테스트
 ├── docs/                   # 설계 문서
@@ -47,6 +52,9 @@ output/*.csv → 웹 대시보드 (읽기 전용)
 ## 개발 명령어
 
 ```bash
+# 웹 대시보드 로컬 실행
+streamlit run web/app.py
+
 # 의존성 설치
 pip install -r requirements.txt
 
