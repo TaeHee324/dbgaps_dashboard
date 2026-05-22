@@ -1,7 +1,0 @@
-{
-  "project": "DBGAPS 포트폴리오 자동화 대시보드",
-  "phase": "dashboard",
-  "description": "웹 대시보드 구현 — 기술스택 결정 후 step 파일 작성",
-  "note": "phase-3 완료 후 Streamlit vs FastAPI+HTML 결정 필요. step 파일은 그때 추가.",
-  "steps": []
-}
