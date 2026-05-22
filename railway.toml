@@ -1,0 +1,6 @@
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "python src/run_sample_engine.py && streamlit run web/app.py --server.address=0.0.0.0 --server.port=$PORT"
+restartPolicyType = "on_failure"
