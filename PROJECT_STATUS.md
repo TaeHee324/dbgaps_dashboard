@@ -123,3 +123,170 @@ streamlit run web/app.py
 # 전체 테스트
 python -m pytest tests/ -q
 ```
+
+---
+
+## Reference-Gated Roadmap
+
+The next plan should use GitHub references as phase-specific validation inputs, not as frameworks to copy wholesale.
+Each phase has a narrow reference target, an explicit adoption scope, and a stop condition.
+
+### Phase 1 - Real Data Reliability
+
+Reference:
+- https://github.com/sharebook-kr/pykrx
+
+Use for:
+- KRX ETF OHLCV collection.
+- Benchmark price collection, especially `069500` KODEX 200.
+- Incremental update behavior for `data/prices_daily.csv`.
+- Handling missing symbols, market holidays, and failed fetches.
+
+Do not use for:
+- Dashboard rendering.
+- Metrics logic.
+- Portfolio or rule logic.
+
+Stop condition:
+- `python src/update_prices.py` can populate real `data/prices_daily.csv`.
+- The engine can run on real price data instead of `data/sample_*.csv`.
+- Benchmark data is available through the same data pipeline.
+
+### Phase 2 - Output Contract Stabilization
+
+Reference:
+- Current `docs/data_schema.md`
+- Current `tests/test_output_schema.py`
+- Long-term architecture reference only: https://github.com/OpenBB-finance/OpenBB
+
+Use for:
+- Locking CSV output schemas before expanding dashboard/report features.
+- Keeping provider, calculation, report, and dashboard responsibilities separate.
+- Deciding whether `sample_backtest.csv` should become a production-neutral name such as `backtest_nav.csv`.
+
+Do not use for:
+- Introducing OpenBB as a dependency.
+- Expanding the project into a large plugin/provider framework.
+
+Stop condition:
+- Output schema tests cover all dashboard-read files.
+- The dashboard reads only `output/` files.
+- Production and sample output filenames are clearly distinguished or intentionally unified.
+
+### Phase 3 - Rebalancing and Turnover Semantics
+
+Reference:
+- https://github.com/pmorissette/bt
+
+Use for:
+- Target-weight rebalance lifecycle.
+- Monthly rebalance flow similar to `RunMonthly -> WeighSpecified -> Rebalance`.
+- Separating turnover definitions.
+
+Definitions to lock:
+- `actual_trade_turnover`: turnover from real `data/trades.csv`.
+- `rebalance_turnover`: theoretical turnover from target-weight backtest rebalancing.
+- `cumulative_turnover`: cumulative turnover over a selected period.
+- `period_turnover`: weekly/monthly rule-check turnover.
+
+Do not use for:
+- Replacing the current pandas engine with `bt`.
+- Adding a generic strategy framework before the ETF MVP is stable.
+
+Stop condition:
+- Turnover CSVs and dashboard labels make the turnover source unambiguous.
+- Weekly/monthly turnover rule checks use the correct turnover definition.
+- Transaction-cost hooks can be added without redefining the backtest output contract.
+
+### Phase 4 - Performance Metrics and Monthly Returns
+
+Reference:
+- https://github.com/ranaroussi/quantstats
+
+Use for:
+- Metric edge cases for CAGR, Sharpe, Calmar, MDD, and drawdown.
+- Monthly return table conventions.
+- Benchmark-relative performance summaries.
+
+Do not use for:
+- Importing QuantStats as a required runtime dependency.
+- Copying the full report/tearsheet framework.
+
+Stop condition:
+- Metrics are stable on real data, short histories, flat NAV, and missing benchmark periods.
+- Monthly returns are exported for dashboard/report use.
+- Benchmark-relative values are either valid numbers or clearly marked unavailable.
+
+### Phase 5 - Dashboard and Chart Outputs
+
+Reference:
+- https://github.com/streamlit/streamlit
+- https://github.com/plotly/plotly.py
+
+Decision:
+- Keep Streamlit + Plotly for interactive dashboard charts.
+- Use `src/charts.py` for report/static PNG outputs only, unless a later ADR changes this.
+
+Use for:
+- Turnover section.
+- Monthly return bar/heatmap.
+- Benchmark comparison in NAV chart.
+- Clear status badges and data-date display.
+
+Do not use for:
+- Running calculations inside `web/`.
+- Importing `src/` from dashboard code.
+- Fetching data from the dashboard process.
+
+Stop condition:
+- Dashboard shows data date, benchmark comparison, turnover, monthly returns, rules, and holdings from `output/` only.
+- `tests/test_boundaries.py` continues to prevent `web/` from importing `src/`.
+
+### Phase 6 - Markdown Monthly Report
+
+Reference:
+- https://github.com/pallets/jinja
+- Later export reference only: https://github.com/jupyter/nbconvert
+
+Use for:
+- Generating `output/report_YYYYMM.md` from stable CSV outputs.
+- Creating a copyable monthly summary for performance, benchmark, drawdown, turnover, rule checks, and holdings.
+
+Do not use for:
+- Premature PDF/HTML export.
+- Notebook-based execution as the primary pipeline.
+
+Stop condition:
+- `src/report_builder.py` creates a deterministic Markdown report from `output/`.
+- The dashboard can display or link the generated report section without recalculating anything.
+
+### Phase 7 - Multi-Portfolio Comparison
+
+Reference:
+- https://github.com/topics/portfolio-analysis
+
+Use for:
+- Comparing multiple `portfolios/*.csv` files.
+- Designing comparison tables for CAGR, MDD, Sharpe, Calmar, benchmark excess return, and turnover.
+- Designing NAV comparison views.
+
+Do not use for:
+- Efficient frontier or optimization features in the MVP.
+- User-editable portfolio management in the dashboard.
+
+Stop condition:
+- Multiple portfolio files can be run through the same engine.
+- Comparison outputs are written to `output/`.
+- Dashboard comparison views remain read-only.
+
+Recommended execution order:
+
+```text
+Phase 1: PyKRX real data + benchmark collection
+Phase 2: output CSV contract stabilization
+Phase 3: bt-inspired rebalancing/turnover semantics
+Phase 4: QuantStats-inspired metric edge cases + monthly returns
+Phase 5: Streamlit/Plotly dashboard expansion
+Phase 6: Jinja2 Markdown monthly report
+Phase 7: Multi-portfolio comparison
+```
