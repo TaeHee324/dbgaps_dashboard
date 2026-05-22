@@ -1,120 +1,167 @@
-# UI_GUIDE — DBGAPS 대시보드
+# UI_GUIDE.md - DBGAPS Streamlit Implementation Guide
 
-## 기술스택
+This guide translates `DESIGN.md` and `DESIGN-LANGUAGE.md` into the current Streamlit dashboard implementation.
 
-- **Python + Streamlit** (단일 프로세스, 배포: Railway)
-- **Plotly** (인터랙티브 차트)
-- 데이터 소스: `output/` 폴더 CSV/JSON만 읽음 — `src/` import 절대 금지 (CRITICAL-1)
+## Stack
 
----
+- Python
+- Streamlit
+- Plotly
+- pandas
+- Data source: generated files under `output/`
 
-## 색상 토큰
+The dashboard must not import `src/`, import `pykrx`, fetch live data, or recalculate portfolio metrics.
 
-| 역할 | 이름 | Hex |
-|------|------|-----|
-| 배경 | Background | `#F8FAFC` |
-| 카드/패널 | Surface | `#FFFFFF` |
-| 본문 텍스트 | Text Primary | `#0F172A` |
-| 보조 텍스트 | Text Secondary | `#64748B` |
-| 구분선/테두리 | Border | `#E2E8F0` |
-| 성공/정상 | Success | `#16A34A` |
-| 위험/위반 | Danger | `#DC2626` |
-| 경고/주의 | Warning | `#D97706` |
-| 정보 | Info | `#2563EB` |
+## File Responsibilities
 
----
-
-## 화면 구성 순서
-
-```
-┌─────────────────────────────────────────────┐
-│ 1. 상태바 (데이터 기준일, 마지막 업데이트)      │
-├─────────────────────────────────────────────┤
-│ 2. KPI Strip (수평 카드 4~6개)               │
-├──────────────────┬──────────────────────────┤
-│ 3. NAV 차트      │ 4. Drawdown 차트          │
-├──────────────────┴──────────────────────────┤
-│ 5. 규칙 체크 패널 (badge 목록)               │
-├─────────────────────────────────────────────┤
-│ 6. 보유현황 표                               │
-└─────────────────────────────────────────────┘
-```
-
-### 1. 상태바
-
-- 데이터 기준일 (`output/` 파일의 최신 날짜)
-- 마지막 업데이트 시각 (파일 수정 타임스탬프)
-- 데이터 없음 → gray badge "데이터 없음"
-
-### 2. KPI Strip
-
-주요 지표를 수평으로 나열한 카드 행. 표시 항목:
-
-| 지표 | 단위 | 낮을수록 좋음 |
-|------|------|--------------|
-| 누적 수익률 | % | X |
-| CAGR | % | X |
-| MDD | % | O (delta 음수 = 나쁨) |
-| 샤프 지수 | — | X |
-| 연간변동성 | % | O |
-| 규칙 위반 수 | 건 | O |
-
-**KPI 카드 규칙**
-
-- 숫자를 크게, 레이블을 작게 표시
-- `delta` (전일/전주 대비)는 숫자 없이 색상만으로 구분
-  - 좋아짐 → Success `#16A34A`
-  - 나빠짐 → Danger `#DC2626`
-- MDD, 위반 수는 `낮을수록 좋음` 기준으로 색상 반전 적용
-
-### 3. NAV 차트
-
-- 기준값 **100** 정규화 (투자 시작일 = 100)
-- 포트폴리오 선 + 벤치마크(069500) 선을 겹쳐 표시
-- 차트 우하단에 **"기준일: YYYY-MM-DD"** 텍스트 표기
-- Plotly `go.Scatter`, `mode="lines"`
-
-### 4. Drawdown 차트
-
-- 음수 영역을 Danger `#DC2626` 반투명 fill로 표시 (`fill="tozeroy"`)
-- x축: 날짜, y축: % (0 이하)
-- 차트 우하단에 **"기준일: YYYY-MM-DD"** 텍스트 표기
-
-### 5. 규칙 체크 패널
-
-badge 규칙:
-
-| 상태 | 색상 | 조건 |
-|------|------|------|
-| 정상 | Success `#16A34A` | 규칙 통과 |
-| 주의 | Warning `#D97706` | 임계값 80% 이상 |
-| 위반 | Danger `#DC2626` | 규칙 초과 |
-| 데이터없음 | Gray `#64748B` | 데이터 부족 |
-
-체크 항목: 개별 ETF 20% 상한 / 위험자산 70% 상한 / 초기 회전율 80% / 주간 회전율 10% / 월간 회전율 10%
-
-### 6. 보유현황 표
-
-표 스타일 규칙:
-
-- 숫자 컬럼 (평가금액, 수익률 등): **우정렬**
-- 비중, 수익률: **퍼센트 포맷** (`{:.1f}%`)
-- ETF 코드: **monospace** 폰트
-- 규칙 위반 행: 배경색 Danger `#DC2626` 10% 투명도로 강조
-
----
-
-## web/ 파일 구조
-
-```
+```text
 web/
-├── app.py           # Streamlit 진입점, 레이아웃 조립, st.set_page_config
-├── data_loader.py   # output/ CSV 읽기 전담, 캐싱(@st.cache_data), 스키마 검증
-└── components.py    # KPI 카드, badge, 차트 함수 모음 (재사용 단위)
+  app.py          # Page composition and layout order
+  components.py   # KPI, status, chart, badge, and table renderers
+  data_loader.py  # Reads output/ files only
+  style.py        # CSS injection, tokens, formatting helpers
 ```
 
-### 역할 분리
+Rules:
+- `app.py` should stay small and orchestration-focused.
+- `components.py` should not read files.
+- `data_loader.py` should not calculate metrics.
+- `style.py` should not load data.
 
-- `app.py`: 화면 순서 정의, `data_loader` 호출, `components` 조합만 담당
-- `data_loader.py`: 파일 읽기/파싱/결측 처리 — 계산 로직 없음
-- `components.py`: Plotly 차트, st.metric 래퍼, badge HTML — 데이터 IO 없음
+## Page Structure
+
+Preferred order:
+
+```text
+1. Compact status bar
+2. KPI strip
+3. NAV vs benchmark chart and drawdown chart
+4. Rules and turnover section
+5. Holdings table
+6. Monthly report summary, when available
+```
+
+## Status Bar
+
+Show:
+- Data freshness.
+- Whether outputs are sample or real data when known.
+- Benchmark code when available.
+- Quiet warning only if required files are missing.
+
+Avoid:
+- Large `st.info` blocks for normal state.
+- Vague copy such as "Data loaded".
+
+## KPI Strip
+
+Recommended KPIs:
+- Cumulative return
+- CAGR
+- MDD
+- Sharpe
+- Annual volatility
+- Benchmark excess return, when available
+
+Rendering rules:
+- Use compact custom metric cards.
+- Values use tabular numerals.
+- Percentages use consistent precision.
+- Missing values render as `N/A`.
+- Risk metrics explain direction where needed.
+
+## Charts
+
+NAV chart:
+- Normalize portfolio and benchmark to 100.
+- Use portfolio as primary indigo line.
+- Use benchmark as muted dashed or secondary line.
+- Include benchmark code in legend.
+
+Drawdown chart:
+- Show negative drawdown below zero.
+- Use restrained danger fill.
+- Avoid large chart titles inside the Plotly frame; prefer surrounding section labels.
+
+Monthly returns:
+- Use bar or heatmap only after monthly return output exists.
+- Do not calculate monthly returns inside `web/` if the engine can export them.
+
+## Rules And Turnover
+
+Rules:
+- Individual ETF 20% limit.
+- Risk asset 70% limit.
+- Initial turnover 80% limit.
+- Weekly turnover 10% limit.
+- Monthly turnover 10% limit.
+
+Display each item with:
+- Name.
+- Current value.
+- Limit.
+- Status: pass, warning, fail, or no data.
+
+Turnover labels must distinguish:
+- Actual trade turnover.
+- Rebalance turnover.
+- Cumulative turnover.
+- Period turnover.
+
+## Holdings Table
+
+Required behavior:
+- Keep ETF code visible.
+- Format quantities, prices, market value, unrealized PnL, return, and current weight.
+- Use concise column names.
+- Avoid garbled labels.
+- Allow horizontal scroll on narrow screens.
+
+Preferred column order:
+
+```text
+code, name, quantity, avg_price, current_price, market_value,
+current_weight, unrealized_pnl, unrealized_return, risk_type, asset_class
+```
+
+## CSS And Tokens
+
+Use `design-tokens.json` as the source for:
+- Colors.
+- Radius.
+- Spacing.
+- Shadows.
+- Numeric typography.
+
+`web/style.py` should expose:
+- `inject_global_style()`
+- color constants or token lookup helpers
+- formatting helpers for percent, amount, ratio, and date labels
+
+## Responsive Rules
+
+Desktop:
+- KPI strip can use 5 or 6 columns.
+- NAV and drawdown can sit side by side.
+- Rules and turnover may sit side by side.
+
+Tablet/mobile:
+- Stack charts vertically.
+- Use one or two KPI columns depending on width.
+- Tables may scroll horizontally.
+- Avoid long status text in badges.
+
+## Implementation Guardrails
+
+- Do not add new UI dependencies before proving Streamlit + Plotly cannot handle the job.
+- Do not introduce React, Tailwind, or shadcn into this Streamlit app.
+- Do not copy Stripe or StyleSeed components directly.
+- Do not use live data requests in the dashboard.
+- Do not modify `output/` manually to make UI examples work.
+
+## Done Criteria
+
+- The UI follows `DESIGN.md`.
+- The UI passes `QA_CHECKLIST.md`.
+- Boundary tests continue to pass.
+- The dashboard remains read-only and output-driven.
