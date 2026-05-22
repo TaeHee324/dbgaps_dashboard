@@ -5,6 +5,8 @@ import streamlit as st
 _DANGER = "#DC2626"
 _SUCCESS = "#16A34A"
 _WARNING = "#D97706"
+_PRIMARY = "#533AFD"
+_INK_SECONDARY = "#64748B"
 
 
 def render_status_bar(data_date: str):
@@ -196,6 +198,72 @@ def render_drawdown_chart(backtest_df: pd.DataFrame) -> go.Figure:
     return fig
 
 
+def render_comparison_table(summary_df: pd.DataFrame):
+    if summary_df.empty:
+        return
+
+    df = summary_df.copy()
+    for column in ["cagr", "mdd"]:
+        if column in df.columns:
+            df[column] = df[column] * 100
+
+    rename = {
+        "portfolio_name": "포트폴리오",
+        "cagr": "CAGR",
+        "mdd": "MDD",
+        "sharpe": "샤프",
+        "calmar": "칼마",
+    }
+    df = df.rename(columns={key: value for key, value in rename.items() if key in df.columns})
+
+    st.dataframe(
+        df,
+        column_config={
+            "CAGR": st.column_config.NumberColumn("CAGR", format="%.2f%%"),
+            "MDD": st.column_config.NumberColumn("MDD", format="%.2f%%"),
+            "샤프": st.column_config.NumberColumn("샤프", format="%.2f"),
+            "칼마": st.column_config.NumberColumn("칼마", format="%.2f"),
+        },
+        hide_index=True,
+        use_container_width=True,
+    )
+
+
+def render_comparison_nav_chart(nav_dict: dict[str, pd.DataFrame]) -> go.Figure:
+    fig = go.Figure()
+    if not nav_dict:
+        return fig
+
+    palette = [_PRIMARY, "#2563EB", _SUCCESS, _WARNING, _DANGER, _INK_SECONDARY]
+    for index, (portfolio_name, df) in enumerate(nav_dict.items()):
+        if df.empty or "portfolio_value" not in df.columns:
+            continue
+
+        base = df["portfolio_value"].iloc[0]
+        if base == 0:
+            continue
+        x = df["date"] if "date" in df.columns else df.index
+        nav = df["portfolio_value"] / base * 100
+        fig.add_trace(
+            go.Scatter(
+                x=x,
+                y=nav,
+                mode="lines",
+                name=portfolio_name,
+                line=dict(color=palette[index % len(palette)], width=2),
+            )
+        )
+
+    fig.update_layout(
+        yaxis_title="NAV (기준 100)",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02),
+        margin=dict(l=0, r=0, t=32, b=0),
+        plot_bgcolor="#F8FAFC",
+        paper_bgcolor="#FFFFFF",
+    )
+    return fig
+
+
 def render_rule_badges(rule_dict: dict):
     if not rule_dict:
         st.warning("규칙 데이터 없음")
@@ -269,3 +337,15 @@ def render_holdings_table(holdings_df: pd.DataFrame):
         },
         hide_index=True,
     )
+
+
+def render_report_section(report_text: str | None):
+    st.subheader("월간보고서")
+
+    if not report_text:
+        st.info("보고서 없음")
+        return
+
+    st.markdown(report_text)
+    if st.button("복사", key="copy_monthly_report"):
+        st.code(report_text, language="markdown")

@@ -46,6 +46,29 @@ def load_monthly_returns() -> pd.DataFrame:
 
 
 @st.cache_data(ttl=300)
+def load_comparison_summary() -> pd.DataFrame:
+    path = OUTPUT_DIR / "comparison" / "summary.csv"
+    if not path.exists():
+        return pd.DataFrame()
+    return pd.read_csv(path)
+
+
+@st.cache_data(ttl=300)
+def load_comparison_nav() -> dict[str, pd.DataFrame]:
+    comparison_dir = OUTPUT_DIR / "comparison"
+    if not comparison_dir.exists():
+        return {}
+
+    nav_by_portfolio = {}
+    for path in sorted(comparison_dir.glob("*_nav.csv")):
+        df = pd.read_csv(path)
+        if not df.empty and "date" in df.columns:
+            df["date"] = pd.to_datetime(df["date"])
+        nav_by_portfolio[path.name.removesuffix("_nav.csv")] = df
+    return nav_by_portfolio
+
+
+@st.cache_data(ttl=300)
 def load_rule_results() -> dict[str, pd.DataFrame]:
     return {
         "individual": _read("rule_individual_etf.csv"),
@@ -60,6 +83,14 @@ def load_turnover() -> dict[str, pd.DataFrame]:
         "weekly": _read("turnover_weekly.csv"),
         "monthly": _read("turnover_monthly.csv"),
     }
+
+
+@st.cache_data(ttl=300)
+def load_report() -> str | None:
+    reports = sorted(OUTPUT_DIR.glob("report_*.md"))
+    if not reports:
+        return None
+    return reports[-1].read_text(encoding="utf-8")
 
 
 @st.cache_data(ttl=300)

@@ -12,6 +12,9 @@ from data_loader import (
     load_rule_results,
     load_turnover,
     load_monthly_returns,
+    load_report,
+    load_comparison_summary,
+    load_comparison_nav,
 )
 from components import (
     render_status_bar,
@@ -22,6 +25,9 @@ from components import (
     render_rule_badges,
     render_monthly_returns_chart,
     render_holdings_table,
+    render_report_section,
+    render_comparison_table,
+    render_comparison_nav_chart,
 )
 
 st.set_page_config(page_title="DBGAPS Dashboard", layout="wide")
@@ -37,6 +43,9 @@ holdings = load_current_holdings()
 rules = load_rule_results()
 turnover = load_turnover()
 monthly_returns = load_monthly_returns()
+report_text = load_report()
+comparison_summary = load_comparison_summary()
+comparison_nav = load_comparison_nav()
 
 
 def _get_backtest_data_date(backtest_df):
@@ -63,4 +72,11 @@ render_rule_badges({
 
 st.plotly_chart(render_monthly_returns_chart(monthly_returns), use_container_width=True)
 
+if not comparison_summary.empty and comparison_nav:
+    with st.expander("포트폴리오 비교", expanded=True):
+        render_comparison_table(comparison_summary)
+        st.plotly_chart(render_comparison_nav_chart(comparison_nav), use_container_width=True)
+
 render_holdings_table(holdings)
+
+render_report_section(report_text)
