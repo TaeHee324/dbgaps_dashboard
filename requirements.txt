@@ -2,3 +2,5 @@ pandas>=2.0
 pykrx>=1.0.0
 pytest>=8.0
 matplotlib>=3.8
+streamlit>=1.35
+plotly>=5.0
