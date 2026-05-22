@@ -1,28 +1,35 @@
-이 프로젝트의 변경 사항을 리뷰하라.
+# Review Command
 
-먼저 다음 문서들을 읽어라:
+Review the project changes for correctness, architecture, tests, and UI quality.
+
+Read first:
+
 - `/CLAUDE.md`
 - `/docs/ARCHITECTURE.md`
 - `/docs/ADR.md`
 
-그런 다음 변경된 파일들을 확인하고, 아래 체크리스트로 검증하라:
+If any changed file is under `web/`, or if the change affects dashboard UI, UX, frontend copy, charts, tables, visual styling, or user-facing labels, also read:
 
-## 체크리스트
+- `/DESIGN.md`
+- `/DESIGN-LANGUAGE.md`
+- `/docs/UI_GUIDE.md`
+- `/design-tokens.json`
+- `/QA_CHECKLIST.md`
 
-1. **아키텍처 준수**: ARCHITECTURE.md에 정의된 디렉토리 구조를 따르고 있는가?
-2. **기술 스택 준수**: ADR에 정의된 기술 선택을 벗어나지 않았는가?
-3. **테스트 존재**: 새로운 기능에 대한 테스트가 작성되어 있는가?
-4. **CRITICAL 규칙**: CLAUDE.md의 CRITICAL 규칙을 위반하지 않았는가?
-5. **빌드 가능**: `python -m pytest tests/ -q`가 에러 없이 통과하는가?
+## Checklist
 
-## 출력 형식
+| Item | Result | Notes |
+|------|--------|-------|
+| Architecture alignment | PASS/FAIL | Does the change follow the documented directory and module boundaries? |
+| ADR alignment | PASS/FAIL | Does the change respect existing architecture decisions? |
+| Critical boundary rules | PASS/FAIL | Does `web/` avoid importing `src` or `pykrx`? |
+| Tests | PASS/FAIL | Are relevant tests present and passing? |
+| Output contract | PASS/FAIL | Are generated output schemas preserved or intentionally updated with tests/docs? |
+| Design authority | PASS/FAIL/N/A | For UI work, does the change follow `DESIGN.md` and `DESIGN-LANGUAGE.md`? |
+| Streamlit guide | PASS/FAIL/N/A | For UI work, does the change follow `docs/UI_GUIDE.md` responsibilities? |
+| UI QA checklist | PASS/FAIL/N/A | For UI work, were relevant `QA_CHECKLIST.md` items checked? |
+| Labels and financial context | PASS/FAIL/N/A | Are labels readable, non-garbled, and clear about units/source date? |
 
-| 항목 | 결과 | 비고 |
-|------|------|------|
-| 아키텍처 준수 | ✅/❌ | {상세} |
-| 기술 스택 준수 | ✅/❌ | {상세} |
-| 테스트 존재 | ✅/❌ | {상세} |
-| CRITICAL 규칙 | ✅/❌ | {상세} |
-| 빌드 가능 | ✅/❌ | {상세} |
+Flag architecture, data-integrity, and boundary violations before visual polish issues.
 
-위반 사항이 있으면 수정 방안을 구체적으로 제시하라.
+If there are findings, list them first with file and line references where possible. If no issues are found, say so and mention any remaining test or visual QA gaps.

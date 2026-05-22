@@ -1,32 +1,86 @@
-# Harness Framework 워크플로우 가이드
+# Harness Workflow Guide
 
-이 문서는 Harness 프레임워크를 사용한 프로젝트 관리의 5단계 워크플로우를 설명합니다.
+Use this guide when creating or updating project phases under `phases/`.
 
-## 핵심 단계
+## Required Reading
 
-**A. 탐색** — `/docs/` 하위의 PRD, ARCHITECTURE, ADR 등을 읽어 기획과 아키텍처를 파악합니다.
+For any phase:
 
-**B. 논의** — 구현 결정사항이 필요하면 사용자와 협의합니다.
+- `/CLAUDE.md`
+- `/docs/PRD.md`
+- `/docs/ARCHITECTURE.md`
+- `/docs/ADR.md`
+- `/docs/data_schema.md`
+- `/PROJECT_STATUS.md`
 
-**C. Step 설계** — 여러 단계로 나뉜 구현 계획 초안을 작성하고 피드백을 받습니다. 설계 원칙은 다음과 같습니다:
+For any UI, UX, dashboard, Streamlit, chart, table, frontend-copy, or visual-design phase, also read:
 
-- 각 step은 하나의 레이어만 다룸 (scope 최소화)
-- 각 step은 독립적으로 실행 가능해야 함 (자기완결성)
-- 관련 문서와 파일 경로를 명시 (사전 준비)
-- 함수 인터페이스만 제시, 구현은 에이전트 재량 (시그니처 수준)
-- "실행 가능한 커맨드"로 검증 (AC)
-- 금지사항은 "X를 하지 마라. 이유: Y" 형식 (구체성)
+- `/DESIGN.md`
+- `/DESIGN-LANGUAGE.md`
+- `/docs/UI_GUIDE.md`
+- `/design-tokens.json`
+- `/QA_CHECKLIST.md`
 
-**D. 파일 생성** — 승인 후 다음 파일들을 생성합니다:
+## Workflow
 
-- `phases/index.json` — 전체 phase 현황
-- `phases/{phase-dir}/index.json` — phase별 상세 및 step 목록
-- `phases/{phase-dir}/step{N}.md` — 각 step의 구체적 지시사항
+### A. Explore
 
-**E. 실행** — `execute.py`가 브랜치 생성, 가드레일 주입, 컨텍스트 누적, 자가 교정, 타임스탬프 기록을 자동으로 처리합니다.
+Read the required project documents and identify the relevant module boundaries.
+
+For UI work, explicitly record which design files apply and what constraints they impose.
+
+### B. Clarify
+
+Resolve implementation decisions before writing steps.
+
+Important questions:
+
+- Does this change touch calculation, data collection, generated outputs, or dashboard rendering?
+- Does this change require an output schema update?
+- Does this change preserve `web/` reading from `output/` only?
+- For UI work, does the change follow `DESIGN.md` and `DESIGN-LANGUAGE.md`?
+
+### C. Step Design
+
+Each step should:
+
+- Be small and independently executable.
+- Name the files it expects to read.
+- Name the files it may edit.
+- Include acceptance criteria.
+- Include forbidden actions with reasons.
+- Include validation commands where possible.
+
+For UI steps, acceptance criteria must include:
+
+- Relevant `QA_CHECKLIST.md` items.
+- No `web/` import from `src`.
+- No `web/` import from `pykrx`.
+- No live data fetching from dashboard code.
+- No garbled labels in edited UI areas.
+
+### D. File Generation
+
+Create or update:
+
+- `phases/index.json`
+- `phases/{phase-dir}/index.json`
+- `phases/{phase-dir}/step{N}.md`
+
+### E. Execution
+
+Run phases with:
 
 ```bash
-# ANTHROPIC_API_KEY 환경변수 설정 후 실행
 python scripts/execute.py <phase-dir>
 python scripts/execute.py <phase-dir> --push
 ```
+
+## Review Gate
+
+Before considering a phase complete:
+
+- Run or document relevant tests.
+- Check architecture boundaries.
+- For UI work, check `QA_CHECKLIST.md`.
+- Update `PROJECT_STATUS.md` if the phase changes roadmap state.
