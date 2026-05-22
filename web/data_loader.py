@@ -29,7 +29,7 @@ def load_current_holdings() -> pd.DataFrame:
 
 @st.cache_data(ttl=300)
 def load_backtest_nav() -> pd.DataFrame:
-    df = _read("sample_backtest.csv")
+    df = _read("backtest_nav.csv")
     if not df.empty and "date" in df.columns:
         df["date"] = pd.to_datetime(df["date"])
     return df

@@ -8,8 +8,8 @@ It uses ``pykrx`` when available. Install it in the project environment with:
 
     pip install pykrx pandas
 
-The first implementation intentionally stores only daily closes because the
-backtesting and dashboard plan currently depends on close-to-close returns.
+Only this module should perform KRX network requests. Downstream calculation
+modules consume the generated CSV with pandas only.
 """
 
 from __future__ import annotations
@@ -33,6 +33,7 @@ ROOT = Path(__file__).resolve().parents[1]
 ETF_MASTER_PATH = ROOT / "data" / "etf_master.csv"
 PRICES_DAILY_PATH = ROOT / "data" / "prices_daily.csv"
 PRICE_COLUMNS = ["date", "code", "close"]
+BENCHMARK_CODE = "069500"
 
 
 def parse_yyyymmdd(value: str) -> date:
@@ -45,7 +46,10 @@ def compact_day(value: date) -> str:
 
 def load_codes(master_path: Path = ETF_MASTER_PATH) -> list[str]:
     master = pd.read_csv(master_path, dtype={"code": str})
-    return master["code"].str.zfill(6).dropna().drop_duplicates().tolist()
+    codes = master["code"].str.zfill(6).dropna().drop_duplicates().tolist()
+    if BENCHMARK_CODE not in codes:
+        codes.append(BENCHMARK_CODE)
+    return codes
 
 
 def load_existing_prices(path: Path = PRICES_DAILY_PATH) -> pd.DataFrame:
@@ -57,7 +61,8 @@ def load_existing_prices(path: Path = PRICES_DAILY_PATH) -> pd.DataFrame:
     prices = prices[PRICE_COLUMNS].copy()
     prices["code"] = prices["code"].str.zfill(6)
     prices["date"] = pd.to_datetime(prices["date"]).dt.strftime("%Y-%m-%d")
-    return prices
+    prices["close"] = pd.to_numeric(prices["close"], errors="coerce")
+    return prices.dropna(subset=["date", "code", "close"])
 
 
 def next_start_date(existing: pd.DataFrame, code: str, default_start: date) -> date:
@@ -78,18 +83,20 @@ def fetch_daily_close(code: str, start: date, end: date) -> pd.DataFrame:
 
     raw = stock.get_etf_ohlcv_by_date(compact_day(start), compact_day(end), code)
     if raw.empty:
+        raw = stock.get_market_ohlcv_by_date(compact_day(start), compact_day(end), code)
+    if raw.empty:
         return pd.DataFrame(columns=PRICE_COLUMNS)
 
-    close_col = "종가"
-    if close_col not in raw.columns:
-        raise ValueError(f"Unexpected pykrx columns for {code}: {list(raw.columns)}")
+    close_col = next((column for column in ("종가", "close", "Close") if column in raw.columns), None)
+    if close_col is None:
+        raise ValueError(f"unexpected pykrx columns for {code}: {list(raw.columns)}")
 
-    frame = raw.reset_index()[["날짜", close_col]].rename(
-        columns={"날짜": "date", close_col: "close"}
-    )
+    frame = raw.reset_index().rename(columns={raw.index.name or "index": "date", close_col: "close"})
+    frame = frame[["date", "close"]]
     frame["date"] = pd.to_datetime(frame["date"]).dt.strftime("%Y-%m-%d")
     frame["code"] = code
-    return frame[PRICE_COLUMNS]
+    frame["close"] = pd.to_numeric(frame["close"], errors="coerce")
+    return frame[PRICE_COLUMNS].dropna(subset=["date", "close"])
 
 
 def update_prices(
@@ -109,7 +116,16 @@ def update_prices(
             print(f"skip {code}: already up to date")
             continue
         print(f"fetch {code}: {code_start} to {end}")
-        fetched_frames.append(fetch_daily_close(code, code_start, end))
+        try:
+            fetched = fetch_daily_close(code, code_start, end)
+        except Exception as exc:  # pragma: no cover - network/provider dependent
+            print(f"error {code}: {exc}")
+            continue
+        if fetched.empty:
+            print(f"empty {code}: no rows returned")
+            continue
+        print(f"ok {code}: {len(fetched)} rows")
+        fetched_frames.append(fetched)
 
     if fetched_frames:
         combined = pd.concat([existing, *fetched_frames], ignore_index=True)
@@ -143,9 +159,17 @@ def main() -> None:
     start = parse_yyyymmdd(args.start)
     end = parse_yyyymmdd(args.end)
     codes = args.code or load_codes()
-    update_prices(codes, start, end, dry_run=args.dry_run)
+    if BENCHMARK_CODE not in codes:
+        codes = [*codes, BENCHMARK_CODE]
+    prices = update_prices(codes, start, end, dry_run=args.dry_run)
+    if prices.empty:
+        print("done: no price rows available")
+    else:
+        min_date = prices["date"].min()
+        max_date = prices["date"].max()
+        code_count = prices["code"].nunique()
+        print(f"done: {len(prices)} rows, {code_count} codes, {min_date} to {max_date}")
 
 
 if __name__ == "__main__":
     main()
-

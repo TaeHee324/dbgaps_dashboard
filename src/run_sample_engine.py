@@ -27,7 +27,7 @@ def main() -> None:
     summary = summarize_backtest(backtest, benchmark)
 
     pd.DataFrame([summary]).to_csv(OUTPUT / "portfolio_summary.csv", index=False)
-    backtest.to_csv(OUTPUT / "sample_backtest.csv", index=False)
+    backtest.to_csv(OUTPUT / "backtest_nav.csv", index=False)
 
     trades = load_trades(DATA / "trades.csv")
     etf_master = pd.read_csv(DATA / "sample_etf_master.csv", dtype={"code": str})
