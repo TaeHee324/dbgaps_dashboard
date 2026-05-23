@@ -1,6 +1,0 @@
-rule,code,name,current_weight,limit,excess,passed,risky_weight
-individual_etf_limit,069500,KODEX 200,0.4357436119423994,0.2,0.2357436119423994,False,
-individual_etf_limit,360750,TIGER 미국S&P500,0.2748889887068886,0.2,0.07488898870688859,False,
-individual_etf_limit,148070,KOSEF 국고채10년,0.18224194307058827,0.2,-0.017758056929411736,True,
-individual_etf_limit,411060,ACE KRX금현물,0.10712545628012372,0.2,-0.09287454371987629,True,
-risk_asset_limit,,,,0.7,0.11775805692941177,False,0.8177580569294117
