@@ -171,11 +171,68 @@ def sharpe_ratio(
     return float(excess.mean() / volatility * math.sqrt(periods_per_year))
 
 
-def calmar_ratio(nav: pd.Series, periods_per_year: int = TRADING_DAYS_PER_YEAR) -> float | None:
-    max_drawdown = abs(mdd(nav))
+def calmar_ratio(
+    cagr_value: float | pd.Series,
+    mdd_value: float | None = None,
+    periods_per_year: int = TRADING_DAYS_PER_YEAR,
+) -> float | None:
+    if isinstance(cagr_value, pd.Series):
+        max_drawdown = abs(mdd(cagr_value))
+        if max_drawdown == 0:
+            return None
+        return float(cagr(cagr_value, periods_per_year=periods_per_year) / max_drawdown)
+    if mdd_value is None or pd.isna(cagr_value) or pd.isna(mdd_value):
+        return None
+    max_drawdown = abs(mdd_value)
     if max_drawdown == 0:
         return None
-    return float(cagr(nav, periods_per_year=periods_per_year) / max_drawdown)
+    return float(cagr_value / max_drawdown)
+
+
+def sortino_ratio(returns: pd.Series, risk_free: float = 0.0) -> float | None:
+    clean = pd.to_numeric(returns, errors="coerce").dropna()
+    if len(clean) < 2:
+        return None
+    downside = clean[clean < 0]
+    downside_volatility = downside.std(ddof=1) * math.sqrt(TRADING_DAYS_PER_YEAR)
+    if pd.isna(downside_volatility) or downside_volatility == 0:
+        return None
+    excess_return = (clean.mean() - risk_free / TRADING_DAYS_PER_YEAR) * TRADING_DAYS_PER_YEAR
+    return float(excess_return / downside_volatility)
+
+
+def mdd_duration(nav_series: pd.Series) -> int:
+    clean = pd.to_numeric(nav_series, errors="coerce").dropna()
+    if clean.empty:
+        return 0
+
+    running_peak = clean.cummax()
+    drawdown = clean / running_peak - 1
+    trough_pos = int(drawdown.values.argmin())
+    peak_value = running_peak.iloc[trough_pos]
+    peak_window = clean.iloc[: trough_pos + 1]
+    peak_label = peak_window[peak_window == peak_value].index[-1]
+    peak_loc = clean.index.get_loc(peak_label)
+
+    recovery = clean.iloc[trough_pos:][clean.iloc[trough_pos:] >= peak_value]
+    end_label = recovery.index[0] if not recovery.empty else clean.index[-1]
+    end_loc = clean.index.get_loc(end_label)
+    if isinstance(clean.index, pd.DatetimeIndex):
+        return int((end_label - peak_label).days)
+    return int(end_loc - peak_loc)
+
+
+def win_rate_monthly(nav_series: pd.Series) -> float | None:
+    clean = pd.to_numeric(nav_series, errors="coerce").dropna()
+    if len(clean) < 2:
+        return None
+    if not isinstance(clean.index, pd.DatetimeIndex):
+        return None
+    monthly_nav = clean.resample("ME").last()
+    monthly = monthly_nav.pct_change().dropna()
+    if monthly.empty:
+        return None
+    return float((monthly > 0).mean())
 
 
 def monthly_returns(backtest_result: pd.DataFrame) -> pd.DataFrame:
@@ -228,5 +285,8 @@ def summarize_performance(
             periods_per_year=periods_per_year,
             input_type="returns",
         ),
-        calmar=calmar_ratio(nav, periods_per_year=periods_per_year),
+        calmar=calmar_ratio(
+            cagr(nav, periods_per_year=periods_per_year),
+            mdd(nav),
+        ),
     )

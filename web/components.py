@@ -47,7 +47,7 @@ def render_kpi_strip(summary_df: pd.DataFrame):
         st.metric("Beta", f"{val:.2f}" if val is not None else "—")
 
 
-def render_nav_chart(backtest_df: pd.DataFrame) -> go.Figure:
+def render_nav_chart(backtest_df: pd.DataFrame, trade_log: list | None = None) -> go.Figure:
     if backtest_df.empty or "portfolio_value" not in backtest_df.columns:
         st.warning("NAV 데이터 없음")
         return go.Figure()
@@ -82,9 +82,69 @@ def render_nav_chart(backtest_df: pd.DataFrame) -> go.Figure:
             name="Benchmark",
             line=dict(color="#64748B", width=1.5, dash="dash"),
         ))
-    else:
-        # 벤치마크 데이터 없음
-        pass
+
+    if trade_log:
+        df_nav = df.copy()
+        df_nav["_nav"] = nav.values
+        if "date" in df_nav.columns:
+            df_nav = df_nav.set_index("date")
+        date_min = df_nav.index.min()
+        date_max = df_nav.index.max()
+
+        buy_x, buy_y, buy_text = [], [], []
+        sell_x, sell_y, sell_text = [], [], []
+
+        for trade in trade_log:
+            try:
+                trade_date = pd.to_datetime(trade["date"])
+            except (KeyError, ValueError, TypeError):
+                continue
+
+            if trade_date < date_min or trade_date > date_max:
+                continue
+
+            nearest = df_nav.index[abs(df_nav.index - trade_date).argmin()]
+            nav_val = df_nav.loc[nearest, "_nav"]
+            hover = f"{trade.get('etf_name', trade.get('etf_code', ''))} · {trade.get('reason', '')}"
+            action = trade.get("action", "")
+            line_color = _SUCCESS if action == "buy" else _DANGER
+
+            fig.add_shape(
+                type="line",
+                x0=trade_date, x1=trade_date,
+                y0=0, y1=1,
+                xref="x", yref="paper",
+                line=dict(color=line_color, width=1, dash="dot"),
+            )
+
+            if action == "buy":
+                buy_x.append(trade_date)
+                buy_y.append(nav_val)
+                buy_text.append(hover)
+            elif action == "sell":
+                sell_x.append(trade_date)
+                sell_y.append(nav_val)
+                sell_text.append(hover)
+
+        if buy_x:
+            fig.add_trace(go.Scatter(
+                x=buy_x, y=buy_y,
+                mode="markers",
+                name="매수",
+                marker=dict(symbol="triangle-up", size=10, color=_SUCCESS),
+                text=buy_text,
+                hovertemplate="%{text}<extra></extra>",
+            ))
+
+        if sell_x:
+            fig.add_trace(go.Scatter(
+                x=sell_x, y=sell_y,
+                mode="markers",
+                name="매도",
+                marker=dict(symbol="triangle-down", size=10, color=_DANGER),
+                text=sell_text,
+                hovertemplate="%{text}<extra></extra>",
+            ))
 
     fig.update_layout(
         yaxis_title="NAV (기준 100)",

@@ -1,9 +1,22 @@
+import json
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import streamlit as st
+
+_TRADE_LOG_PATH = Path(__file__).parent.parent.parent / "data" / "trade_log.json"
+
+
+def _load_trade_log() -> list:
+    if not _TRADE_LOG_PATH.exists():
+        return []
+    try:
+        data = json.loads(_TRADE_LOG_PATH.read_text(encoding="utf-8"))
+        return data if isinstance(data, list) else []
+    except (json.JSONDecodeError, OSError):
+        return []
 
 from data_loader import (
     load_portfolio_summary,
@@ -44,6 +57,7 @@ monthly_returns = load_monthly_returns()
 report_text = load_report()
 comparison_summary = load_comparison_summary()
 comparison_nav = load_comparison_nav()
+trade_log = _load_trade_log()
 
 
 def _get_backtest_data_date(backtest_df):
@@ -57,7 +71,7 @@ render_kpi_strip(summary)
 
 col1, col2 = st.columns(2)
 with col1:
-    st.plotly_chart(render_nav_chart(backtest), use_container_width=True)
+    st.plotly_chart(render_nav_chart(backtest, trade_log=trade_log), use_container_width=True)
 with col2:
     st.plotly_chart(render_drawdown_chart(backtest), use_container_width=True)
 
