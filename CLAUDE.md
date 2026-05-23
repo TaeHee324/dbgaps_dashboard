@@ -37,14 +37,17 @@ Design authority order:
 - pykrx only for ETF price collection in `src/update_prices.py`
 - matplotlib for static chart output
 - Streamlit >= 1.35 and Plotly >= 5.0 for dashboard UI
-- CSV files as the primary storage format
+- CSV files as the primary storage format for prices and trade history
+- PostgreSQL (via Railway) for portfolio definitions; accessed through `db.py`
+- psycopg2-binary + python-dotenv for database connectivity
 - Railway deployment for Streamlit
 
 ## Repository Layout
 
 ```text
 data/                   Input CSV files managed in Git
-portfolios/             Portfolio weight definitions
+portfolios/             Portfolio weight definitions (seed CSVs only; live data in PostgreSQL)
+db.py                   Shared PostgreSQL module; imported by src/run_engine.py and web/pages/
 src/                    Calculation engine
 web/                    Streamlit dashboard; reads output/ only
 output/                 Generated results; do not manually edit for UI convenience
@@ -68,6 +71,8 @@ Expected `src/` roles:
 Expected `web/` roles:
 
 - `app.py`: page composition and layout
+- `홈.py`: home page (NAV chart, trade log summary)
+- `pages/0_운용현황.py` through `pages/5_운용보고서.py`: six feature pages
 - `components.py`: Streamlit and Plotly UI components
 - `data_loader.py`: reads generated `output/` files only
 - `style.py`: CSS, visual tokens, and formatting helpers when added
@@ -78,6 +83,8 @@ Expected `web/` roles:
 
 Dashboard code must not directly import calculation modules from `src/`.
 It must read generated CSV/JSON artifacts from `output/`.
+Exception: `web/` may import `db` (root-level `db.py`) for portfolio read/write operations.
+`db.py` is a shared module, not part of the calculation engine.
 
 Reason: calculation and UI must remain deployable and testable independently.
 
@@ -124,13 +131,27 @@ output/*.csv -> web/ dashboard
 - Initial turnover limit: `80%`
 - Weekly/monthly turnover limit: `10%`
 
+## Environment Setup
+
+Copy `.env.example` to `.env` and set `DATABASE_URL` to the Railway external (TCP proxy) URL:
+
+```bash
+cp .env.example .env
+# Edit .env: DATABASE_URL=postgresql://postgres:<password>@monorail.proxy.rlwy.net:<port>/railway
+# Find the external URL in: Railway console → PostgreSQL service → Connect → Public Network
+```
+
+Without `DATABASE_URL`, `run_engine.py` and the ETF portfolio page will fail.
+
 ## Development Commands
 
 ```bash
-streamlit run web/app.py
 pip install -r requirements.txt
+cp .env.example .env              # then fill in DATABASE_URL
+streamlit run web/app.py
 python src/update_prices.py
-python src/run_sample_engine.py
+python src/run_engine.py          # production engine (real data → output/)
+python src/run_sample_engine.py   # sample data engine (test/dev use)
 python -m pytest tests/ -q
 python scripts/execute.py <phase-dir>
 ```
