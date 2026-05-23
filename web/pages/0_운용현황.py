@@ -1,8 +1,5 @@
 import json
-import sys
 from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import streamlit as st
 
@@ -42,11 +39,6 @@ from components import (
     render_comparison_table,
     render_comparison_nav_chart,
 )
-
-with st.sidebar:
-    if st.button("데이터 새로고침"):
-        st.cache_data.clear()
-        st.rerun()
 
 summary = load_portfolio_summary()
 backtest = load_backtest_nav()

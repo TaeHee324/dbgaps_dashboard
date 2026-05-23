@@ -1,15 +1,9 @@
-import sys
-from pathlib import Path
-
 import pandas as pd
 import streamlit as st
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from data_loader import load_comparison_nav, load_comparison_summary
 from components import render_comparison_nav_chart, render_comparison_table
 
-st.set_page_config(page_title="포트폴리오 비교", layout="wide")
 st.title("포트폴리오 비교")
 
 summary_df = load_comparison_summary()

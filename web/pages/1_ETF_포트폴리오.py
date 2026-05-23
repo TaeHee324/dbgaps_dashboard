@@ -198,7 +198,6 @@ def _nav_chart(bt_result: pd.DataFrame) -> go.Figure:
 
 # ── page ──────────────────────────────────────────────────────────────────────
 
-st.set_page_config(layout="wide")
 st.title("ETF & 포트폴리오")
 
 prices_raw = _load_prices_raw()
