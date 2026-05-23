@@ -388,7 +388,11 @@ with right:
 
         st.divider()
         st.subheader("포트폴리오 저장")
-        save_name = st.text_input("이름", placeholder="예: my_portfolio", key="save_name")
+        if "last_saved" in st.session_state:
+            st.success(f"저장 완료: {st.session_state['last_saved']}")
+
+        save_name_key = f"save_name_{st.session_state.get('save_name_version', 0)}"
+        save_name = st.text_input("이름", placeholder="예: my_portfolio", key=save_name_key)
         clean = save_name.strip()
         is_protected = bool(clean) and clean.lower() in _PROTECTED_NAMES
         overwrite_ok = False
@@ -397,9 +401,15 @@ with right:
             overwrite_ok = st.checkbox("덮어쓰기 확인", key="overwrite_confirm")
         save_disabled = not clean or (is_protected and not overwrite_ok)
         if st.button("저장", disabled=save_disabled, key="save_btn"):
-            PORTFOLIOS_DIR.mkdir(exist_ok=True)
-            pd.DataFrame({
-                "code": bt_inputs["codes"],
-                "weight": [bt_inputs["weights"][c] for c in bt_inputs["codes"]],
-            }).to_csv(PORTFOLIOS_DIR / f"{clean}.csv", index=False)
-            st.success(f"portfolios/{clean}.csv 저장 완료")
+            try:
+                PORTFOLIOS_DIR.mkdir(exist_ok=True)
+                save_path = PORTFOLIOS_DIR / f"{clean}.csv"
+                pd.DataFrame({
+                    "code": bt_inputs["codes"],
+                    "weight": [bt_inputs["weights"][c] for c in bt_inputs["codes"]],
+                }).to_csv(save_path, index=False)
+                st.session_state["last_saved"] = str(save_path)
+                st.session_state["save_name_version"] = st.session_state.get("save_name_version", 0) + 1
+                st.rerun()
+            except Exception as exc:
+                st.error(f"저장 실패: {exc}")
