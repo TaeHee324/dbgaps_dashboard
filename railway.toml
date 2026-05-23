@@ -2,5 +2,5 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = "python src/run_sample_engine.py && streamlit run web/app.py --server.address=0.0.0.0 --server.port=$PORT"
+startCommand = "python src/run_sample_engine.py && uvicorn api.main:app --host 0.0.0.0 --port $PORT"
 restartPolicyType = "on_failure"

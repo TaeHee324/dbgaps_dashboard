@@ -14,11 +14,10 @@ Before changing calculation, data, or architecture:
 - `docs/data_schema.md`
 - `PROJECT_STATUS.md`
 
-Before changing UI, UX, visual design, frontend copy, charts, tables, Streamlit layout, or any file under `web/`:
+Before changing UI, UX, visual design, frontend copy, charts, tables, or any file under `frontend/`:
 
 - `DESIGN.md`
 - `DESIGN-LANGUAGE.md`
-- `docs/UI_GUIDE.md`
 - `design-tokens.json`
 - `QA_CHECKLIST.md`
 
@@ -26,30 +25,36 @@ Design authority order:
 
 1. `DESIGN.md` defines product character and visual direction.
 2. `DESIGN-LANGUAGE.md` defines design judgment rules and anti-patterns.
-3. `docs/UI_GUIDE.md` maps the design system to Streamlit implementation.
-4. `design-tokens.json` defines machine-readable visual tokens.
-5. `QA_CHECKLIST.md` is the final UI review checklist.
+3. `design-tokens.json` defines machine-readable visual tokens.
+4. `QA_CHECKLIST.md` is the final UI review checklist.
 
 ## Tech Stack
 
 - Python 3.12
 - pandas >= 2.0
 - pykrx only for ETF price collection in `src/update_prices.py`
-- matplotlib for static chart output
-- Streamlit >= 1.35 and Plotly >= 5.0 for dashboard UI
+- FastAPI + uvicorn (백엔드 API 서버)
+- Next.js 15 App Router + TypeScript + Tailwind CSS (프론트엔드)
+- TanStack Query v5 (클라이언트 상태관리)
+- TradingView Lightweight Charts v5 (차트)
 - CSV files as the primary storage format for prices and trade history
 - PostgreSQL (via Railway) for portfolio definitions; accessed through `db.py`
 - psycopg2-binary + python-dotenv for database connectivity
-- Railway deployment for Streamlit
+- Railway 2개 서비스 (FastAPI 백엔드 + Next.js 프론트엔드)
+
+## Requirements 관리
+
+pandas, psycopg2-binary 버전 변경 시 루트 `requirements.txt`와 `api/requirements.txt` 동시 수정.
 
 ## Repository Layout
 
 ```text
 data/                   Input CSV files managed in Git
 portfolios/             Portfolio weight definitions (seed CSVs only; live data in PostgreSQL)
-db.py                   Shared PostgreSQL module; imported by src/run_engine.py and web/pages/
+db.py                   Shared PostgreSQL module; imported by src/run_engine.py and api/routers/
 src/                    Calculation engine
-web/                    Streamlit dashboard; reads output/ only
+api/                    FastAPI 백엔드; output/ 및 data/ 읽기, PostgreSQL CRUD
+frontend/               Next.js 프론트엔드 (App Router + TypeScript)
 output/                 Generated results; do not manually edit for UI convenience
 tests/                  pytest suite
 docs/                   Architecture, ADR, schema, UI guide
@@ -68,31 +73,36 @@ Expected `src/` roles:
 - `charts.py`: static chart output when implemented
 - `report_builder.py`: Markdown report generation when implemented
 
-Expected `web/` roles:
+Expected `api/` roles:
 
-- `app.py`: page composition and layout
-- `홈.py`: home page (NAV chart, trade log summary)
-- `pages/0_운용현황.py` through `pages/5_운용보고서.py`: six feature pages
-- `components.py`: Streamlit and Plotly UI components
-- `data_loader.py`: reads generated `output/` files only
-- `style.py`: CSS, visual tokens, and formatting helpers when added
+- `main.py`: FastAPI app, CORS middleware, router registration
+- `routers/dashboard.py`: output/ 및 data/ CSV 읽기 엔드포인트
+- `routers/portfolios.py`: PostgreSQL CRUD + POST /api/backtest (src/ import 허용 예외)
+- `routers/trades.py`: data/trade_log.json CRUD
+- `schemas.py`: Pydantic 응답 모델
+
+Expected `frontend/` roles:
+
+- `app/`: Next.js App Router 페이지 (page.tsx per route)
+- `components/`: 재사용 UI 컴포넌트 (charts, tables, badges)
+- `lib/api.ts`: fetch 래퍼 (get, post, del)
+- `lib/hooks/`: TanStack Query 훅 (dashboard.ts, portfolio.ts, trades.ts)
 
 ## Critical Boundaries
 
-### CRITICAL-1: `web/` must not import `src`
+### CRITICAL-1: `api/` must not import `src` (except portfolios.py)
 
-Dashboard code must not directly import calculation modules from `src/`.
-It must read generated CSV/JSON artifacts from `output/`.
-Exception: `web/` may import `db` (root-level `db.py`) for portfolio read/write operations.
-`db.py` is a shared module, not part of the calculation engine.
+`api/routers/portfolios.py`의 `POST /api/backtest` 핸들러에서만 `src/backtest`, `src/metrics`, `src/rules` import 허용.
+다른 모든 `api/` 파일은 `src/` import 금지. `output/` CSV를 읽는 방식으로 대신한다.
+Exception: `api/` 전체에서 `db` (root-level `db.py`) import 허용.
 
-Reason: calculation and UI must remain deployable and testable independently.
+Reason: calculation and API must remain deployable and testable independently.
 
-### CRITICAL-2: `web/` must not import `pykrx` or fetch live data
+### CRITICAL-2: `api/` must not import `pykrx` or fetch live data
 
 `src/update_prices.py` is the only place where pykrx and network data collection belong.
 
-Reason: the dashboard must stay read-only, lightweight, and deterministic.
+Reason: the API server must stay read-only, lightweight, and deterministic.
 
 ### CRITICAL-3: Generated outputs are contracts
 
@@ -118,7 +128,7 @@ Any UI or UX work must read the design files listed above before editing. Do not
 ```text
 pykrx -> src/update_prices.py -> data/prices_daily.csv
 data/*.csv + portfolios/*.csv -> src/ calculation engine -> output/
-output/*.csv -> web/ dashboard
+output/*.csv -> api/ FastAPI -> frontend/ Next.js
 ```
 
 ## Defaults
@@ -148,7 +158,8 @@ Without `DATABASE_URL`, `run_engine.py` and the ETF portfolio page will fail.
 ```bash
 pip install -r requirements.txt
 cp .env.example .env              # then fill in DATABASE_URL
-streamlit run web/app.py
+uvicorn api.main:app --reload     # FastAPI 개발 서버
+cd frontend && npm install && npm run dev  # Next.js 개발 서버
 python src/update_prices.py
 python src/run_engine.py          # production engine (real data → output/)
 python src/run_sample_engine.py   # sample data engine (test/dev use)
@@ -167,4 +178,4 @@ For UI changes:
 
 - Check `QA_CHECKLIST.md`.
 - Preserve `tests/test_boundaries.py` expectations.
-- Confirm `web/` remains output-driven and read-only.
+- Confirm `api/` (portfolios.py 제외) remains output-driven and src/ import-free.

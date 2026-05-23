@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { get } from "@/lib/api";
 
 export type PortfolioSummary = {
   cumulative_return: number;
@@ -123,99 +124,86 @@ export type PortfolioHolding = {
   weight: number;
 };
 
-const emptyPortfolioSummary: PortfolioSummary = null;
-const emptyBacktestNav: NavPoint[] = [];
-const emptyMonthlyReturns: MonthlyReturn[] = [];
-const emptyCurrentHoldings: Holding[] = [];
-const emptyTurnover: TurnoverResponse = null;
-const emptyRules: RulesResponse = null;
-const emptyDataDate: DataDateResponse = { date: "" };
-const emptyReport: ReportResponse = null;
-const emptyComparisonSummary: ComparisonSummaryItem[] = [];
-const emptyComparisonNav: Record<string, ComparisonNavPoint[]> = {};
-const emptyTradeLog: TradeLogEntry[] = [];
-const emptyPortfolioDetail: PortfolioHolding[] = [];
-
 export function usePortfolioSummary() {
   return useQuery({
     queryKey: ["portfolio-summary"],
-    queryFn: async () => emptyPortfolioSummary,
+    queryFn: () => get<PortfolioSummary>("/api/portfolio-summary"),
   });
 }
 
 export function useBacktestNav() {
   return useQuery({
     queryKey: ["backtest-nav"],
-    queryFn: async () => emptyBacktestNav,
+    queryFn: () => get<NavPoint[]>("/api/backtest-nav"),
   });
 }
 
 export function useMonthlyReturns() {
   return useQuery({
     queryKey: ["monthly-returns"],
-    queryFn: async () => emptyMonthlyReturns,
+    queryFn: () => get<MonthlyReturn[]>("/api/monthly-returns"),
   });
 }
 
 export function useCurrentHoldings() {
   return useQuery({
     queryKey: ["current-holdings"],
-    queryFn: async () => emptyCurrentHoldings,
+    queryFn: () => get<Holding[]>("/api/holdings"),
   });
 }
 
 export function useTurnover() {
   return useQuery({
     queryKey: ["turnover"],
-    queryFn: async () => emptyTurnover,
+    queryFn: () => get<TurnoverResponse>("/api/turnover"),
   });
 }
 
 export function useRules() {
   return useQuery({
     queryKey: ["rules"],
-    queryFn: async () => emptyRules,
+    queryFn: () => get<RulesResponse>("/api/rules"),
   });
 }
 
 export function useDataDate() {
   return useQuery({
     queryKey: ["data-date"],
-    queryFn: async () => emptyDataDate,
+    queryFn: () => get<DataDateResponse>("/api/data-date"),
   });
 }
 
 export function useReport() {
   return useQuery({
     queryKey: ["report"],
-    queryFn: async () => emptyReport,
+    queryFn: () => get<ReportResponse>("/api/report"),
   });
 }
 
 export function useComparisonSummary() {
   return useQuery({
     queryKey: ["comparison-summary"],
-    queryFn: async () => emptyComparisonSummary,
+    queryFn: () => get<ComparisonSummaryItem[]>("/api/comparison/summary"),
   });
 }
 
 export function useComparisonNav() {
   return useQuery({
     queryKey: ["comparison-nav"],
-    queryFn: async () => emptyComparisonNav,
+    queryFn: () => get<Record<string, ComparisonNavPoint[]>>("/api/comparison/nav"),
   });
 }
 
 export function useTradeLog() {
   return useQuery({
     queryKey: ["trade-log"],
-    queryFn: async () => emptyTradeLog,
+    queryFn: () => get<TradeLogEntry[]>("/api/trade-log"),
   });
 }
 
 export function usePortfolioDetail(name: string) {
   return useQuery({
     queryKey: ["portfolio-detail", name],
-    queryFn: async () => emptyPortfolioDetail,
+    queryFn: () => get<PortfolioHolding[]>(`/api/portfolios/${encodeURIComponent(name)}`),
   });
 }

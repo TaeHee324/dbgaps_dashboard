@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation } from "@tanstack/react-query";
+import { post } from "@/lib/api";
 import type { TradeLogEntry } from "./dashboard";
 
 export type AddTradeRequest = {
@@ -16,8 +17,7 @@ export type AddTradeRequest = {
 
 export function useAddTrade() {
   return useMutation({
-    mutationFn: async (request: AddTradeRequest): Promise<TradeLogEntry> => ({
-      ...request,
-    }),
+    mutationFn: (request: AddTradeRequest) =>
+      post<TradeLogEntry>("/api/trade-log", request),
   });
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { del, get, post } from "@/lib/api";
 import type {
   MonthlyReturn,
   NavPoint,
@@ -50,72 +51,44 @@ export type PortfolioUpsertResponse = {
   holdings: PortfolioHolding[];
 };
 
-const emptyEtfList: EtfItem[] = [];
-const emptyEtfPrices: EtfPricePoint[] = [];
-const emptyPortfolioList: Portfolio[] = [];
-
-const emptyBacktestResponse: BacktestResponse = {
-  nav: [],
-  summary: {
-    cumulative_return: 0,
-    cagr: 0,
-    mdd: 0,
-    alpha: 0,
-    beta: 0,
-    annual_volatility: 0,
-    win_rate: 0,
-    sharpe: 0,
-    calmar: 0,
-  },
-  monthly: [],
-  rules: null,
-};
-
 export function useEtfList() {
   return useQuery({
     queryKey: ["etf-list"],
-    queryFn: async () => emptyEtfList,
+    queryFn: () => get<EtfItem[]>("/api/etf-list"),
   });
 }
 
 export function useEtfPrices(code: string) {
   return useQuery({
     queryKey: ["etf-prices", code],
-    queryFn: async () => emptyEtfPrices,
+    queryFn: () => get<EtfPricePoint[]>(`/api/etf-prices/${code}`),
+    enabled: !!code,
   });
 }
 
 export function usePortfolioList() {
   return useQuery({
     queryKey: ["portfolio-list"],
-    queryFn: async () => emptyPortfolioList,
+    queryFn: () => get<Portfolio[]>("/api/portfolios"),
   });
 }
 
 export function useBacktest() {
   return useMutation({
-    mutationFn: async (request: BacktestRequest) => {
-      void request;
-      return emptyBacktestResponse;
-    },
+    mutationFn: (request: BacktestRequest) =>
+      post<BacktestResponse>("/api/backtest", request),
   });
 }
 
 export function useUpsertPortfolio() {
   return useMutation({
-    mutationFn: async (
-      request: PortfolioUpsertRequest,
-    ): Promise<PortfolioUpsertResponse> => ({
-      name: request.name,
-      holdings: request.holdings,
-    }),
+    mutationFn: (request: PortfolioUpsertRequest) =>
+      post<PortfolioUpsertResponse>("/api/portfolios", request),
   });
 }
 
 export function useDeletePortfolio() {
   return useMutation({
-    mutationFn: async (name: string): Promise<void> => {
-      void name;
-    },
+    mutationFn: (name: string) => del(`/api/portfolios/${name}`),
   });
 }

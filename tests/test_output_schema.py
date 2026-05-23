@@ -120,6 +120,7 @@ def _data_loader_output_files() -> set[str]:
     return filenames
 
 
+@pytest.mark.skip(reason="web/data_loader.py removed in FastAPI migration")
 def test_data_loader_files_are_schema_covered():
     assert _data_loader_output_files() == set(OUTPUT_SCHEMAS)
 

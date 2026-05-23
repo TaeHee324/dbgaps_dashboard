@@ -117,7 +117,6 @@ def main() -> None:
     trades = load_trades(DATA / "trades.csv")
     etf_master = pd.read_csv(DATA / "etf_master.csv", dtype={"code": str})
     holdings = evaluate_holdings(trades, prices, etf_master)
-    holdings.to_csv(OUTPUT / "portfolio_holdings.csv", index=False)
     holdings.to_csv(OUTPUT / "current_holdings.csv", index=False)
 
     rule_result = check_portfolio_rules(holdings)
