@@ -16,16 +16,35 @@ ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from backtest import load_prices as bt_load_prices, run_backtest, summarize_backtest, benchmark_nav  # noqa: E402
 from metrics import monthly_returns  # noqa: E402
 from rules import check_individual_etf_limit, check_risk_asset_limit  # noqa: E402
+import db  # noqa: E402
 
 PRICES_PATH = ROOT / "data" / "prices_daily.csv"
 ETF_MASTER_PATH = ROOT / "data" / "etf_master.csv"
-PORTFOLIOS_DIR = ROOT / "portfolios"
 BENCHMARK_CODE = "069500"
 _PROTECTED_NAMES = {"base", "conservative", "aggressive"}
+
+
+@st.cache_resource
+def _ensure_db():
+    db.init_db()
+    return True
+
+
+_ensure_db()
+
+
+@st.cache_data(ttl=30)
+def _list_portfolios() -> list[dict]:
+    try:
+        return db.list_portfolios()
+    except Exception:
+        return []
 
 _PERIOD_OFFSET = {
     "1M": pd.DateOffset(months=1),
@@ -252,6 +271,33 @@ with left:
     chart_name: str = st.session_state.get("chart_name", chart_code or "")
 
     st.divider()
+    st.subheader("저장된 포트폴리오 불러오기")
+    saved_list = _list_portfolios()
+    saved_names = [p["name"] for p in saved_list]
+    if saved_names:
+        load_col, btn_col = st.columns([3, 1])
+        with load_col:
+            load_sel = st.selectbox(
+                "포트폴리오 선택",
+                saved_names,
+                key="load_portfolio_sel",
+                label_visibility="collapsed",
+            )
+        with btn_col:
+            if st.button("불러오기", key="load_btn"):
+                holdings = db.get_portfolio(load_sel)
+                if holdings:
+                    st.session_state["portfolio_rows"] = [
+                        {"code": h["code"], "weight": float(h["weight"])} for h in holdings
+                    ]
+                    st.session_state.pop("bt_result", None)
+                    st.session_state.pop("bt_summary", None)
+                    st.session_state.pop("bt_inputs", None)
+                    st.rerun()
+    else:
+        st.caption("저장된 포트폴리오 없음")
+
+    st.divider()
     st.subheader("포트폴리오 구성")
 
     if "portfolio_rows" not in st.session_state:
@@ -402,14 +448,51 @@ with right:
         save_disabled = not clean or (is_protected and not overwrite_ok)
         if st.button("저장", disabled=save_disabled, key="save_btn"):
             try:
-                PORTFOLIOS_DIR.mkdir(exist_ok=True)
-                save_path = PORTFOLIOS_DIR / f"{clean}.csv"
-                pd.DataFrame({
-                    "code": bt_inputs["codes"],
-                    "weight": [bt_inputs["weights"][c] for c in bt_inputs["codes"]],
-                }).to_csv(save_path, index=False)
-                st.session_state["last_saved"] = str(save_path)
+                holdings = [
+                    {"code": c, "weight": bt_inputs["weights"][c]}
+                    for c in bt_inputs["codes"]
+                ]
+                db.upsert_portfolio(clean, holdings)
+                st.session_state["last_saved"] = clean
                 st.session_state["save_name_version"] = st.session_state.get("save_name_version", 0) + 1
+                st.cache_data.clear()
                 st.rerun()
             except Exception as exc:
                 st.error(f"저장 실패: {exc}")
+
+        st.divider()
+        st.subheader("포트폴리오 삭제")
+        deletable = [p for p in _list_portfolios() if not p["is_protected"]]
+        if not deletable:
+            st.caption("삭제 가능한 포트폴리오 없음 (기본 포트폴리오는 삭제 불가)")
+        else:
+            del_names = [p["name"] for p in deletable]
+            del_col, del_btn_col = st.columns([3, 1])
+            with del_col:
+                del_sel = st.selectbox(
+                    "삭제할 포트폴리오",
+                    del_names,
+                    key="del_portfolio_sel",
+                    label_visibility="collapsed",
+                )
+            with del_btn_col:
+                if st.button("삭제", key="del_btn", type="secondary"):
+                    st.session_state["pending_delete"] = del_sel
+
+        if st.session_state.get("pending_delete"):
+            target = st.session_state["pending_delete"]
+            st.warning(f"'{target}'을 삭제하시겠습니까?")
+            c1, c2 = st.columns(2)
+            with c1:
+                if st.button("확인 삭제", key="confirm_del", type="primary"):
+                    try:
+                        db.delete_portfolio(target)
+                        st.session_state.pop("pending_delete", None)
+                        st.cache_data.clear()
+                        st.rerun()
+                    except Exception as exc:
+                        st.error(f"삭제 실패: {exc}")
+            with c2:
+                if st.button("취소", key="cancel_del"):
+                    st.session_state.pop("pending_delete", None)
+                    st.rerun()

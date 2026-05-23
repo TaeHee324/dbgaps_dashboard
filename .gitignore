@@ -15,9 +15,6 @@ env/
 .env.local
 *.env
 
-# 실행 결과물 (자동 생성)
-output/
-
 # IDE
 .vscode/
 .idea/
