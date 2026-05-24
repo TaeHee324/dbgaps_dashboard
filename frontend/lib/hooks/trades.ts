@@ -14,6 +14,9 @@ export type AddTradeRequest = {
   reason: string;
   note: string;
   strategy_checklist: string[];
+  quantity?: number | null;
+  price?: number | null;
+  amount?: number | null;
 };
 
 export type UpdateTradeRequest = AddTradeRequest;

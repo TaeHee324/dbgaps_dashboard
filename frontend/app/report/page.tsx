@@ -1,8 +1,29 @@
 "use client";
 
 import { useState } from "react";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { type Components } from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
 import { useReports, useReportDetail } from "@/lib/hooks/dashboard";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+
+const mdComponents: Components = {
+  img(props) {
+    const src = typeof props.src === "string" ? props.src : undefined;
+    const resolvedSrc =
+      src && (src.startsWith("./") || src.startsWith("../"))
+        ? `${API_BASE}/api/report-image/${src.replace(/^\.\.?\//u, "")}`
+        : src;
+    return (
+      <img
+        src={resolvedSrc}
+        alt={props.alt ?? ""}
+        className="max-w-full rounded border border-border"
+      />
+    );
+  },
+};
 
 export default function ReportPage() {
   const [selectedFilename, setSelectedFilename] = useState("");
@@ -24,8 +45,14 @@ export default function ReportPage() {
           {report ? (
             <section className="rounded-lg border border-border bg-surface p-5">
               <p className="mb-4 text-xs text-inkSecondary">{report.filename}</p>
-              <div className="space-y-2 text-sm leading-relaxed text-ink [&_h1]:text-xl [&_h1]:font-semibold [&_h2]:text-base [&_h2]:font-semibold [&_p]:text-sm [&_ul]:list-disc [&_ul]:pl-5">
-                <ReactMarkdown>{report.content}</ReactMarkdown>
+              <div className="prose prose-sm max-w-none prose-table:w-full prose-img:rounded prose-headings:text-ink prose-p:text-ink prose-li:text-ink prose-th:bg-surfaceMuted prose-td:border-border prose-th:border-border">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeRaw]}
+                  components={mdComponents}
+                >
+                  {report.content}
+                </ReactMarkdown>
               </div>
             </section>
           ) : (

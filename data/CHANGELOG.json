@@ -1,0 +1,289 @@
+[
+  {
+    "hash": "e00184a8",
+    "date": "2026-05-25",
+    "subject": "feat: Claude.ai 승인 디자인 전면 적용 (Pretendard·JetBrains Mono, 새 토큰, KPI 스트립, 히트맵)",
+    "body": "- tailwind.config.ts: 색상 토큰 전면 갱신 (차분한 인디고 #3F2EE0, 짙은 ink #0B1B2C,\n  초록/빨강 수익 컬러), 폰트를 Pretendard Variable + JetBrains Mono로 교체\n- globals.css: CSS 변수 업데이트, 바디 기본 폰트 13px Pretendard 적용\n- layout.tsx: CDN 폰트 링크 추가, 브랜드 마크(D 뱃지) + 사이드바 스타일 리뉴얼\n- KpiStrip.tsx: 7개 지표 연결형 패널 스트립으로 재설계, variant prop 제거\n- StatusBar.tsx: LIVE 녹색 점 + 날짜 필 배지로 교체\n- HoldingsTable.tsx: 비중 바 차트 내장, 수익 색상 국제 표준(초록=이익, 빨강=손실) 적용\n- MonthlyHeatmap.tsx: 신규 — 월별 수익률 히트맵 컴포넌트 (실제 API 데이터)\n- page.tsx: 패널 헤더 패턴 도입, 2열 그리드, 히트맵 섹션 추가\n- design-prototype/kpi-demo.tsx: Claude.ai Artifact 프로토타이핑용 데모 파일 추가\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "feat"
+  },
+  {
+    "hash": "cda9d7fb",
+    "date": "2026-05-25",
+    "subject": "feat: 운용보고서 카드 UI, 매매일지 DB 마이그레이션, 비중 퍼센티지 표시",
+    "body": "운용보고서:\n- output/ 예시 보고서 3개 추가 (2026년 06~08월)\n- GET /api/reports (목록), GET /api/report/{filename} (단건) 엔드포인트 추가\n- report/page.tsx: 카드 그리드(목록) ↔ 상세 뷰 2-state UI로 재작성\n\n매매일지:\n- trade_log 테이블 PostgreSQL 마이그레이션 (db.py init_trade_log_table 추가)\n- trades.py: JSON 파일 기반 → DB CRUD 전환, PUT/DELETE 엔드포인트 신규 추가\n- 전략 체크박스 6개 (워런 버핏 데모), 수정/삭제 기능, ETF 자동완성\n- 매도 시 보유 ETF 드롭다운, 비중 입력 0~100% 단위\n\n비중 퍼센티지:\n- portfolio/page.tsx: 비중 입력 0~100% 단위로 변경 (API 전송 시 ÷100)\n- 불러오기 시 ×100 변환, 합계 표시 \"X% / 100%\"\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "feat"
+  },
+  {
+    "hash": "18283d0d",
+    "date": "2026-05-25",
+    "subject": "폴더 정리",
+    "body": "",
+    "type": "update"
+  },
+  {
+    "hash": "6f6cb9d4",
+    "date": "2026-05-24",
+    "subject": "chore: remove legacy files and update PROJECT_STATUS",
+    "body": "Removed:\n- MIGRATION_PLAN.md, ROADMAP.md: migration complete, superseded by git history\n- error.png, reference_repositories.md: dev artifacts with no ongoing value\n- frontend/README.md: create-next-app boilerplate, unrelated to this project\n- frontend/public/{file,globe,next,vercel,window}.svg: Next.js boilerplate assets\n\nUpdated PROJECT_STATUS.md to reflect current FastAPI + Next.js architecture,\nRailway 2-service deployment, API contract, and 7-page frontend route structure.\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "chore"
+  },
+  {
+    "hash": "4a1d2f2b",
+    "date": "2026-05-24",
+    "subject": "fix: set engines.node >=20 for tailwindcss/oxide native binding",
+    "body": "@tailwindcss/oxide@4.3.0 requires Node >= 20 for its native Rust binding.\nnixpacks reads the engines.node field to select the correct Node version,\npreventing the 'Cannot find native binding' error on Railway (was using Node 18).\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "fix"
+  },
+  {
+    "hash": "8a9b85fa",
+    "date": "2026-05-24",
+    "subject": "fix: remove duplicate npm ci from frontend Railway build command",
+    "body": "nixpacks automatically runs npm ci in the install phase (step 6/10).\nThe explicit 'npm ci && npm run build' in buildCommand triggered a second\nnpm ci that caused EBUSY: resource busy on /app/node_modules/.cache.\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "fix"
+  },
+  {
+    "hash": "af355392",
+    "date": "2026-05-24",
+    "subject": "make railway toml",
+    "body": "",
+    "type": "update"
+  },
+  {
+    "hash": "fe79a6eb",
+    "date": "2026-05-24",
+    "subject": "streammlit eliminate",
+    "body": "",
+    "type": "update"
+  },
+  {
+    "hash": "8f0e1cf8",
+    "date": "2026-05-23",
+    "subject": "phase 1",
+    "body": "",
+    "type": "update"
+  },
+  {
+    "hash": "66df6064",
+    "date": "2026-05-23",
+    "subject": "phase 0",
+    "body": "",
+    "type": "update"
+  },
+  {
+    "hash": "8a13b050",
+    "date": "2026-05-23",
+    "subject": "chore: restore output/ tracking and remove from .gitignore",
+    "body": "output/ files must be shared and version-controlled.\nReverts previous incorrect removal.\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "chore"
+  },
+  {
+    "hash": "b2db23a1",
+    "date": "2026-05-23",
+    "subject": "chore: remove output/ from git tracking",
+    "body": "output/ contains generated artifacts that should not be version-controlled.\nAdded output/ to .gitignore and removed all tracked files from index.\nLocal files are preserved.\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "chore"
+  },
+  {
+    "hash": "df2c6615",
+    "date": "2026-05-23",
+    "subject": "security: remove .env from git tracking",
+    "body": ".env was force-tracked despite being in .gitignore.\nRemove from index while preserving local file.\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "update"
+  },
+  {
+    "hash": "e0cdff77",
+    "date": "2026-05-23",
+    "subject": "env migration",
+    "body": "",
+    "type": "update"
+  },
+  {
+    "hash": "aef1a322",
+    "date": "2026-05-23",
+    "subject": "migration plan",
+    "body": "",
+    "type": "update"
+  },
+  {
+    "hash": "cc21c5de",
+    "date": "2026-05-23",
+    "subject": "여기까지 streamlit",
+    "body": "",
+    "type": "update"
+  },
+  {
+    "hash": "d4fcba63",
+    "date": "2026-05-23",
+    "subject": "feat: PostgreSQL 포트폴리오 저장 — 파일시스템에서 DB로 마이그레이션",
+    "body": "- db.py 신규: 연결, 테이블 자동생성, CSV 시딩, CRUD (list/get/upsert/delete)\n- 1_ETF_포트폴리오.py: 불러오기·저장·삭제 UI 추가, 파일 저장 → DB 저장으로 교체\n- run_engine.py: portfolios/*.csv 대신 DB에서 포트폴리오 읽도록 변경\n- requirements.txt: psycopg2-binary, python-dotenv 추가\n- .env.example: 로컬 개발용 DATABASE_URL 템플릿\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "feat"
+  },
+  {
+    "hash": "cce03de5",
+    "date": "2026-05-23",
+    "subject": "output update",
+    "body": "",
+    "type": "update"
+  },
+  {
+    "hash": "da93b2fd",
+    "date": "2026-05-23",
+    "subject": "두번째 수정",
+    "body": "",
+    "type": "update"
+  },
+  {
+    "hash": "2ddc56cf",
+    "date": "2026-05-23",
+    "subject": "수정 세션 1",
+    "body": "",
+    "type": "update"
+  },
+  {
+    "hash": "332d8ee3",
+    "date": "2026-05-23",
+    "subject": "탭 재설정 및 프론트엔드 수정",
+    "body": "",
+    "type": "update"
+  },
+  {
+    "hash": "a1441f5d",
+    "date": "2026-05-23",
+    "subject": "docs: replace phase plans with unified ROADMAP.md",
+    "body": "- Remove completed phase plans (phases/, PLAN.md) — Phase 0~6 all done\n- Add ROADMAP.md as the single source of truth for upcoming work\n  (Phase A tab restructure, B trade log, C candlestick, D metrics)\n- Add quantstats_image.webp as design reference\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "docs"
+  },
+  {
+    "hash": "5be23bc9",
+    "date": "2026-05-22",
+    "subject": "phase 5 & phase 6",
+    "body": "",
+    "type": "update"
+  },
+  {
+    "hash": "d9d039ec",
+    "date": "2026-05-22",
+    "subject": "last upgrade complete",
+    "body": "",
+    "type": "update"
+  },
+  {
+    "hash": "2df1a858",
+    "date": "2026-05-22",
+    "subject": "designe harness update",
+    "body": "",
+    "type": "update"
+  },
+  {
+    "hash": "b5eb6cf7",
+    "date": "2026-05-22",
+    "subject": "docs: codify dashboard design language",
+    "body": "The design guidance now defines the DBGAPS financial dashboard visual system, implementation guardrails, review checklist, and reusable design tokens for future Streamlit UI work.\n\nTested: python -m pytest tests/ -q\n\nCo-authored-by: OmX <omx@oh-my-codex.dev>",
+    "type": "docs"
+  },
+  {
+    "hash": "7720000c",
+    "date": "2026-05-22",
+    "subject": "feat: expand dashboard phase 5 sections",
+    "body": "The Streamlit page now reads prepared output CSVs for turnover and monthly returns, renders the new dashboard sections, and shows the data date from the backtest NAV series instead of file modification time.\n\nTested: python -m pytest tests/ -q; streamlit run web/app.py returned HTTP 200 on localhost:8507\n\nCo-authored-by: OmX <omx@oh-my-codex.dev>",
+    "type": "feat"
+  },
+  {
+    "hash": "79b4f127",
+    "date": "2026-05-22",
+    "subject": "feat: export dashboard analytics outputs",
+    "body": "The engine now writes the monthly returns and split turnover outputs that the dashboard consumes directly, while turnover rows identify actual trade sourcing for auditability.\n\nTested: python -m pytest tests/ -q\n\nCo-authored-by: OmX <omx@oh-my-codex.dev>",
+    "type": "feat"
+  },
+  {
+    "hash": "52ad6628",
+    "date": "2026-05-22",
+    "subject": "wave 1 complete",
+    "body": "",
+    "type": "update"
+  },
+  {
+    "hash": "3b8bedb8",
+    "date": "2026-05-22",
+    "subject": "progect_status-revise",
+    "body": "",
+    "type": "update"
+  },
+  {
+    "hash": "2c2fb01b",
+    "date": "2026-05-22",
+    "subject": "harness upgrade",
+    "body": "",
+    "type": "update"
+  },
+  {
+    "hash": "17d0eac7",
+    "date": "2026-05-22",
+    "subject": "docs: replace NEXT_SESSION_NOTES with PROJECT_STATUS",
+    "body": "Summarizes completed work (engine, tests, dashboard, deployment)\nand remaining tasks in priority order.\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "docs"
+  },
+  {
+    "hash": "6b738bbe",
+    "date": "2026-05-22",
+    "subject": "배포 완료",
+    "body": "",
+    "type": "update"
+  },
+  {
+    "hash": "f9879e4b",
+    "date": "2026-05-22",
+    "subject": "deploy: add railway.toml for Streamlit deployment",
+    "body": "Generates output/ at startup via run_sample_engine.py before\nlaunching Streamlit on Railway dynamic PORT.\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "update"
+  },
+  {
+    "hash": "67bf31cf",
+    "date": "2026-05-22",
+    "subject": "session C",
+    "body": "",
+    "type": "update"
+  },
+  {
+    "hash": "51462c9d",
+    "date": "2026-05-22",
+    "subject": "docs: add reference repository notes",
+    "body": "Comment: Add a root-level Markdown reference list for ETF investment OS architecture, backtesting, metrics, reporting, data, and dashboard repositories.\n\nTested: Reviewed the staged file list and confirmed only reference_repositories.md is included.\n\nConfidence: high\n\nCo-authored-by: OmX <omx@oh-my-codex.dev>",
+    "type": "docs"
+  },
+  {
+    "hash": "6fd1fabd",
+    "date": "2026-05-22",
+    "subject": "session B",
+    "body": "",
+    "type": "update"
+  },
+  {
+    "hash": "f1d0831c",
+    "date": "2026-05-22",
+    "subject": "session A",
+    "body": "",
+    "type": "update"
+  },
+  {
+    "hash": "3afa1b9d",
+    "date": "2026-05-22",
+    "subject": "docs: 다음 세션 계획 및 Streamlit MVP 방향 정리",
+    "body": "- Streamlit vs Railway 역할 구분 명확화 (프레임워크 vs 호스팅)\n- 1차 MVP 기술스택 확정: Python + Streamlit + Plotly\n- web/ 디렉토리 구조 및 output/ 읽기 전용 규칙 명시\n- 대시보드 화면 구성 (성과→리스크→규칙→보유→보고서) 정의\n- 디자인 톤 및 색상 토큰 정의\n- 테스트 우선순위 정리 (boundaries, output schema, smoke test)\n- 병렬 세션 트랙 계획 수립 (A: 테스트 / B: 차트 / C: 문서)\n- run_card.json 산출물 및 데이터 신선도 표시 방향 추가\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "docs"
+  },
+  {
+    "hash": "d26e6e06",
+    "date": "2026-05-20",
+    "subject": "feat: harness 프레임워크 설치 및 DBGAPS 프로젝트 기초 구성",
+    "body": "- CLAUDE.md: 프로젝트 메모리 (기술스택, 데이터 흐름, CRITICAL 규칙 2개)\n- .claude/settings.json: Stop 훅(pytest), PreToolUse 안전장치\n- .claude/commands/harness.md, review.md: 워크플로우 명령어\n- docs/: PRD, ARCHITECTURE, ADR, UI_GUIDE 작성\n- scripts/execute.py: Harness 자동 실행 엔진 (원본 복사)\n- phases/: 0-foundation ~ 4-dashboard (step 파일 포함)\n- tests/conftest.py: 샘플 데이터 기반 pytest 픽스처\n- requirements.txt: pykrx, pytest, matplotlib 추가\n- requirements_execute.txt: anthropic (execute.py 전용)\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "feat"
+  },
+  {
+    "hash": "4dc55fb8",
+    "date": "2026-05-20",
+    "subject": "Initial commit: Python ETF dashboard project",
+    "body": "Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "update"
+  }
+]

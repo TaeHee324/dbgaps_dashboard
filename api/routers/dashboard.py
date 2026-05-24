@@ -4,8 +4,10 @@ from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import FileResponse
 
+import db
 from api import schemas
 
 
@@ -212,13 +214,18 @@ def etf_list():
     codes = pd.DataFrame({"code": sorted({_normalize_code(code) for code in prices["code"].dropna()})})
     master = _read_csv(DATA_DIR / "etf_master.csv", dtype={"code": "string"})
     if not master.empty and {"code", "name"}.issubset(master.columns):
-        master = master[["code", "name"]].copy()
+        keep_cols = [c for c in ["code", "name", "risk_type", "asset_class"] if c in master.columns]
+        master = master[keep_cols].copy()
         master["code"] = master["code"].map(_normalize_code)
         codes = codes.merge(master, on="code", how="left")
     else:
         codes["name"] = ""
-    codes["name"] = codes["name"].fillna("")
-    return _records(codes, ["code", "name"])
+    for col in ["name", "risk_type", "asset_class"]:
+        if col not in codes.columns:
+            codes[col] = ""
+        else:
+            codes[col] = codes[col].fillna("")
+    return _records(codes, ["code", "name", "risk_type", "asset_class"])
 
 
 @router.get("/etf-prices/{code}", response_model=list[schemas.EtfPricePoint])
@@ -279,3 +286,99 @@ def report_by_filename(filename: str):
     except Exception:
         return None
     return {"content": content, "filename": safe_name}
+
+
+def _calc_live_holdings() -> list[dict]:
+    """trade_log DB에서 FIFO로 현재 보유종목 계산. src/ import 없이 직접 구현."""
+    try:
+        with db.get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT date, action, etf_code, etf_name, quantity, price "
+                    "FROM trade_log "
+                    "WHERE quantity IS NOT NULL AND price IS NOT NULL "
+                    "ORDER BY date ASC, id ASC"
+                )
+                rows = cur.fetchall()
+    except Exception:
+        return []
+
+    holdings: dict[str, dict] = {}
+    for row in rows:
+        code = str(row["etf_code"])
+        name = str(row["etf_name"])
+        qty = float(row["quantity"])
+        price = float(row["price"])
+        action = str(row["action"])
+
+        if code not in holdings:
+            holdings[code] = {"name": name, "quantity": 0.0, "cost_basis": 0.0}
+
+        h = holdings[code]
+        if action in ("매수", "리밸런싱"):
+            h["quantity"] += qty
+            h["cost_basis"] += qty * price
+        elif action == "매도":
+            if h["quantity"] > 0:
+                avg = h["cost_basis"] / h["quantity"]
+                sold = min(qty, h["quantity"])
+                h["quantity"] -= sold
+                h["cost_basis"] -= avg * sold
+                if h["quantity"] <= 0:
+                    h["quantity"] = 0.0
+                    h["cost_basis"] = 0.0
+
+    result = []
+    for code, data in holdings.items():
+        if data["quantity"] > 0:
+            result.append({
+                "code": code,
+                "name": data["name"],
+                "quantity": round(data["quantity"], 4),
+                "avg_price": round(data["cost_basis"] / data["quantity"], 2),
+                "cost_basis": round(data["cost_basis"], 2),
+            })
+    return result
+
+
+@router.get("/live-holdings", response_model=list[schemas.LiveHolding])
+def live_holdings():
+    return _calc_live_holdings()
+
+
+@router.get("/portfolio-etfs", response_model=list[schemas.EtfItem])
+def portfolio_etfs():
+    """현재 보유 중인 ETF 목록 (trade_log 기반). 없으면 current_holdings.csv fallback."""
+    live = _calc_live_holdings()
+    if live:
+        return [{"code": h["code"], "name": h["name"], "risk_type": "", "asset_class": ""} for h in live]
+    # fallback: output/current_holdings.csv
+    df = _read_csv(OUTPUT_DIR / "current_holdings.csv")
+    if df.empty or "code" not in df.columns:
+        return []
+    return [
+        {"code": _normalize_code(row["code"]), "name": str(row.get("name", "")), "risk_type": "", "asset_class": ""}
+        for _, row in df.iterrows()
+    ]
+
+
+@router.get("/report-image/{filename}")
+def report_image(filename: str):
+    safe_name = Path(filename).name
+    for ext in (".png", ".jpg", ".jpeg", ".svg", ".webp"):
+        path = OUTPUT_DIR / safe_name
+        if path.exists() and path.suffix.lower() == ext:
+            return FileResponse(str(path))
+    raise HTTPException(status_code=404, detail="image not found")
+
+
+@router.get("/update-log")
+def update_log():
+    import json as _json
+    changelog_path = Path(__file__).resolve().parents[2] / "data" / "CHANGELOG.json"
+    if not changelog_path.exists():
+        return []
+    try:
+        return _json.loads(changelog_path.read_text(encoding="utf-8"))
+    except Exception:
+        return []

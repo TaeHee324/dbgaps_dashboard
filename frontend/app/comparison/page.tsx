@@ -45,6 +45,16 @@ export default function ComparisonPage() {
     );
   }, [navData, cutoffDate]);
 
+  const startDates = useMemo(() => {
+    if (!navData) return {} as Record<string, string>;
+    return Object.fromEntries(
+      Object.entries(navData).map(([name, points]) => [
+        name,
+        points.length > 0 ? points[0].date : "",
+      ]),
+    );
+  }, [navData]);
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold text-ink">포트폴리오 비교</h1>
@@ -70,6 +80,9 @@ export default function ComparisonPage() {
       <section className="space-y-2">
         <h2 className="text-sm font-semibold text-ink">NAV 비교 (누적수익률)</h2>
         <ComparisonChart series={chartSeries} />
+        <p className="text-xs text-inkMuted">
+          * 포트폴리오별 데이터 시작일이 다를 수 있습니다. 비교 시 기간 차이에 유의하세요.
+        </p>
       </section>
 
       {/* 비교 지표 테이블 */}
@@ -99,6 +112,9 @@ export default function ComparisonPage() {
                   <th className="px-4 py-3 text-right text-xs font-semibold text-inkSecondary">
                     칼마
                   </th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-inkSecondary">
+                    데이터 시작
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -121,6 +137,9 @@ export default function ComparisonPage() {
                     </td>
                     <td className="px-4 py-3 text-right font-numeric tabular-nums text-ink">
                       {fmtDec(item.calmar)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-numeric tabular-nums text-inkSecondary text-xs">
+                      {startDates[item.portfolio_name] ?? "-"}
                     </td>
                   </tr>
                 ))}

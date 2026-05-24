@@ -106,6 +106,8 @@ class DataDateResponse(BaseModel):
 class EtfItem(BaseModel):
     code: str
     name: str
+    risk_type: str = ""
+    asset_class: str = ""
 
 
 class EtfPricePoint(BaseModel):
@@ -161,6 +163,9 @@ class TradeLogEntry(BaseModel):
     reason: str
     note: str
     strategy_checklist: list[str]
+    quantity: float | None = None
+    price: float | None = None
+    amount: float | None = None
 
 
 class AddTradeRequest(BaseModel):
@@ -173,6 +178,9 @@ class AddTradeRequest(BaseModel):
     reason: str
     note: str
     strategy_checklist: list[str] = []
+    quantity: float | None = None
+    price: float | None = None
+    amount: float | None = None
 
 
 class AddTradeResponse(BaseModel):
@@ -197,9 +205,20 @@ class UpdateTradeRequest(BaseModel):
     reason: str
     note: str
     strategy_checklist: list[str] = []
+    quantity: float | None = None
+    price: float | None = None
+    amount: float | None = None
 
 
 class ReportListItem(BaseModel):
     filename: str
     title: str
     period: str
+
+
+class LiveHolding(BaseModel):
+    code: str
+    name: str
+    quantity: float
+    avg_price: float
+    cost_basis: float

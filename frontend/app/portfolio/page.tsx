@@ -44,6 +44,9 @@ export default function PortfolioPage() {
   const [selectedName, setSelectedName] = useState("");
   const [chartPeriod, setChartPeriod] = useState<PeriodKey>("1Y");
 
+  const [filterRisk, setFilterRisk] = useState<string>("");
+  const [filterAsset, setFilterAsset] = useState<string>("");
+
   // 포트폴리오 구성 state
   const [portfolioRows, setPortfolioRows] = useState<PortfolioRow[]>([
     { code: "", weight: 0 },
@@ -66,16 +69,27 @@ export default function PortfolioPage() {
   const upsertMutation = useUpsertPortfolio();
   const deleteMutation = useDeletePortfolio();
 
+  // ETF 필터 옵션
+  const riskOptions = useMemo(
+    () => [...new Set(etfList.map((e) => e.risk_type ?? "").filter(Boolean))].sort(),
+    [etfList],
+  );
+
+  const assetOptions = useMemo(
+    () => [...new Set(etfList.map((e) => e.asset_class ?? "").filter(Boolean))].sort(),
+    [etfList],
+  );
+
   // ETF 목록 필터
   const filteredEtfs = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return etfList;
-    return etfList.filter(
-      (e) =>
-        e.code.toLowerCase().includes(q) ||
-        e.name.toLowerCase().includes(q),
-    );
-  }, [etfList, search]);
+    return etfList.filter((e) => {
+      if (q && !e.code.toLowerCase().includes(q) && !e.name.toLowerCase().includes(q)) return false;
+      if (filterRisk && (e.risk_type ?? "") !== filterRisk) return false;
+      if (filterAsset && (e.asset_class ?? "") !== filterAsset) return false;
+      return true;
+    });
+  }, [etfList, search, filterRisk, filterAsset]);
 
   // 주가 차트 데이터 슬라이스
   const chartData = useMemo(() => {
@@ -183,12 +197,55 @@ export default function PortfolioPage() {
               onChange={(e) => setSearch(e.target.value)}
               className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-ink placeholder:text-inkMuted focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
+            {/* 위험구분 필터 */}
+            {riskOptions.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs text-inkSecondary whitespace-nowrap">위험구분:</span>
+                {["", ...riskOptions].map((opt) => (
+                  <button
+                    key={opt || "전체"}
+                    onClick={() => setFilterRisk(opt)}
+                    className={`rounded-pill px-2 py-0.5 text-xs font-medium transition ${
+                      filterRisk === opt
+                        ? "bg-primary text-white"
+                        : "bg-surfaceMuted text-inkSecondary hover:bg-border"
+                    }`}
+                  >
+                    {opt || "전체"}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* 자산구분 필터 */}
+            {assetOptions.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs text-inkSecondary whitespace-nowrap">자산구분:</span>
+                {["", ...assetOptions].map((opt) => (
+                  <button
+                    key={opt || "전체"}
+                    onClick={() => setFilterAsset(opt)}
+                    className={`rounded-pill px-2 py-0.5 text-xs font-medium transition ${
+                      filterAsset === opt
+                        ? "bg-primary text-white"
+                        : "bg-surfaceMuted text-inkSecondary hover:bg-border"
+                    }`}
+                  >
+                    {opt || "전체"}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <div className="h-64 overflow-auto rounded-md border border-border">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-surface">
                   <tr className="border-b border-border text-left">
                     <th className="px-3 py-2 text-xs font-medium text-inkSecondary">코드</th>
                     <th className="px-3 py-2 text-xs font-medium text-inkSecondary">ETF명</th>
+                    {riskOptions.length > 0 && (
+                      <th className="px-3 py-2 text-xs font-medium text-inkSecondary">구분</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -203,11 +260,26 @@ export default function PortfolioPage() {
                     >
                       <td className="px-3 py-2 font-mono text-xs text-primary">{etf.code}</td>
                       <td className="px-3 py-2 text-xs text-ink">{etf.name}</td>
+                      {riskOptions.length > 0 && (
+                        <td className="px-3 py-2">
+                          {etf.risk_type ? (
+                            <span
+                              className={`inline-block rounded px-1.5 py-0.5 text-xs font-medium ${
+                                etf.risk_type === "위험"
+                                  ? "bg-dangerSoft text-danger"
+                                  : "bg-successSoft text-success"
+                              }`}
+                            >
+                              {etf.risk_type}
+                            </span>
+                          ) : null}
+                        </td>
+                      )}
                     </tr>
                   ))}
                   {filteredEtfs.length === 0 && (
                     <tr>
-                      <td colSpan={2} className="px-3 py-4 text-center text-xs text-inkMuted">
+                      <td colSpan={riskOptions.length > 0 ? 3 : 2} className="px-3 py-4 text-center text-xs text-inkMuted">
                         검색 결과 없음
                       </td>
                     </tr>

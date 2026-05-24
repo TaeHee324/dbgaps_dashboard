@@ -119,6 +119,17 @@ export type TradeLogEntry = {
   reason: string;
   note: string;
   strategy_checklist: string[];
+  quantity?: number | null;
+  price?: number | null;
+  amount?: number | null;
+};
+
+export type LiveHolding = {
+  code: string;
+  name: string;
+  quantity: number;
+  avg_price: number;
+  cost_basis: number;
 };
 
 export type PortfolioHolding = {
@@ -228,5 +239,19 @@ export function usePortfolioDetail(name: string) {
   return useQuery({
     queryKey: ["portfolio-detail", name],
     queryFn: () => get<PortfolioHolding[]>(`/api/portfolios/${encodeURIComponent(name)}`),
+  });
+}
+
+export function useLiveHoldings() {
+  return useQuery({
+    queryKey: ["live-holdings"],
+    queryFn: () => get<LiveHolding[]>("/api/live-holdings"),
+  });
+}
+
+export function usePortfolioEtfs() {
+  return useQuery({
+    queryKey: ["portfolio-etfs"],
+    queryFn: () => get<{ code: string; name: string }[]>("/api/portfolio-etfs"),
   });
 }

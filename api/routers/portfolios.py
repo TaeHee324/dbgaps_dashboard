@@ -75,6 +75,48 @@ def upsert_portfolio(payload: schemas.PortfolioUpsertRequest):
         for holding in payload.holdings
     ]
     db.upsert_portfolio(payload.name, holdings)
+
+    # 백테스트 자동 실행 (best-effort)
+    try:
+        import sys as _sys
+        if str(SRC) not in _sys.path:
+            _sys.path.insert(0, str(SRC))
+        import pandas as _pd
+        from backtest import load_prices, run_backtest, summarize_backtest  # noqa: E402
+
+        COMPARISON_OUTPUT = ROOT / "output" / "comparison"
+        INITIAL_VALUE = 100_000_000
+
+        if PRICES_PATH.exists():
+            _prices = load_prices(str(PRICES_PATH))
+            _weights = _pd.Series({h["code"]: h["weight"] for h in holdings})
+            _bt = run_backtest(_prices, _weights, initial_value=INITIAL_VALUE)
+            _summary = summarize_backtest(_bt, None)
+
+            COMPARISON_OUTPUT.mkdir(parents=True, exist_ok=True)
+            _bt[["date", "portfolio_value", "cumulative_return"]].to_csv(
+                COMPARISON_OUTPUT / f"{payload.name}_nav.csv", index=False
+            )
+
+            # summary.csv 갱신: 기존 행 교체 또는 신규 추가
+            _summary_path = COMPARISON_OUTPUT / "summary.csv"
+            _new_row = _pd.DataFrame([{
+                "portfolio_name": payload.name,
+                "cagr": _summary["cagr"],
+                "mdd": _summary["mdd"],
+                "sharpe": _summary["sharpe"],
+                "calmar": _summary["calmar"],
+            }])
+            if _summary_path.exists():
+                _existing = _pd.read_csv(_summary_path)
+                _existing = _existing[_existing["portfolio_name"] != payload.name]
+                _merged = _pd.concat([_existing, _new_row], ignore_index=True)
+            else:
+                _merged = _new_row
+            _merged.to_csv(_summary_path, index=False)
+    except Exception:
+        pass  # 백테스트 실패해도 저장 자체는 성공
+
     return {"name": payload.name, "holdings": holdings}
 
 

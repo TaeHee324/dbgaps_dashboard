@@ -11,6 +11,7 @@ const navigation = [
   { href: "/trades", label: "매매일지" },
   { href: "/market", label: "시황" },
   { href: "/report", label: "운용보고서" },
+  { href: "/changelog", label: "업데이트 로그" },
 ];
 
 export const metadata: Metadata = {

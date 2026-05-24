@@ -12,6 +12,8 @@ import type {
 export type EtfItem = {
   code: string;
   name: string;
+  risk_type?: string;
+  asset_class?: string;
 };
 
 export type EtfPricePoint = {

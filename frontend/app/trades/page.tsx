@@ -2,8 +2,8 @@
 
 import { useState, Fragment } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useTradeLog, useCurrentHoldings, type TradeLogEntry } from "@/lib/hooks/dashboard";
-import { useEtfList } from "@/lib/hooks/portfolio";
+import { useTradeLog, useCurrentHoldings, usePortfolioEtfs, type TradeLogEntry } from "@/lib/hooks/dashboard";
+import { useEtfList, useEtfPrices } from "@/lib/hooks/portfolio";
 import { useAddTrade, useUpdateTrade, useDeleteTrade, type AddTradeRequest } from "@/lib/hooks/trades";
 
 const STRATEGY_OPTIONS = [
@@ -32,6 +32,9 @@ function makeDefaultForm(): AddTradeRequest {
     reason: "",
     note: "",
     strategy_checklist: [],
+    quantity: null,
+    price: null,
+    amount: null,
   };
 }
 
@@ -40,6 +43,7 @@ export default function TradesPage() {
   const { data: tradeLog = [] } = useTradeLog();
   const { data: etfList = [] } = useEtfList();
   const { data: currentHoldings = [] } = useCurrentHoldings();
+  const { data: portfolioEtfs = [] } = usePortfolioEtfs();
   const addTrade = useAddTrade();
   const updateTrade = useUpdateTrade();
   const deleteTrade = useDeleteTrade();
@@ -47,6 +51,15 @@ export default function TradesPage() {
   const [form, setForm] = useState<AddTradeRequest>(makeDefaultForm);
   const [editId, setEditId] = useState<number | null>(null);
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
+  const [calcTotalAssets, setCalcTotalAssets] = useState<number>(0);
+  const [calcTargetWeight, setCalcTargetWeight] = useState<number>(0);
+
+  const { data: etfPrices = [] } = useEtfPrices(form.etf_code);
+  const latestPrice = etfPrices.length > 0 ? etfPrices[etfPrices.length - 1].close : 0;
+  const calcNeededQty =
+    latestPrice > 0 && calcTotalAssets > 0 && calcTargetWeight > 0
+      ? Math.floor((calcTotalAssets * (calcTargetWeight / 100)) / latestPrice)
+      : null;
 
   const sorted = [...tradeLog].sort((a, b) => b.date.localeCompare(a.date));
 
@@ -62,6 +75,9 @@ export default function TradesPage() {
       reason: row.reason,
       note: row.note,
       strategy_checklist: row.strategy_checklist ?? [],
+      quantity: row.quantity ?? null,
+      price: row.price ?? null,
+      amount: row.amount ?? null,
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -94,6 +110,9 @@ export default function TradesPage() {
     setForm(makeDefaultForm());
     setEditId(null);
     await queryClient.invalidateQueries({ queryKey: ["trade-log"] });
+    await queryClient.invalidateQueries({ queryKey: ["live-holdings"] });
+    await queryClient.invalidateQueries({ queryKey: ["current-holdings"] });
+    await queryClient.invalidateQueries({ queryKey: ["portfolio-etfs"] });
   }
 
   async function handleDelete(id: number) {
@@ -166,6 +185,27 @@ export default function TradesPage() {
                   ))}
                 </select>
               </div>
+            ) : form.action === "리밸런싱" ? (
+              <div className="flex flex-col gap-1 sm:col-span-2">
+                <label className="text-xs text-inkSecondary">ETF 선택 (운용 포트폴리오)</label>
+                <select
+                  value={form.etf_code}
+                  onChange={(e) => {
+                    const etf = portfolioEtfs.find((h) => h.code === e.target.value);
+                    setForm((prev) => ({
+                      ...prev,
+                      etf_code: e.target.value,
+                      etf_name: etf ? etf.name : prev.etf_name,
+                    }));
+                  }}
+                  className="rounded border border-border bg-background px-2 py-1.5 text-sm text-ink"
+                >
+                  <option value="">선택</option>
+                  {portfolioEtfs.map((h) => (
+                    <option key={h.code} value={h.code}>{h.code} — {h.name}</option>
+                  ))}
+                </select>
+              </div>
             ) : (
               <>
                 <div className="flex flex-col gap-1">
@@ -221,6 +261,102 @@ export default function TradesPage() {
                 value={form.weight_after}
                 onChange={(e) => handleChange("weight_after", parseFloat(e.target.value) || 0)}
                 className="rounded border border-border bg-background px-2 py-1.5 text-sm text-ink"
+              />
+            </div>
+          </div>
+
+          {latestPrice > 0 && (
+            <div className="rounded border border-border bg-surfaceMuted p-3 space-y-2">
+              <p className="text-xs font-semibold text-inkSecondary">역산 계산기 — 목표 비중 → 필요 수량</p>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-inkSecondary">총자산 (원)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={1000000}
+                    value={calcTotalAssets || ""}
+                    onChange={(e) => setCalcTotalAssets(parseFloat(e.target.value) || 0)}
+                    placeholder="100000000"
+                    className="rounded border border-border bg-background px-2 py-1.5 text-sm text-ink"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-inkSecondary">목표 비중 (%)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={calcTargetWeight || ""}
+                    onChange={(e) => setCalcTargetWeight(parseFloat(e.target.value) || 0)}
+                    placeholder="20"
+                    className="rounded border border-border bg-background px-2 py-1.5 text-sm text-ink"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-inkSecondary">필요 수량 (주)</label>
+                  <div className="rounded border border-border bg-background px-2 py-1.5 text-sm font-semibold text-ink">
+                    {calcNeededQty !== null ? calcNeededQty.toLocaleString("ko-KR") : "—"}
+                  </div>
+                  {calcNeededQty !== null && latestPrice > 0 && (
+                    <p className="text-xs text-inkMuted">
+                      현재가 {latestPrice.toLocaleString("ko-KR")}원 기준
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-3 gap-4">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-inkSecondary">매수단가 (원)</label>
+              <input
+                type="number"
+                min={0}
+                step={1}
+                value={form.price ?? ""}
+                onChange={(e) => {
+                  const p = parseFloat(e.target.value) || null;
+                  const q = form.quantity ?? null;
+                  setForm((prev) => ({
+                    ...prev,
+                    price: p,
+                    amount: p && q ? Math.round(p * q) : null,
+                  }));
+                }}
+                placeholder="50000"
+                className="rounded border border-border bg-background px-2 py-1.5 text-sm text-ink"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-inkSecondary">수량 (주)</label>
+              <input
+                type="number"
+                min={0}
+                step={1}
+                value={form.quantity ?? ""}
+                onChange={(e) => {
+                  const q = parseFloat(e.target.value) || null;
+                  const p = form.price ?? null;
+                  setForm((prev) => ({
+                    ...prev,
+                    quantity: q,
+                    amount: p && q ? Math.round(p * q) : null,
+                  }));
+                }}
+                placeholder="100"
+                className="rounded border border-border bg-background px-2 py-1.5 text-sm text-ink"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-inkSecondary">거래금액 (원)</label>
+              <input
+                type="number"
+                value={form.amount ?? ""}
+                readOnly
+                className="rounded border border-border bg-background px-2 py-1.5 text-sm text-inkSecondary"
               />
             </div>
           </div>
@@ -294,7 +430,7 @@ export default function TradesPage() {
             <table className="w-full text-sm">
               <thead className="bg-surfaceMuted text-xs text-inkSecondary">
                 <tr>
-                  {["날짜", "구분", "ETF 코드", "ETF 명", "비중 전", "비중 후", "이유", ""].map((h, i) => (
+                  {["날짜", "구분", "ETF 코드", "ETF 명", "비중 전", "비중 후", "수량", "단가", "이유", ""].map((h, i) => (
                     <th key={i} className="px-3 py-2 text-left font-medium">{h}</th>
                   ))}
                 </tr>
@@ -312,6 +448,12 @@ export default function TradesPage() {
                       <td className="px-3 py-2">{row.etf_name}</td>
                       <td className="px-3 py-2 tabular-nums">{formatWeight(row.weight_before)}</td>
                       <td className="px-3 py-2 tabular-nums">{formatWeight(row.weight_after)}</td>
+                      <td className="px-3 py-2 tabular-nums">
+                        {row.quantity != null ? row.quantity.toLocaleString("ko-KR") : "—"}
+                      </td>
+                      <td className="px-3 py-2 tabular-nums">
+                        {row.price != null ? row.price.toLocaleString("ko-KR") : "—"}
+                      </td>
                       <td className="max-w-xs truncate px-3 py-2">{row.reason}</td>
                       <td className="px-3 py-2 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         <button
@@ -329,10 +471,11 @@ export default function TradesPage() {
                         </button>
                       </td>
                     </tr>
-                    {expandedIdx === idx && (row.note || (row.strategy_checklist && row.strategy_checklist.length > 0)) && (
+                    {expandedIdx === idx && (row.note || (row.strategy_checklist && row.strategy_checklist.length > 0) || row.amount != null) && (
                       <tr className="border-t border-border bg-surfaceMuted">
-                        <td colSpan={8} className="px-3 py-2 text-xs text-inkSecondary space-y-1">
+                        <td colSpan={10} className="px-3 py-2 text-xs text-inkSecondary space-y-1">
                           {row.note && <div>메모: {row.note}</div>}
+                          {row.amount != null && <div>거래금액: {row.amount.toLocaleString("ko-KR")}원</div>}
                           {row.strategy_checklist && row.strategy_checklist.length > 0 && (
                             <div>전략: {row.strategy_checklist.join(", ")}</div>
                           )}

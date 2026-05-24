@@ -152,4 +152,7 @@ def init_trade_log_table() -> None:
                     created_at         TIMESTAMP    DEFAULT NOW()
                 )
             """)
+            cur.execute("ALTER TABLE trade_log ADD COLUMN IF NOT EXISTS quantity NUMERIC DEFAULT NULL")
+            cur.execute("ALTER TABLE trade_log ADD COLUMN IF NOT EXISTS price    NUMERIC DEFAULT NULL")
+            cur.execute("ALTER TABLE trade_log ADD COLUMN IF NOT EXISTS amount   NUMERIC DEFAULT NULL")
         conn.commit()

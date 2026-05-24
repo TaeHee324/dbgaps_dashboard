@@ -25,7 +25,8 @@ def trade_log():
         with conn.cursor() as cur:
             cur.execute(
                 "SELECT id, date::text, action, etf_code, etf_name, "
-                "weight_before, weight_after, reason, note, strategy_checklist "
+                "weight_before, weight_after, reason, note, strategy_checklist, "
+                "quantity, price, amount "
                 "FROM trade_log ORDER BY date DESC, id DESC"
             )
             rows = cur.fetchall()
@@ -45,6 +46,9 @@ def trade_log():
             "reason": row["reason"],
             "note": row["note"],
             "strategy_checklist": checklist if isinstance(checklist, list) else [],
+            "quantity": float(row["quantity"]) if row["quantity"] is not None else None,
+            "price": float(row["price"]) if row["price"] is not None else None,
+            "amount": float(row["amount"]) if row["amount"] is not None else None,
         })
     return result
 
@@ -58,10 +62,11 @@ def add_trade(payload: schemas.AddTradeRequest):
                 """
                 INSERT INTO trade_log
                   (date, action, etf_code, etf_name, weight_before, weight_after,
-                   reason, note, strategy_checklist)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                   reason, note, strategy_checklist, quantity, price, amount)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id, date::text, action, etf_code, etf_name,
-                          weight_before, weight_after, reason, note, strategy_checklist
+                          weight_before, weight_after, reason, note, strategy_checklist,
+                          quantity, price, amount
                 """,
                 (
                     payload.date,
@@ -73,6 +78,9 @@ def add_trade(payload: schemas.AddTradeRequest):
                     payload.reason,
                     payload.note,
                     json.dumps(payload.strategy_checklist, ensure_ascii=False),
+                    payload.quantity,
+                    payload.price,
+                    payload.amount,
                 ),
             )
             row = cur.fetchone()
@@ -91,6 +99,9 @@ def add_trade(payload: schemas.AddTradeRequest):
         "reason": row["reason"],
         "note": row["note"],
         "strategy_checklist": checklist if isinstance(checklist, list) else [],
+        "quantity": float(row["quantity"]) if row["quantity"] is not None else None,
+        "price": float(row["price"]) if row["price"] is not None else None,
+        "amount": float(row["amount"]) if row["amount"] is not None else None,
     }
 
 
@@ -104,10 +115,12 @@ def update_trade(trade_id: int, payload: schemas.UpdateTradeRequest):
                 UPDATE trade_log
                 SET date = %s, action = %s, etf_code = %s, etf_name = %s,
                     weight_before = %s, weight_after = %s, reason = %s,
-                    note = %s, strategy_checklist = %s
+                    note = %s, strategy_checklist = %s,
+                    quantity = %s, price = %s, amount = %s
                 WHERE id = %s
                 RETURNING id, date::text, action, etf_code, etf_name,
-                          weight_before, weight_after, reason, note, strategy_checklist
+                          weight_before, weight_after, reason, note, strategy_checklist,
+                          quantity, price, amount
                 """,
                 (
                     payload.date,
@@ -119,6 +132,9 @@ def update_trade(trade_id: int, payload: schemas.UpdateTradeRequest):
                     payload.reason,
                     payload.note,
                     json.dumps(payload.strategy_checklist, ensure_ascii=False),
+                    payload.quantity,
+                    payload.price,
+                    payload.amount,
                     trade_id,
                 ),
             )
@@ -140,6 +156,9 @@ def update_trade(trade_id: int, payload: schemas.UpdateTradeRequest):
         "reason": row["reason"],
         "note": row["note"],
         "strategy_checklist": checklist if isinstance(checklist, list) else [],
+        "quantity": float(row["quantity"]) if row["quantity"] is not None else None,
+        "price": float(row["price"]) if row["price"] is not None else None,
+        "amount": float(row["amount"]) if row["amount"] is not None else None,
     }
 
 
