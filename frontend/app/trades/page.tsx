@@ -2,8 +2,18 @@
 
 import { useState, Fragment } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useTradeLog } from "@/lib/hooks/dashboard";
-import { useAddTrade, type AddTradeRequest } from "@/lib/hooks/trades";
+import { useTradeLog, useCurrentHoldings, type TradeLogEntry } from "@/lib/hooks/dashboard";
+import { useEtfList } from "@/lib/hooks/portfolio";
+import { useAddTrade, useUpdateTrade, useDeleteTrade, type AddTradeRequest } from "@/lib/hooks/trades";
+
+const STRATEGY_OPTIONS = [
+  "이해 가능한 사업 (투자원칙 범위 내)",
+  "장기 보유 관점 (최소 5년 이상)",
+  "강력한 경쟁 우위 (모트 존재)",
+  "합리적인 가격 매수",
+  "감정이 아닌 데이터 기반 결정",
+  "분산 투자 원칙 준수",
+] as const;
 
 const ACTION_OPTIONS = ["매수", "매도", "리밸런싱"] as const;
 
@@ -21,17 +31,49 @@ function makeDefaultForm(): AddTradeRequest {
     weight_after: 0,
     reason: "",
     note: "",
+    strategy_checklist: [],
   };
 }
 
 export default function TradesPage() {
   const queryClient = useQueryClient();
   const { data: tradeLog = [] } = useTradeLog();
+  const { data: etfList = [] } = useEtfList();
+  const { data: currentHoldings = [] } = useCurrentHoldings();
   const addTrade = useAddTrade();
+  const updateTrade = useUpdateTrade();
+  const deleteTrade = useDeleteTrade();
+
   const [form, setForm] = useState<AddTradeRequest>(makeDefaultForm);
+  const [editId, setEditId] = useState<number | null>(null);
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
 
   const sorted = [...tradeLog].sort((a, b) => b.date.localeCompare(a.date));
+
+  function handleEditClick(row: TradeLogEntry) {
+    setEditId(row.id);
+    setForm({
+      date: row.date,
+      action: row.action,
+      etf_code: row.etf_code,
+      etf_name: row.etf_name,
+      weight_before: row.weight_before * 100,
+      weight_after: row.weight_after * 100,
+      reason: row.reason,
+      note: row.note,
+      strategy_checklist: row.strategy_checklist ?? [],
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function handleEtfCodeChange(code: string) {
+    const match = etfList.find((e) => e.code === code);
+    setForm((prev) => ({
+      ...prev,
+      etf_code: code,
+      etf_name: match ? match.name : prev.etf_name,
+    }));
+  }
 
   function handleChange<K extends keyof AddTradeRequest>(key: K, value: AddTradeRequest[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -39,17 +81,46 @@ export default function TradesPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    await addTrade.mutateAsync(form);
+    const payload = {
+      ...form,
+      weight_before: form.weight_before / 100,
+      weight_after: form.weight_after / 100,
+    };
+    if (editId !== null) {
+      await updateTrade.mutateAsync({ id: editId, data: payload });
+    } else {
+      await addTrade.mutateAsync(payload);
+    }
     setForm(makeDefaultForm());
+    setEditId(null);
     await queryClient.invalidateQueries({ queryKey: ["trade-log"] });
   }
+
+  async function handleDelete(id: number) {
+    await deleteTrade.mutateAsync(id);
+    await queryClient.invalidateQueries({ queryKey: ["trade-log"] });
+  }
+
+  const isPending = addTrade.isPending || updateTrade.isPending;
+  const isError = addTrade.isError || updateTrade.isError;
 
   return (
     <div className="space-y-8">
       <h1 className="text-2xl font-semibold text-ink">매매일지</h1>
 
       <section className="rounded-lg border border-border bg-surface p-5">
-        <h2 className="mb-4 text-sm font-semibold text-ink">매매 기록 입력</h2>
+        <h2 className="mb-4 text-sm font-semibold text-ink">
+          {editId !== null ? "매매 기록 수정" : "매매 기록 입력"}
+        </h2>
+        {editId !== null && (
+          <button
+            type="button"
+            onClick={() => { setEditId(null); setForm(makeDefaultForm()); }}
+            className="mb-3 text-xs text-inkSecondary hover:underline"
+          >
+            ✕ 수정 취소
+          </button>
+        )}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <div className="flex flex-col gap-1">
@@ -74,48 +145,79 @@ export default function TradesPage() {
                 ))}
               </select>
             </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-inkSecondary">ETF 코드</label>
-              <input
-                type="text"
-                value={form.etf_code}
-                onChange={(e) => handleChange("etf_code", e.target.value)}
-                placeholder="069500"
-                className="rounded border border-border bg-background px-2 py-1.5 text-sm text-ink"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-inkSecondary">ETF 명</label>
-              <input
-                type="text"
-                value={form.etf_name}
-                onChange={(e) => handleChange("etf_name", e.target.value)}
-                placeholder="KODEX 200"
-                className="rounded border border-border bg-background px-2 py-1.5 text-sm text-ink"
-              />
-            </div>
+            {form.action === "매도" ? (
+              <div className="flex flex-col gap-1 sm:col-span-2">
+                <label className="text-xs text-inkSecondary">ETF 선택 (보유 중)</label>
+                <select
+                  value={form.etf_code}
+                  onChange={(e) => {
+                    const holding = currentHoldings.find((h) => h.code === e.target.value);
+                    setForm((prev) => ({
+                      ...prev,
+                      etf_code: e.target.value,
+                      etf_name: holding ? holding.name : prev.etf_name,
+                    }));
+                  }}
+                  className="rounded border border-border bg-background px-2 py-1.5 text-sm text-ink"
+                >
+                  <option value="">선택</option>
+                  {currentHoldings.map((h) => (
+                    <option key={h.code} value={h.code}>{h.code} — {h.name}</option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-inkSecondary">ETF 코드</label>
+                  <input
+                    type="text"
+                    value={form.etf_code}
+                    onChange={(e) => handleEtfCodeChange(e.target.value)}
+                    placeholder="069500"
+                    list="etf-code-list"
+                    className="rounded border border-border bg-background px-2 py-1.5 text-sm text-ink"
+                  />
+                  <datalist id="etf-code-list">
+                    {etfList.map((e) => (
+                      <option key={e.code} value={e.code}>{e.name}</option>
+                    ))}
+                  </datalist>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-inkSecondary">ETF 명</label>
+                  <input
+                    type="text"
+                    value={form.etf_name}
+                    onChange={(e) => handleChange("etf_name", e.target.value)}
+                    placeholder="KODEX 200"
+                    className="rounded border border-border bg-background px-2 py-1.5 text-sm text-ink"
+                  />
+                </div>
+              </>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-inkSecondary">비중 이전 (0.0 ~ 1.0)</label>
+              <label className="text-xs text-inkSecondary">비중 이전 (%)</label>
               <input
                 type="number"
                 min={0}
-                max={1}
-                step={0.01}
+                max={100}
+                step={1}
                 value={form.weight_before}
                 onChange={(e) => handleChange("weight_before", parseFloat(e.target.value) || 0)}
                 className="rounded border border-border bg-background px-2 py-1.5 text-sm text-ink"
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-inkSecondary">비중 이후 (0.0 ~ 1.0)</label>
+              <label className="text-xs text-inkSecondary">비중 이후 (%)</label>
               <input
                 type="number"
                 min={0}
-                max={1}
-                step={0.01}
+                max={100}
+                step={1}
                 value={form.weight_after}
                 onChange={(e) => handleChange("weight_after", parseFloat(e.target.value) || 0)}
                 className="rounded border border-border bg-background px-2 py-1.5 text-sm text-ink"
@@ -144,15 +246,39 @@ export default function TradesPage() {
             />
           </div>
 
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-inkSecondary">전략 체크리스트</label>
+            <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+              {STRATEGY_OPTIONS.map((opt) => (
+                <label key={opt} className="flex items-center gap-2 text-xs text-ink cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.strategy_checklist.includes(opt)}
+                    onChange={(e) => {
+                      setForm((prev) => ({
+                        ...prev,
+                        strategy_checklist: e.target.checked
+                          ? [...prev.strategy_checklist, opt]
+                          : prev.strategy_checklist.filter((s) => s !== opt),
+                      }));
+                    }}
+                    className="accent-indigo-700"
+                  />
+                  {opt}
+                </label>
+              ))}
+            </div>
+          </div>
+
           <div className="flex items-center gap-3">
             <button
               type="submit"
-              disabled={addTrade.isPending}
+              disabled={isPending}
               className="rounded bg-indigo-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
             >
-              {addTrade.isPending ? "저장 중…" : "기록 저장"}
+              {isPending ? "저장 중…" : editId !== null ? "수정 저장" : "기록 저장"}
             </button>
-            {addTrade.isError && (
+            {isError && (
               <p className="text-xs text-red-600">저장 실패. 다시 시도해주세요.</p>
             )}
           </div>
@@ -168,14 +294,14 @@ export default function TradesPage() {
             <table className="w-full text-sm">
               <thead className="bg-surfaceMuted text-xs text-inkSecondary">
                 <tr>
-                  {["날짜", "구분", "ETF 코드", "ETF 명", "비중 전", "비중 후", "이유"].map((h) => (
-                    <th key={h} className="px-3 py-2 text-left font-medium">{h}</th>
+                  {["날짜", "구분", "ETF 코드", "ETF 명", "비중 전", "비중 후", "이유", ""].map((h, i) => (
+                    <th key={i} className="px-3 py-2 text-left font-medium">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {sorted.map((row, idx) => (
-                  <Fragment key={`${row.date}-${row.etf_code}-${idx}`}>
+                  <Fragment key={row.id}>
                     <tr
                       onClick={() => setExpandedIdx(expandedIdx === idx ? null : idx)}
                       className="cursor-pointer border-t border-border hover:bg-surfaceMuted"
@@ -187,11 +313,29 @@ export default function TradesPage() {
                       <td className="px-3 py-2 tabular-nums">{formatWeight(row.weight_before)}</td>
                       <td className="px-3 py-2 tabular-nums">{formatWeight(row.weight_after)}</td>
                       <td className="max-w-xs truncate px-3 py-2">{row.reason}</td>
+                      <td className="px-3 py-2 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => handleEditClick(row)}
+                          className="mr-2 text-xs text-indigo-700 hover:underline"
+                        >
+                          수정
+                        </button>
+                        <button
+                          onClick={() => handleDelete(row.id)}
+                          disabled={deleteTrade.isPending}
+                          className="text-xs text-red-600 hover:underline disabled:opacity-50"
+                        >
+                          삭제
+                        </button>
+                      </td>
                     </tr>
-                    {expandedIdx === idx && row.note && (
+                    {expandedIdx === idx && (row.note || (row.strategy_checklist && row.strategy_checklist.length > 0)) && (
                       <tr className="border-t border-border bg-surfaceMuted">
-                        <td colSpan={7} className="px-3 py-2 text-xs text-inkSecondary">
-                          메모: {row.note}
+                        <td colSpan={8} className="px-3 py-2 text-xs text-inkSecondary space-y-1">
+                          {row.note && <div>메모: {row.note}</div>}
+                          {row.strategy_checklist && row.strategy_checklist.length > 0 && (
+                            <div>전략: {row.strategy_checklist.join(", ")}</div>
+                          )}
                         </td>
                       </tr>
                     )}

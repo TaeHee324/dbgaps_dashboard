@@ -243,3 +243,39 @@ def report():
     except Exception:
         return None
     return {"content": content, "filename": latest.name}
+
+
+@router.get("/reports", response_model=list[schemas.ReportListItem])
+def report_list():
+    if not OUTPUT_DIR.exists():
+        return []
+    files = sorted(OUTPUT_DIR.glob("report_*.md"), reverse=True)
+    result = []
+    for f in files:
+        # filename 예: report_202606.md → period: "2026년 06월", title: "DBGAPS 운용보고서 2026년 06월"
+        stem = f.stem  # "report_202606"
+        raw = stem.replace("report_", "")  # "202606"
+        if len(raw) == 6:
+            period = f"{raw[:4]}년 {raw[4:]}월"
+        else:
+            period = raw
+        result.append({
+            "filename": f.name,
+            "title": f"DBGAPS 운용보고서 {period}",
+            "period": period,
+        })
+    return result
+
+
+@router.get("/report/{filename}", response_model=schemas.ReportResponse | None)
+def report_by_filename(filename: str):
+    # 경로 traversal 방지: basename만 허용
+    safe_name = Path(filename).name
+    path = OUTPUT_DIR / safe_name
+    if not path.exists() or path.suffix != ".md":
+        return None
+    try:
+        content = path.read_text(encoding="utf-8")
+    except Exception:
+        return None
+    return {"content": content, "filename": safe_name}

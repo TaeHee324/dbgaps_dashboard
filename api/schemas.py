@@ -151,6 +151,7 @@ class BacktestResponse(BaseModel):
 
 
 class TradeLogEntry(BaseModel):
+    id: int
     date: str
     action: str
     etf_code: str
@@ -159,11 +160,46 @@ class TradeLogEntry(BaseModel):
     weight_after: float
     reason: str
     note: str
+    strategy_checklist: list[str]
 
 
-class AddTradeRequest(TradeLogEntry):
-    pass
+class AddTradeRequest(BaseModel):
+    date: str
+    action: str
+    etf_code: str
+    etf_name: str
+    weight_before: float
+    weight_after: float
+    reason: str
+    note: str
+    strategy_checklist: list[str] = []
 
 
-class AddTradeResponse(TradeLogEntry):
-    pass
+class AddTradeResponse(BaseModel):
+    date: str
+    action: str
+    etf_code: str
+    etf_name: str
+    weight_before: float
+    weight_after: float
+    reason: str
+    note: str
+    strategy_checklist: list[str] = []
+
+
+class UpdateTradeRequest(BaseModel):
+    date: str
+    action: str
+    etf_code: str
+    etf_name: str
+    weight_before: float
+    weight_after: float
+    reason: str
+    note: str
+    strategy_checklist: list[str] = []
+
+
+class ReportListItem(BaseModel):
+    filename: str
+    title: str
+    period: str

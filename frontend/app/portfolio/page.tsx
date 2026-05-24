@@ -100,8 +100,8 @@ export default function PortfolioPage() {
 
   // 비중 계산
   const validRows = portfolioRows.filter((r) => r.code.trim());
-  const totalWeight = Math.round(validRows.reduce((s, r) => s + r.weight, 0) * 10000) / 10000;
-  const weightOverflow = totalWeight > 1.0;
+  const totalWeight = Math.round(validRows.reduce((s, r) => s + r.weight, 0) * 100) / 100;
+  const weightOverflow = totalWeight > 100;
 
   // 행 조작
   function addRow() {
@@ -127,7 +127,7 @@ export default function PortfolioPage() {
   // 포트폴리오 불러오기
   function handleLoad() {
     if (portfolioDetail && portfolioDetail.length > 0) {
-      setPortfolioRows(portfolioDetail.map((h) => ({ code: h.code, weight: h.weight })));
+      setPortfolioRows(portfolioDetail.map((h) => ({ code: h.code, weight: Math.round(h.weight * 10000) / 100 })));
     }
   }
 
@@ -135,7 +135,7 @@ export default function PortfolioPage() {
   function handleRunBacktest() {
     if (validRows.length === 0) return;
     backtestMutation.mutate({
-      holdings: validRows.map((r) => ({ code: r.code, weight: r.weight })),
+      holdings: validRows.map((r) => ({ code: r.code, weight: r.weight / 100 })),
     });
   }
 
@@ -143,7 +143,7 @@ export default function PortfolioPage() {
   function handleSave() {
     if (!saveName.trim() || validRows.length === 0) return;
     upsertMutation.mutate(
-      { name: saveName.trim(), holdings: validRows.map((r) => ({ code: r.code, weight: r.weight })) },
+      { name: saveName.trim(), holdings: validRows.map((r) => ({ code: r.code, weight: r.weight / 100 })) },
       {
         onSuccess: () => {
           void queryClient.invalidateQueries({ queryKey: ["portfolio-list"] });
@@ -259,11 +259,11 @@ export default function PortfolioPage() {
                   />
                   <input
                     type="number"
-                    placeholder="비중"
+                    placeholder="비중 (%)"
                     value={row.weight}
                     min={0}
-                    max={1}
-                    step={0.01}
+                    max={100}
+                    step={1}
                     onChange={(e) =>
                       updateRowWeight(i, parseFloat(e.target.value) || 0)
                     }
@@ -292,7 +292,7 @@ export default function PortfolioPage() {
             <p
               className={`text-xs ${weightOverflow ? "font-medium text-danger" : "text-inkSecondary"}`}
             >
-              비중 합계: {totalWeight.toFixed(2)} / 1.00
+              비중 합계: {totalWeight.toFixed(1)}% / 100%
               {weightOverflow && " — 합계 초과"}
             </p>
 

@@ -131,3 +131,25 @@ def delete_portfolio(name: str) -> None:
                 raise ValueError(f"'{name}'은 기본 포트폴리오로 삭제할 수 없습니다.")
             cur.execute("DELETE FROM portfolios WHERE name = %s", (name,))
         conn.commit()
+
+
+def init_trade_log_table() -> None:
+    """Create trade_log table if not exists."""
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS trade_log (
+                    id                 SERIAL PRIMARY KEY,
+                    date               DATE         NOT NULL,
+                    action             VARCHAR(20)  NOT NULL,
+                    etf_code           VARCHAR(20)  NOT NULL,
+                    etf_name           VARCHAR(100) NOT NULL,
+                    weight_before      DECIMAL(8,4) NOT NULL DEFAULT 0,
+                    weight_after       DECIMAL(8,4) NOT NULL DEFAULT 0,
+                    reason             TEXT         NOT NULL DEFAULT '',
+                    note               TEXT         NOT NULL DEFAULT '',
+                    strategy_checklist JSONB        NOT NULL DEFAULT '[]',
+                    created_at         TIMESTAMP    DEFAULT NOW()
+                )
+            """)
+        conn.commit()

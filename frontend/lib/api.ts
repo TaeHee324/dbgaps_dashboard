@@ -28,3 +28,14 @@ export async function del(path: string): Promise<void> {
   if (!res.ok && res.status !== 204)
     throw new Error(`DELETE ${normalizedPath} failed: ${res.status}`);
 }
+
+export async function put<T>(path: string, body: unknown): Promise<T> {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  const res = await fetch(`${API_BASE_URL}${normalizedPath}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`PUT ${normalizedPath} failed: ${res.status}`);
+  return res.json() as Promise<T>;
+}

@@ -109,6 +109,7 @@ export type ComparisonNavPoint = {
 };
 
 export type TradeLogEntry = {
+  id: number;
   date: string;
   action: string;
   etf_code: string;
@@ -117,6 +118,7 @@ export type TradeLogEntry = {
   weight_after: number;
   reason: string;
   note: string;
+  strategy_checklist: string[];
 };
 
 export type PortfolioHolding = {
@@ -177,6 +179,27 @@ export function useReport() {
   return useQuery({
     queryKey: ["report"],
     queryFn: () => get<ReportResponse>("/api/report"),
+  });
+}
+
+export type ReportListItem = {
+  filename: string;
+  title: string;
+  period: string;
+};
+
+export function useReports() {
+  return useQuery({
+    queryKey: ["reports"],
+    queryFn: () => get<ReportListItem[]>("/api/reports"),
+  });
+}
+
+export function useReportDetail(filename: string) {
+  return useQuery({
+    queryKey: ["report", filename],
+    queryFn: () => get<ReportResponse>(`/api/report/${encodeURIComponent(filename)}`),
+    enabled: !!filename,
   });
 }
 
