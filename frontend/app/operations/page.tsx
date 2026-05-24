@@ -208,7 +208,7 @@ export default function OperationsPage() {
 
       <Section title="핵심 지표">
         <SectionState isLoading={summaryQuery.isLoading} isError={summaryQuery.isError}>
-          <KpiStrip summary={summaryQuery.data ?? null} variant="full" />
+          <KpiStrip summary={summaryQuery.data ?? null} />
         </SectionState>
       </Section>
 

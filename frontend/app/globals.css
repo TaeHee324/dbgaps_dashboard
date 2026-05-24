@@ -2,9 +2,9 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8fafc;
-  --surface: #ffffff;
-  --foreground: #0d253d;
+  --background: #F3F5F8;
+  --surface: #FFFFFF;
+  --foreground: #0B1B2C;
 }
 
 * {
@@ -19,6 +19,11 @@ body {
   margin: 0;
   background: var(--background);
   color: var(--foreground);
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
+    "Apple SD Gothic Neo", "Segoe UI", sans-serif;
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+  font-size: 13px;
+  line-height: 1.4;
   font-variant-numeric: tabular-nums;
 }

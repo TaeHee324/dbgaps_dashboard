@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { DrawdownChart } from "@/components/charts/DrawdownChart";
 import { NavChart } from "@/components/charts/NavChart";
 import { KpiStrip } from "@/components/ui/KpiStrip";
+import { MonthlyHeatmap } from "@/components/ui/MonthlyHeatmap";
 import { StatusBar } from "@/components/ui/StatusBar";
 import {
   useBacktestNav,
@@ -16,60 +17,90 @@ import {
   type TradeLogEntry,
 } from "@/lib/hooks/dashboard";
 
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
+const PANEL_STYLE: React.CSSProperties = {
+  background: "#FFFFFF",
+  border: "1px solid #E4E9EF",
+  borderRadius: 6,
+  boxShadow: "0 1px 0 rgba(11,27,44,.04), 0 1px 2px rgba(11,27,44,.04)",
+};
+
+const PANEL_HEAD_STYLE: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 12,
+  padding: "10px 14px",
+  borderBottom: "1px solid #E4E9EF",
+};
+
+function PanelTitle({ title, sub }: { title: string; sub?: string }) {
   return (
-    <section className="space-y-sm">
-      <h2 className="text-base font-semibold text-ink">{title}</h2>
-      {children}
-    </section>
+    <div style={PANEL_HEAD_STYLE}>
+      <div
+        style={{
+          fontSize: 12.5,
+          fontWeight: 700,
+          letterSpacing: "-0.005em",
+          color: "#0B1B2C",
+        }}
+      >
+        {title}
+      </div>
+      {sub && (
+        <div
+          style={{
+            fontSize: 11,
+            color: "#8595A6",
+            fontFamily: "JetBrains Mono, monospace",
+          }}
+        >
+          {sub}
+        </div>
+      )}
+    </div>
   );
 }
 
-function SectionState({
-  isLoading,
-  isError,
-  children,
-}: {
-  isLoading?: boolean;
-  isError?: boolean;
-  children: React.ReactNode;
-}) {
-  if (isLoading) {
-    return (
-      <div className="rounded-md border border-border bg-surface px-md py-sm text-sm text-inkSecondary">
-        로딩 중...
-      </div>
-    );
-  }
+function Loading() {
+  return (
+    <div
+      style={{
+        padding: "12px 14px",
+        fontSize: 12,
+        color: "#8595A6",
+        fontFamily: "JetBrains Mono, monospace",
+      }}
+    >
+      로딩 중...
+    </div>
+  );
+}
 
-  if (isError) {
-    return (
-      <div className="rounded-md border border-border bg-surface px-md py-sm text-sm text-inkSecondary">
-        데이터 없음
-      </div>
-    );
-  }
-
-  return <>{children}</>;
+function Empty({ message = "데이터 없음" }: { message?: string }) {
+  return (
+    <div
+      style={{
+        padding: "12px 14px",
+        fontSize: 12,
+        color: "#8595A6",
+        fontFamily: "JetBrains Mono, monospace",
+      }}
+    >
+      {message}
+    </div>
+  );
 }
 
 function toNavSeries(points: NavPoint[] | undefined) {
-  return (points ?? []).map((point) => ({
-    time: point.date,
-    value: (1 + point.cumulative_return) * 100,
+  return (points ?? []).map((p) => ({
+    time: p.date,
+    value: (1 + p.cumulative_return) * 100,
   }));
 }
 
 function toDrawdownSeries(points: NavPoint[] | undefined) {
-  return (points ?? []).map((point) => ({
-    time: point.date,
-    value: point.drawdown * 100,
+  return (points ?? []).map((p) => ({
+    time: p.date,
+    value: p.drawdown * 100,
   }));
 }
 
@@ -82,45 +113,112 @@ function toTradeMarkers(entries: TradeLogEntry[] | undefined) {
 }
 
 function formatWeight(value: number | null | undefined) {
-  if (value === null || value === undefined || !Number.isFinite(value)) {
-    return "-";
-  }
-
+  if (value === null || value === undefined || !Number.isFinite(value)) return "—";
   return `${(value * 100).toFixed(1)}%`;
 }
 
 function StrategyTable({ holdings }: { holdings: PortfolioHolding[] }) {
-  if (holdings.length === 0) {
-    return (
-      <div className="rounded-md border border-border bg-surface px-md py-sm text-sm text-inkSecondary">
-        데이터 없음
-      </div>
-    );
-  }
+  if (holdings.length === 0) return <Empty />;
+
+  const maxW = Math.max(...holdings.map((h) => h.weight));
 
   return (
-    <div className="overflow-x-auto rounded-md border border-border bg-surface shadow-panel">
-      <table className="min-w-[360px] border-collapse text-sm">
-        <thead className="bg-surfaceMuted text-xs font-semibold text-inkSecondary">
-          <tr className="border-b border-border">
-            <th className="px-sm py-sm text-left">코드</th>
-            <th className="px-sm py-sm text-right">비중</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border text-ink">
-          {holdings.map((holding) => (
-            <tr key={holding.code}>
-              <td className="whitespace-nowrap px-sm py-sm font-mono text-xs font-semibold text-primary">
-                {holding.code}
+    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+      <thead>
+        <tr>
+          <th
+            style={{
+              padding: "8px 12px",
+              textAlign: "left",
+              fontSize: 10.5,
+              fontWeight: 600,
+              fontFamily: "JetBrains Mono, monospace",
+              color: "#8595A6",
+              textTransform: "uppercase",
+              letterSpacing: "0.09em",
+              background: "#F7F9FC",
+              borderBottom: "1px solid #E4E9EF",
+            }}
+          >
+            코드
+          </th>
+          <th
+            style={{
+              padding: "8px 12px",
+              textAlign: "right",
+              fontSize: 10.5,
+              fontWeight: 600,
+              fontFamily: "JetBrains Mono, monospace",
+              color: "#8595A6",
+              textTransform: "uppercase",
+              letterSpacing: "0.09em",
+              background: "#F7F9FC",
+              borderBottom: "1px solid #E4E9EF",
+              minWidth: 120,
+            }}
+          >
+            비중
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {holdings.map((h) => {
+          const barPct = (h.weight / maxW) * 100;
+          return (
+            <tr key={h.code} style={{ borderBottom: "1px solid #EFF2F6" }}>
+              <td style={{ padding: "8px 12px" }}>
+                <span
+                  style={{
+                    fontFamily: "JetBrains Mono, monospace",
+                    fontWeight: 600,
+                    color: "#3F2EE0",
+                    fontSize: 12,
+                    letterSpacing: "0.02em",
+                  }}
+                >
+                  {h.code}
+                </span>
               </td>
-              <td className="px-sm py-sm text-right font-numeric tabular-nums">
-                {formatWeight(holding.weight)}
+              <td style={{ padding: "8px 12px", position: "relative", minWidth: 120 }}>
+                <div
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    width: "56%",
+                    height: 6,
+                    background: "#EEEBFE",
+                    borderRadius: 2,
+                  }}
+                >
+                  <div
+                    style={{
+                      height: "100%",
+                      width: `${barPct}%`,
+                      background: "#3F2EE0",
+                      borderRadius: 2,
+                      opacity: 0.85,
+                    }}
+                  />
+                </div>
+                <span
+                  style={{
+                    position: "relative",
+                    display: "block",
+                    textAlign: "right",
+                    fontFamily: "JetBrains Mono, monospace",
+                    fontVariantNumeric: "tabular-nums",
+                  }}
+                >
+                  {formatWeight(h.weight)}
+                </span>
               </td>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          );
+        })}
+      </tbody>
+    </table>
   );
 }
 
@@ -139,47 +237,81 @@ export default function HomePage() {
   );
 
   return (
-    <div className="mx-auto max-w-7xl space-y-xl">
-      <div className="space-y-xs">
-        <h1 className="text-2xl font-semibold text-ink">DBGAPS</h1>
+    <div style={{ maxWidth: 1320, margin: "0 auto", display: "flex", flexDirection: "column", gap: 20 }}>
+
+      {/* 헤더 */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <h1
+          style={{
+            margin: 0,
+            fontSize: 20,
+            fontWeight: 700,
+            letterSpacing: "-0.01em",
+            color: "#0B1B2C",
+          }}
+        >
+          전략 대시보드
+        </h1>
         <StatusBar date={dataDateQuery.data?.date ?? ""} />
       </div>
 
-      <Section title="핵심 지표">
-        <SectionState isLoading={summaryQuery.isLoading} isError={summaryQuery.isError}>
-          <KpiStrip summary={summaryQuery.data ?? null} variant="home" />
-        </SectionState>
-      </Section>
-
-      <Section title="NAV와 Drawdown">
-        <SectionState
-          isLoading={navQuery.isLoading || tradeLogQuery.isLoading}
-          isError={navQuery.isError}
-        >
-          <div className="grid grid-cols-1 gap-lg xl:grid-cols-2">
-            <div className="space-y-xs rounded-md border border-border bg-surface p-md shadow-panel">
-              <h3 className="text-sm font-semibold text-ink">NAV (기준 100)</h3>
-              <NavChart data={navData} tradeMarkers={tradeMarkers} />
-            </div>
-            <div className="space-y-xs rounded-md border border-border bg-surface p-md shadow-panel">
-              <h3 className="text-sm font-semibold text-ink">Drawdown (%)</h3>
-              <DrawdownChart data={drawdownData} />
-            </div>
-          </div>
-        </SectionState>
-      </Section>
-
-      <Section title="운용 전략">
-        <SectionState isLoading={portfolioQuery.isLoading} isError={portfolioQuery.isError}>
-          <StrategyTable holdings={portfolioQuery.data ?? []} />
-        </SectionState>
-      </Section>
-
-      <Section title="시황">
-        <div className="rounded-md border border-border bg-surface px-md py-sm text-sm text-inkSecondary">
-          준비 중
+      {/* KPI 스트립 */}
+      {summaryQuery.isLoading ? (
+        <div style={{ ...PANEL_STYLE, padding: "12px 14px", fontSize: 12, color: "#8595A6", fontFamily: "JetBrains Mono, monospace" }}>
+          로딩 중...
         </div>
-      </Section>
+      ) : (
+        <KpiStrip summary={summaryQuery.data ?? null} />
+      )}
+
+      {/* NAV + Drawdown */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div style={PANEL_STYLE}>
+          <PanelTitle title="NAV" sub="기준 100 · 로그 미적용" />
+          <div style={{ padding: "12px 14px" }}>
+            {navQuery.isLoading ? (
+              <Loading />
+            ) : navQuery.isError ? (
+              <Empty />
+            ) : (
+              <NavChart data={navData} tradeMarkers={tradeMarkers} />
+            )}
+          </div>
+        </div>
+
+        <div style={PANEL_STYLE}>
+          <PanelTitle title="Drawdown" sub="%" />
+          <div style={{ padding: "12px 14px" }}>
+            {navQuery.isLoading ? (
+              <Loading />
+            ) : navQuery.isError ? (
+              <Empty />
+            ) : (
+              <DrawdownChart data={drawdownData} />
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* 운용 전략 + 월별 히트맵 */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div style={PANEL_STYLE}>
+          <PanelTitle title="운용 전략" sub="전략 ID base" />
+          {portfolioQuery.isLoading ? (
+            <Loading />
+          ) : portfolioQuery.isError ? (
+            <Empty />
+          ) : (
+            <StrategyTable holdings={portfolioQuery.data ?? []} />
+          )}
+        </div>
+
+        <div style={PANEL_STYLE}>
+          <PanelTitle title="월별 수익률 히트맵" sub="단위 %" />
+          <MonthlyHeatmap />
+        </div>
+      </div>
+
     </div>
   );
 }
