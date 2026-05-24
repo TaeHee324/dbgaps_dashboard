@@ -11,15 +11,15 @@ For any phase:
 - `/docs/ARCHITECTURE.md`
 - `/docs/ADR.md`
 - `/docs/data_schema.md`
-- `/PROJECT_STATUS.md`
+- `/docs/PROJECT_STATUS.md`
 
 For any UI, UX, dashboard, Streamlit, chart, table, frontend-copy, or visual-design phase, also read:
 
-- `/DESIGN.md`
-- `/DESIGN-LANGUAGE.md`
+- `/docs/DESIGN.md`
+- `/docs/DESIGN-LANGUAGE.md`
 - `/docs/UI_GUIDE.md`
-- `/design-tokens.json`
-- `/QA_CHECKLIST.md`
+- `/docs/design-tokens.json`
+- `/docs/QA_CHECKLIST.md`
 
 ## Workflow
 
@@ -38,7 +38,7 @@ Important questions:
 - Does this change touch calculation, data collection, generated outputs, or dashboard rendering?
 - Does this change require an output schema update?
 - Does this change preserve `web/` reading from `output/` only?
-- For UI work, does the change follow `DESIGN.md` and `DESIGN-LANGUAGE.md`?
+- For UI work, does the change follow `docs/DESIGN.md` and `docs/DESIGN-LANGUAGE.md`?
 
 ### C. Step Design
 
@@ -53,7 +53,7 @@ Each step should:
 
 For UI steps, acceptance criteria must include:
 
-- Relevant `QA_CHECKLIST.md` items.
+- Relevant `docs/QA_CHECKLIST.md` items.
 - No `web/` import from `src`.
 - No `web/` import from `pykrx`.
 - No live data fetching from dashboard code.
@@ -82,5 +82,5 @@ Before considering a phase complete:
 
 - Run or document relevant tests.
 - Check architecture boundaries.
-- For UI work, check `QA_CHECKLIST.md`.
-- Update `PROJECT_STATUS.md` if the phase changes roadmap state.
+- For UI work, check `docs/QA_CHECKLIST.md`.
+- Update `docs/PROJECT_STATUS.md` if the phase changes roadmap state.

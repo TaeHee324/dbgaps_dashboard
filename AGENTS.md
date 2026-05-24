@@ -8,27 +8,27 @@ DBGAPS is an internal ETF portfolio operations dashboard. It is a read-only dash
 
 ## Mandatory UI Design Context
 
-For any work involving UI, UX, visual design, frontend copy, charts, tables, Streamlit layout, or files under `web/`, read these files first:
+For any work involving UI, UX, visual design, frontend copy, charts, tables, or files under `frontend/`, read these files first:
 
-- `DESIGN.md`
-- `DESIGN-LANGUAGE.md`
+- `docs/DESIGN.md`
+- `docs/DESIGN-LANGUAGE.md`
 - `docs/UI_GUIDE.md`
-- `design-tokens.json`
-- `QA_CHECKLIST.md`
+- `docs/design-tokens.json`
+- `docs/QA_CHECKLIST.md`
 
 Follow this authority order:
 
-1. `DESIGN.md` for product character and visual direction.
-2. `DESIGN-LANGUAGE.md` for design judgment and anti-patterns.
-3. `docs/UI_GUIDE.md` for Streamlit implementation rules.
-4. `design-tokens.json` for visual tokens.
-5. `QA_CHECKLIST.md` for final UI review.
+1. `docs/DESIGN.md` for product character and visual direction.
+2. `docs/DESIGN-LANGUAGE.md` for design judgment and anti-patterns.
+3. `docs/UI_GUIDE.md` for UI implementation rules.
+4. `docs/design-tokens.json` for visual tokens.
+5. `docs/QA_CHECKLIST.md` for final UI review.
 
 ## Architecture Boundaries
 
-- `web/` must not import `src`.
-- `web/` must not import `pykrx`.
-- `web/` must read from `output/` only.
+- `api/` must not import `src/` (except `routers/portfolios.py` for backtest).
+- `api/` must not import `pykrx` or fetch live data.
+- `api/` reads from `output/` only (except portfolios router).
 - Calculation logic belongs in `src/`.
 - Data collection belongs in `src/update_prices.py`.
 - `output/` is generated and should not be manually edited for UI convenience.
@@ -45,6 +45,6 @@ Follow this authority order:
 
 ## Validation
 
-- For UI work, check `QA_CHECKLIST.md` before final response.
+- For UI work, check `docs/QA_CHECKLIST.md` before final response.
 - For Python code changes, run `python -m pytest tests/ -q` when feasible.
 - If tests are not run, state why.

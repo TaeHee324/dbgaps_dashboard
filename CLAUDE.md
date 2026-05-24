@@ -12,21 +12,21 @@ Before changing calculation, data, or architecture:
 - `docs/ARCHITECTURE.md`
 - `docs/ADR.md`
 - `docs/data_schema.md`
-- `PROJECT_STATUS.md`
+- `docs/PROJECT_STATUS.md`
 
 Before changing UI, UX, visual design, frontend copy, charts, tables, or any file under `frontend/`:
 
-- `DESIGN.md`
-- `DESIGN-LANGUAGE.md`
-- `design-tokens.json`
-- `QA_CHECKLIST.md`
+- `docs/DESIGN.md`
+- `docs/DESIGN-LANGUAGE.md`
+- `docs/design-tokens.json`
+- `docs/QA_CHECKLIST.md`
 
 Design authority order:
 
-1. `DESIGN.md` defines product character and visual direction.
-2. `DESIGN-LANGUAGE.md` defines design judgment rules and anti-patterns.
-3. `design-tokens.json` defines machine-readable visual tokens.
-4. `QA_CHECKLIST.md` is the final UI review checklist.
+1. `docs/DESIGN.md` defines product character and visual direction.
+2. `docs/DESIGN-LANGUAGE.md` defines design judgment rules and anti-patterns.
+3. `docs/design-tokens.json` defines machine-readable visual tokens.
+4. `docs/QA_CHECKLIST.md` is the final UI review checklist.
 
 ## Tech Stack
 
@@ -57,7 +57,7 @@ api/                    FastAPI 백엔드; output/ 및 data/ 읽기, PostgreSQL 
 frontend/               Next.js 프론트엔드 (App Router + TypeScript)
 output/                 Generated results; do not manually edit for UI convenience
 tests/                  pytest suite
-docs/                   Architecture, ADR, schema, UI guide
+docs/                   Architecture, ADR, schema, UI guide, design files, project status
 phases/                 Harness phase plans
 scripts/                Harness and execution utilities
 ```
@@ -176,6 +176,6 @@ For Python code changes:
 
 For UI changes:
 
-- Check `QA_CHECKLIST.md`.
+- Check `docs/QA_CHECKLIST.md`.
 - Preserve `tests/test_boundaries.py` expectations.
 - Confirm `api/` (portfolios.py 제외) remains output-driven and src/ import-free.
