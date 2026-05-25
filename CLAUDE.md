@@ -167,6 +167,54 @@ python -m pytest tests/ -q
 python scripts/execute.py <phase-dir>
 ```
 
+## Sync Rules (Critical)
+
+### SYNC-1: 메트릭 필드 추가 시 반드시 6곳 동시 수정
+
+`MetricsSummary`에 필드를 추가하거나 `portfolio_summary.csv` 컬럼을 늘릴 때:
+
+1. `src/metrics.py` — `MetricsSummary` 데이터클래스 + `as_dict()`
+2. `src/run_engine.py` — 포트폴리오 요약 섹션 **AND** `run_comparison_backtests()` rows dict
+3. `api/schemas.py` — `PortfolioSummary` + `ComparisonSummaryItem` Pydantic 모델
+4. `api/routers/dashboard.py` — `portfolio_summary()` 엔드포인트 `base_columns`/`extra_columns` 목록 (하드코딩)
+5. `frontend/lib/hooks/dashboard.ts` — `PortfolioSummary` + `ComparisonSummaryItem` TS 타입
+6. `tests/test_output_schema.py` — `OUTPUT_SCHEMAS["portfolio_summary.csv"]` 컬럼 목록
+
+누락 시 증상: CSV에 데이터 있는데 API가 `null` 반환, UI에서 `—` 표시, 또는 pytest 실패.
+
+### SYNC-2: 비교 CSV는 두 경로에서 독립 생성됨
+
+`output/comparison/*.csv`는 두 곳에서 독립적으로 작성된다:
+- `src/run_engine.py::run_comparison_backtests()` — 엔진 전체 실행 시
+- `api/routers/portfolios.py` POST `/api/portfolios` 핸들러 — 포트폴리오 저장 시
+
+한쪽 스키마를 바꾸면 (컬럼 추가, 컬럼명 변경 등) 반드시 두 경로 모두 수정.
+누락 시 증상: 포트폴리오 저장 후에는 데이터 없고 엔진 실행 후에만 데이터 생김 (또는 반대).
+
+### SYNC-3: `output/` 파일 커밋 필수
+
+Railway 백엔드는 `output/*.csv`를 git에서 직접 읽는다. 엔진 실행 후 output/ 변경분을 커밋·푸시하지 않으면 배포된 서비스에 반영되지 않는다.
+
+엔진 실행 후 체크리스트:
+
+```bash
+git add output/
+git commit -m "chore: regenerate output CSVs"
+git push
+```
+
+### SYNC-4: `summarize_backtest()` DatetimeIndex 변환 필수
+
+`src/backtest.py::summarize_backtest()`에서 nav 인덱스를 DatetimeIndex로 변환해야 `win_rate_monthly` 등 월별 메트릭이 동작한다. 변환 없이 문자열 인덱스면 해당 메트릭이 `None` 반환.
+
+```python
+nav.index = pd.to_datetime(nav.index, errors="coerce")
+```
+
+### SYNC-5: 현황 페이지 보유종목은 LiveHolding 사용
+
+`/api/holdings` (output/current_holdings.csv 기반)와 `/api/live-holdings` (trade_log DB 기반) 두 엔드포인트가 존재한다. 운용현황 페이지는 `useLiveHoldings()` 사용. `useCurrentHoldings()`는 레거시; 신규 UI에서 사용 금지.
+
 ## Validation
 
 For Python code changes:
