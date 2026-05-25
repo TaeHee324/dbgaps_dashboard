@@ -83,7 +83,7 @@ def portfolio_summary():
     df = _read_csv(OUTPUT_DIR / "portfolio_summary.csv")
     if df.empty:
         return None
-    columns = [
+    base_columns = [
         "cumulative_return",
         "cagr",
         "mdd",
@@ -94,8 +94,23 @@ def portfolio_summary():
         "sharpe",
         "calmar",
     ]
+    extra_columns = [
+        "sortino",
+        "information_ratio",
+        "mdd_duration",
+        "win_rate_monthly",
+        "var_95",
+        "tail_ratio",
+    ]
     row = df.iloc[0]
-    return {column: float(_clean_scalar(row[column] if column in df.columns else 0.0)) for column in columns}
+    result = {col: float(_clean_scalar(row[col] if col in df.columns else 0.0)) for col in base_columns}
+    for col in extra_columns:
+        if col in df.columns:
+            val = _clean_scalar(row[col])
+            result[col] = int(val) if col == "mdd_duration" else (float(val) if val is not None else None)
+        else:
+            result[col] = None
+    return result
 
 
 @router.get("/holdings", response_model=list[schemas.Holding])
