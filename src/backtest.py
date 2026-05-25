@@ -107,6 +107,7 @@ def summarize_backtest(
     risk_free_rate: float = 0.0,
 ) -> dict[str, float | None]:
     nav = backtest_result.set_index("date")["portfolio_value"]
+    nav.index = pd.to_datetime(nav.index, errors="coerce")
     return summarize_performance(nav, benchmark_nav=benchmark, risk_free_rate=risk_free_rate).as_dict()
 
 
