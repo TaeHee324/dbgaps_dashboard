@@ -67,7 +67,7 @@ def run_comparison_backtests(prices: pd.DataFrame, portfolios: dict[str, list[di
             benchmark = None
         summary = summarize_backtest(backtest, benchmark)
 
-        backtest.loc[:, ["date", "portfolio_value", "cumulative_return"]].to_csv(
+        backtest.loc[:, ["date", "portfolio_value", "cumulative_return", "drawdown"]].to_csv(
             COMPARISON_OUTPUT / f"{portfolio_name}_nav.csv",
             index=False,
         )
@@ -78,10 +78,16 @@ def run_comparison_backtests(prices: pd.DataFrame, portfolios: dict[str, list[di
                 "mdd": summary["mdd"],
                 "sharpe": summary["sharpe"],
                 "calmar": summary["calmar"],
+                "sortino": summary.get("sortino"),
+                "annual_volatility": summary.get("annual_volatility"),
+                "win_rate": summary.get("win_rate"),
             }
         )
 
-    summary_df = pd.DataFrame(rows, columns=["portfolio_name", "cagr", "mdd", "sharpe", "calmar"])
+    summary_df = pd.DataFrame(rows, columns=[
+        "portfolio_name", "cagr", "mdd", "sharpe", "calmar",
+        "sortino", "annual_volatility", "win_rate",
+    ])
     summary_df.to_csv(COMPARISON_OUTPUT / "summary.csv", index=False)
     return summary_df
 

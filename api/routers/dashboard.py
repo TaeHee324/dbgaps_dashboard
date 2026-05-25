@@ -167,7 +167,10 @@ def comparison_nav():
     for path in sorted(comparison_dir.glob("*_nav.csv")):
         df = _read_csv(path)
         name = path.name.removesuffix("_nav.csv")
-        result[name] = _records(df, ["date", "portfolio_value", "cumulative_return"], {"date"})
+        cols = ["date", "portfolio_value", "cumulative_return"]
+        if "drawdown" in df.columns:
+            cols.append("drawdown")
+        result[name] = _records(df, cols, {"date"})
     return result
 
 

@@ -66,6 +66,7 @@ class ComparisonNavPoint(BaseModel):
     date: str
     portfolio_value: float
     cumulative_return: float
+    drawdown: float | None = None
 
 
 class IndividualRule(BaseModel):

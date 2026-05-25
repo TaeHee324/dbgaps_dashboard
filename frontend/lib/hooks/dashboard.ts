@@ -115,6 +115,7 @@ export type ComparisonNavPoint = {
   date: string;
   portfolio_value: number;
   cumulative_return: number;
+  drawdown?: number | null;
 };
 
 export type TradeLogEntry = {

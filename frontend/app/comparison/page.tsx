@@ -49,14 +49,18 @@ export default function ComparisonPage() {
   const chartSeries = useMemo(() => {
     if (!navData) return {};
     return Object.fromEntries(
-      Object.entries(navData).map(([name, points]) => [
-        name,
-        points
-          .filter((p) => !cutoffDate || p.date >= cutoffDate)
-          .map((p) => ({ time: p.date, value: p.cumulative_return })),
-      ]),
+      Object.entries(navData).map(([name, points]) => {
+        const filtered = points.filter((p) => !cutoffDate || p.date >= cutoffDate);
+        const values = filtered.map((p) => {
+          if (chartMode === "drawdown") {
+            return { time: p.date, value: p.drawdown != null ? p.drawdown * 100 : 0 };
+          }
+          return { time: p.date, value: p.cumulative_return * 100 };
+        });
+        return [name, values];
+      }),
     );
-  }, [navData, cutoffDate]);
+  }, [navData, cutoffDate, chartMode]);
 
   const filteredSummary = summaryData.filter((s) => selectedPortfolios.has(s.portfolio_name));
 
@@ -153,13 +157,7 @@ export default function ComparisonPage() {
           </div>
         )}
 
-        {chartMode === "nav" ? (
-          <ComparisonChart series={filteredChartSeries} />
-        ) : (
-          <div className="flex h-80 items-center justify-center rounded-md border border-border bg-surface text-sm text-inkMuted">
-            drawdown 데이터 없음
-          </div>
-        )}
+        <ComparisonChart series={filteredChartSeries} />
 
         <p className="text-xs text-inkMuted">
           * 포트폴리오별 데이터 시작일이 다를 수 있습니다. 비교 시 기간 차이에 유의하세요.

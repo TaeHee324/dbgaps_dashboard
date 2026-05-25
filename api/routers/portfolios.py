@@ -94,7 +94,7 @@ def upsert_portfolio(payload: schemas.PortfolioUpsertRequest):
             _summary = summarize_backtest(_bt, None)
 
             COMPARISON_OUTPUT.mkdir(parents=True, exist_ok=True)
-            _bt[["date", "portfolio_value", "cumulative_return"]].to_csv(
+            _bt[["date", "portfolio_value", "cumulative_return", "drawdown"]].to_csv(
                 COMPARISON_OUTPUT / f"{payload.name}_nav.csv", index=False
             )
 
@@ -106,6 +106,9 @@ def upsert_portfolio(payload: schemas.PortfolioUpsertRequest):
                 "mdd": _summary["mdd"],
                 "sharpe": _summary["sharpe"],
                 "calmar": _summary["calmar"],
+                "sortino": _summary.get("sortino"),
+                "annual_volatility": _summary.get("annual_volatility"),
+                "win_rate": _summary.get("win_rate"),
             }])
             if _summary_path.exists():
                 _existing = _pd.read_csv(_summary_path)
