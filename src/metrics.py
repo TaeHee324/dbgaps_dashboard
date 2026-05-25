@@ -22,6 +22,12 @@ class MetricsSummary:
     win_rate: float
     sharpe: float | None
     calmar: float | None
+    sortino: float | None
+    information_ratio: float | None
+    mdd_duration: int
+    win_rate_monthly: float | None
+    var_95: float | None
+    tail_ratio: float | None
 
     def as_dict(self) -> dict[str, float | None]:
         return {
@@ -34,6 +40,12 @@ class MetricsSummary:
             "win_rate": self.win_rate,
             "sharpe": self.sharpe,
             "calmar": self.calmar,
+            "sortino": self.sortino,
+            "information_ratio": self.information_ratio,
+            "mdd_duration": self.mdd_duration,
+            "win_rate_monthly": self.win_rate_monthly,
+            "var_95": self.var_95,
+            "tail_ratio": self.tail_ratio,
         }
 
 
@@ -235,6 +247,45 @@ def win_rate_monthly(nav_series: pd.Series) -> float | None:
     return float((monthly > 0).mean())
 
 
+def information_ratio(
+    portfolio_returns: pd.Series,
+    benchmark_returns: pd.Series,
+    periods_per_year: int = TRADING_DAYS_PER_YEAR,
+) -> float | None:
+    """벤치마크 대비 초과수익의 일관성. 0.5 이상이면 액티브 운용이 가치를 창출."""
+    aligned = pd.concat([
+        pd.to_numeric(portfolio_returns, errors="coerce").rename("p"),
+        pd.to_numeric(benchmark_returns, errors="coerce").rename("b"),
+    ], axis=1).dropna()
+    if len(aligned) < 2:
+        return None
+    active_return = aligned["p"] - aligned["b"]
+    tracking_error = active_return.std(ddof=1)
+    if tracking_error == 0 or pd.isna(tracking_error):
+        return None
+    return float(active_return.mean() / tracking_error * math.sqrt(periods_per_year))
+
+
+def var_historic(returns: pd.Series, confidence: float = 0.95) -> float | None:
+    """히스토리컬 VaR (95% 신뢰도). 하루 기준 최대 예상 손실률."""
+    clean = pd.to_numeric(returns, errors="coerce").dropna()
+    if len(clean) < 2:
+        return None
+    return float(clean.quantile(1 - confidence))
+
+
+def tail_ratio(returns: pd.Series) -> float | None:
+    """극단적 수익 / 극단적 손실 비율. 1 미만이면 큰 손실이 더 자주."""
+    clean = pd.to_numeric(returns, errors="coerce").dropna()
+    if len(clean) < 2:
+        return None
+    p95 = abs(float(clean.quantile(0.95)))
+    p05 = abs(float(clean.quantile(0.05)))
+    if p05 == 0:
+        return None
+    return float(p95 / p05)
+
+
 def monthly_returns(backtest_result: pd.DataFrame) -> pd.DataFrame:
     """Aggregate daily returns into calendar-month compounded returns."""
 
@@ -289,4 +340,12 @@ def summarize_performance(
             cagr(nav, periods_per_year=periods_per_year),
             mdd(nav),
         ),
+        sortino=sortino_ratio(returns),
+        information_ratio=information_ratio(returns, benchmark_returns, periods_per_year)
+        if benchmark_returns is not None
+        else None,
+        mdd_duration=mdd_duration(nav),
+        win_rate_monthly=win_rate_monthly(nav) if isinstance(nav.index, pd.DatetimeIndex) else None,
+        var_95=var_historic(returns),
+        tail_ratio=tail_ratio(returns),
     )

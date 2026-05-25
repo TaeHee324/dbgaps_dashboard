@@ -138,7 +138,9 @@ def monthly_returns():
 @router.get("/comparison/summary", response_model=list[schemas.ComparisonSummaryItem])
 def comparison_summary():
     df = _read_csv(OUTPUT_DIR / "comparison" / "summary.csv")
-    return _records(df, ["portfolio_name", "cagr", "mdd", "sharpe", "calmar"])
+    base_cols = ["portfolio_name", "cagr", "mdd", "sharpe", "calmar"]
+    extra_cols = [c for c in ["sortino", "annual_volatility", "win_rate"] if c in df.columns]
+    return _records(df, base_cols + extra_cols)
 
 
 @router.get("/comparison/nav", response_model=dict[str, list[schemas.ComparisonNavPoint]])
@@ -328,16 +330,67 @@ def _calc_live_holdings() -> list[dict]:
                     h["quantity"] = 0.0
                     h["cost_basis"] = 0.0
 
+    # prices_daily.csv — 코드별 최신 종가 및 날짜
+    prices_latest: dict[str, tuple[float, str]] = {}  # code -> (close, date_str)
+    try:
+        prices_df = _read_csv(DATA_DIR / "prices_daily.csv", dtype={"code": "string"})
+        if not prices_df.empty and {"code", "date", "close"}.issubset(prices_df.columns):
+            prices_df["code"] = prices_df["code"].map(_normalize_code)
+            prices_df["date"] = pd.to_datetime(prices_df["date"], errors="coerce")
+            idx = prices_df.groupby("code")["date"].idxmax()
+            latest_prices = prices_df.loc[idx].set_index("code")
+            for c, row in latest_prices.iterrows():
+                prices_latest[str(c)] = (float(row["close"]), _format_date(row["date"]))
+    except Exception:
+        pass
+
+    # etf_master.csv — 코드별 risk_type, asset_class
+    master_map: dict[str, tuple[str, str]] = {}  # code -> (risk_type, asset_class)
+    try:
+        master_df = _read_csv(DATA_DIR / "etf_master.csv", dtype={"code": "string"})
+        if not master_df.empty and "code" in master_df.columns:
+            master_df["code"] = master_df["code"].map(_normalize_code)
+            for _, row in master_df.iterrows():
+                c = str(row["code"])
+                rt = str(row["risk_type"]) if "risk_type" in master_df.columns and not pd.isna(row.get("risk_type")) else ""
+                ac = str(row["asset_class"]) if "asset_class" in master_df.columns and not pd.isna(row.get("asset_class")) else ""
+                master_map[c] = (rt, ac)
+    except Exception:
+        pass
+
     result = []
     for code, data in holdings.items():
         if data["quantity"] > 0:
+            qty = round(data["quantity"], 4)
+            cost = round(data["cost_basis"], 2)
+            avg = round(cost / qty, 2) if qty else 0.0
+            close, price_date = prices_latest.get(code, (0.0, ""))
+            market_value = round(qty * close, 2)
+            unrealized_pnl = round(market_value - cost, 2)
+            unrealized_return = round(unrealized_pnl / cost, 6) if cost else 0.0
+            risk_type, asset_class = master_map.get(code, ("", ""))
             result.append({
                 "code": code,
                 "name": data["name"],
-                "quantity": round(data["quantity"], 4),
-                "avg_price": round(data["cost_basis"] / data["quantity"], 2),
-                "cost_basis": round(data["cost_basis"], 2),
+                "quantity": qty,
+                "avg_price": avg,
+                "cost_basis": cost,
+                "price_date": price_date,
+                "current_price": close,
+                "market_value": market_value,
+                "unrealized_pnl": unrealized_pnl,
+                "unrealized_return": unrealized_return,
+                "current_weight": 0.0,  # placeholder; computed below
+                "risk_type": risk_type,
+                "asset_class": asset_class,
             })
+
+    # current_weight 계산
+    total_mv = sum(h["market_value"] for h in result)
+    if total_mv > 0:
+        for h in result:
+            h["current_weight"] = round(h["market_value"] / total_mv, 6)
+
     return result
 
 

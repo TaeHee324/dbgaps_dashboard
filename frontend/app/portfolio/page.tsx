@@ -51,6 +51,7 @@ export default function PortfolioPage() {
   const [portfolioRows, setPortfolioRows] = useState<PortfolioRow[]>([
     { code: "", weight: 0 },
   ]);
+  const [addWeight, setAddWeight] = useState<number>(10);
   const [loadName, setLoadName] = useState("");
   const [saveName, setSaveName] = useState("");
   const [deleteTarget, setDeleteTarget] = useState("");
@@ -444,6 +445,50 @@ export default function PortfolioPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* 포트폴리오에 추가 */}
+            {selectedCode && (
+              <div className="border-t border-border pt-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-inkSecondary whitespace-nowrap">
+                    비중 (%)
+                  </span>
+                  <input
+                    type="number"
+                    value={addWeight}
+                    min={0}
+                    max={100}
+                    step={1}
+                    onChange={(e) => setAddWeight(parseFloat(e.target.value) || 0)}
+                    className="w-20 rounded-md border border-border bg-surface px-3 py-1.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                  <button
+                    onClick={() => {
+                      setPortfolioRows((prev) => {
+                        const existing = prev.findIndex((r) => r.code === selectedCode);
+                        if (existing !== -1) {
+                          return prev.map((r, i) =>
+                            i === existing ? { ...r, weight: addWeight } : r,
+                          );
+                        }
+                        const hasEmpty = prev.length === 1 && prev[0].code === "";
+                        if (hasEmpty) {
+                          return [{ code: selectedCode, weight: addWeight }];
+                        }
+                        return [...prev, { code: selectedCode, weight: addWeight }];
+                      });
+                      setAddWeight(10);
+                    }}
+                    className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-primaryPressed"
+                  >
+                    담기
+                  </button>
+                  <span className="text-xs text-inkMuted">
+                    {selectedName || selectedCode}
+                  </span>
+                </div>
               </div>
             )}
 

@@ -13,6 +13,12 @@ class PortfolioSummary(BaseModel):
     win_rate: float
     sharpe: float
     calmar: float
+    sortino: float | None = None
+    information_ratio: float | None = None
+    mdd_duration: int | None = None
+    win_rate_monthly: float | None = None
+    var_95: float | None = None
+    tail_ratio: float | None = None
 
 
 class Holding(BaseModel):
@@ -51,6 +57,9 @@ class ComparisonSummaryItem(BaseModel):
     mdd: float
     sharpe: float
     calmar: float
+    sortino: float | None = None
+    annual_volatility: float | None = None
+    win_rate: float | None = None
 
 
 class ComparisonNavPoint(BaseModel):
@@ -222,3 +231,11 @@ class LiveHolding(BaseModel):
     quantity: float
     avg_price: float
     cost_basis: float
+    price_date: str
+    current_price: float
+    market_value: float
+    unrealized_pnl: float
+    unrealized_return: float
+    current_weight: float
+    risk_type: str
+    asset_class: str

@@ -293,23 +293,22 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* 운용 전략 + 월별 히트맵 */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        <div style={PANEL_STYLE}>
-          <PanelTitle title="운용 전략" sub="전략 ID base" />
-          {portfolioQuery.isLoading ? (
-            <Loading />
-          ) : portfolioQuery.isError ? (
-            <Empty />
-          ) : (
-            <StrategyTable holdings={portfolioQuery.data ?? []} />
-          )}
-        </div>
+      {/* 운용 전략 (full-width) */}
+      <div style={PANEL_STYLE}>
+        <PanelTitle title="운용 전략" sub="전략 ID base" />
+        {portfolioQuery.isLoading ? (
+          <Loading />
+        ) : portfolioQuery.isError ? (
+          <Empty />
+        ) : (
+          <StrategyTable holdings={portfolioQuery.data ?? []} />
+        )}
+      </div>
 
-        <div style={PANEL_STYLE}>
-          <PanelTitle title="월별 수익률 히트맵" sub="단위 %" />
-          <MonthlyHeatmap />
-        </div>
+      {/* 월별 히트맵 (full-width) */}
+      <div style={PANEL_STYLE}>
+        <PanelTitle title="월별 수익률 히트맵" sub="단위 %" />
+        <MonthlyHeatmap />
       </div>
 
     </div>

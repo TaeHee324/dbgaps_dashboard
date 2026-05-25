@@ -8,24 +8,29 @@ type KpiItem = {
   key: keyof NonNullable<PortfolioSummary>;
   label: string;
   hint: string;
-  format: "percent" | "decimal";
+  format: "percent" | "decimal" | "days";
   decimals?: number;
   downIsGood?: boolean;
 };
 
 const kpis: KpiItem[] = [
-  { key: "cagr",              label: "CAGR",    hint: "연환산 복리수익률",        format: "percent" },
-  { key: "mdd",               label: "MDD",     hint: "최대낙폭",                format: "percent", downIsGood: true },
-  { key: "sharpe",            label: "샤프",    hint: "위험조정 수익률",          format: "decimal" },
-  { key: "cumulative_return", label: "누적수익", hint: "기준일까지 누적 총수익률", format: "percent" },
-  { key: "annual_volatility", label: "변동성",  hint: "연환산 표준편차",          format: "percent", downIsGood: true },
-  { key: "win_rate",          label: "승률",    hint: "일간 양의 수익률 비율",    format: "percent", decimals: 1 },
-  { key: "calmar",            label: "칼마",    hint: "CAGR / |MDD|",           format: "decimal" },
+  { key: "cagr",              label: "CAGR",        hint: "연환산 복리수익률",             format: "percent" },
+  { key: "mdd",               label: "MDD",         hint: "최대낙폭",                     format: "percent", downIsGood: true },
+  { key: "sharpe",            label: "샤프",         hint: "위험조정 수익률",               format: "decimal" },
+  { key: "cumulative_return", label: "누적수익",     hint: "기준일까지 누적 총수익률",       format: "percent" },
+  { key: "annual_volatility", label: "변동성",       hint: "연환산 표준편차",               format: "percent", downIsGood: true },
+  { key: "win_rate",          label: "일간승률",     hint: "일간 양의 수익률 비율",          format: "percent", decimals: 1 },
+  { key: "calmar",            label: "칼마",         hint: "CAGR / |MDD|",                format: "decimal" },
+  { key: "sortino",           label: "소르티노",     hint: "하방 변동성 조정 수익률",        format: "decimal" },
+  { key: "mdd_duration",      label: "MDD기간",      hint: "최대낙폭 발생~회복 기간 (일)",   format: "days" },
+  { key: "win_rate_monthly",  label: "월별승률",     hint: "월간 양의 수익률 비율",          format: "percent", decimals: 1 },
+  { key: "var_95",            label: "VaR 95%",     hint: "95% 신뢰도 하루 최대 예상 손실", format: "percent", downIsGood: true },
 ];
 
 function fmtValue(value: number | null | undefined, format: KpiItem["format"], decimals = 2) {
   if (value === null || value === undefined || !Number.isFinite(value)) return "—";
   if (format === "percent") return `${(value * 100).toFixed(decimals)}%`;
+  if (format === "days") return `${Math.round(value)}일`;
   return value.toFixed(decimals);
 }
 
@@ -40,7 +45,7 @@ export function KpiStrip({ summary }: KpiStripProps) {
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "repeat(7, 1fr)",
+        gridTemplateColumns: "repeat(11, 1fr)",
         background: "#FFFFFF",
         border: "1px solid #E4E9EF",
         borderRadius: 6,

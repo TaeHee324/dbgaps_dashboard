@@ -9,6 +9,8 @@ const navigation = [
   { href: "/portfolio", label: "ETF 포트폴리오" },
   { href: "/comparison", label: "포트폴리오 비교" },
   { href: "/trades", label: "매매일지" },
+  { href: "/research", label: "리서치" },
+  { href: "/rules", label: "대회 룰" },
   { href: "/market", label: "시황" },
   { href: "/report", label: "운용보고서" },
   { href: "/changelog", label: "업데이트 로그" },

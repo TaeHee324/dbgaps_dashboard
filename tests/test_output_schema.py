@@ -23,6 +23,12 @@ OUTPUT_SCHEMAS = {
         "win_rate",
         "sharpe",
         "calmar",
+        "sortino",
+        "information_ratio",
+        "mdd_duration",
+        "win_rate_monthly",
+        "var_95",
+        "tail_ratio",
     ],
     "current_holdings.csv": [
         "code",

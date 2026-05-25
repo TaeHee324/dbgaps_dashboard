@@ -14,8 +14,8 @@ import {
   useBacktestNav,
   useComparisonNav,
   useComparisonSummary,
-  useCurrentHoldings,
   useDataDate,
+  useLiveHoldings,
   useMonthlyReturns,
   usePortfolioSummary,
   useRules,
@@ -185,7 +185,7 @@ export default function OperationsPage() {
   const monthlyQuery = useMonthlyReturns();
   const comparisonSummaryQuery = useComparisonSummary();
   const comparisonNavQuery = useComparisonNav();
-  const holdingsQuery = useCurrentHoldings();
+  const holdingsQuery = useLiveHoldings();
 
   const navData = useMemo(() => toNavSeries(navQuery.data), [navQuery.data]);
   const drawdownData = useMemo(() => toDrawdownSeries(navQuery.data), [navQuery.data]);
@@ -266,7 +266,7 @@ export default function OperationsPage() {
 
       <Section title="현재 보유 종목">
         <SectionState isLoading={holdingsQuery.isLoading} isError={holdingsQuery.isError}>
-          <HoldingsTable holdings={holdingsQuery.data ?? []} />
+          <HoldingsTable holdings={(holdingsQuery.data ?? []) as import("@/lib/hooks/dashboard").Holding[]} />
         </SectionState>
       </Section>
     </div>

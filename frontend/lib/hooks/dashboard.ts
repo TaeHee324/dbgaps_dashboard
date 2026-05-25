@@ -13,6 +13,12 @@ export type PortfolioSummary = {
   win_rate: number;
   sharpe: number;
   calmar: number;
+  sortino?: number | null;
+  information_ratio?: number | null;
+  mdd_duration?: number | null;
+  win_rate_monthly?: number | null;
+  var_95?: number | null;
+  tail_ratio?: number | null;
 } | null;
 
 export type NavPoint = {
@@ -100,6 +106,9 @@ export type ComparisonSummaryItem = {
   mdd: number;
   sharpe: number;
   calmar: number;
+  sortino?: number | null;
+  annual_volatility?: number | null;
+  win_rate?: number | null;
 };
 
 export type ComparisonNavPoint = {
@@ -130,6 +139,14 @@ export type LiveHolding = {
   quantity: number;
   avg_price: number;
   cost_basis: number;
+  price_date: string;
+  current_price: number;
+  market_value: number;
+  unrealized_pnl: number;
+  unrealized_return: number;
+  current_weight: number;
+  risk_type: string;
+  asset_class: string;
 };
 
 export type PortfolioHolding = {

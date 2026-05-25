@@ -2,7 +2,7 @@
 
 import { useState, Fragment } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useTradeLog, useCurrentHoldings, usePortfolioEtfs, type TradeLogEntry } from "@/lib/hooks/dashboard";
+import { useTradeLog, usePortfolioEtfs, type TradeLogEntry } from "@/lib/hooks/dashboard";
 import { useEtfList, useEtfPrices } from "@/lib/hooks/portfolio";
 import { useAddTrade, useUpdateTrade, useDeleteTrade, type AddTradeRequest } from "@/lib/hooks/trades";
 
@@ -42,7 +42,6 @@ export default function TradesPage() {
   const queryClient = useQueryClient();
   const { data: tradeLog = [] } = useTradeLog();
   const { data: etfList = [] } = useEtfList();
-  const { data: currentHoldings = [] } = useCurrentHoldings();
   const { data: portfolioEtfs = [] } = usePortfolioEtfs();
   const addTrade = useAddTrade();
   const updateTrade = useUpdateTrade();
@@ -170,17 +169,17 @@ export default function TradesPage() {
                 <select
                   value={form.etf_code}
                   onChange={(e) => {
-                    const holding = currentHoldings.find((h) => h.code === e.target.value);
+                    const etf = portfolioEtfs.find((h) => h.code === e.target.value);
                     setForm((prev) => ({
                       ...prev,
                       etf_code: e.target.value,
-                      etf_name: holding ? holding.name : prev.etf_name,
+                      etf_name: etf ? etf.name : prev.etf_name,
                     }));
                   }}
                   className="rounded border border-border bg-background px-2 py-1.5 text-sm text-ink"
                 >
                   <option value="">선택</option>
-                  {currentHoldings.map((h) => (
+                  {portfolioEtfs.map((h) => (
                     <option key={h.code} value={h.code}>{h.code} — {h.name}</option>
                   ))}
                 </select>
