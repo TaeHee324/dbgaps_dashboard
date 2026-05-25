@@ -1,2 +1,2 @@
 rule,risky_weight,limit,excess,passed
-risk_asset_limit,0.8177580569294117,0.7,0.11775805692941177,False
+risk_asset_limit,0.6494088628472652,0.7,-0.05059113715273478,True
