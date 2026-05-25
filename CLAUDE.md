@@ -135,7 +135,7 @@ output/*.csv -> api/ FastAPI -> frontend/ Next.js
 
 - Benchmark code: `069500` KODEX 200
 - Risk-free rate: `0.0`
-- Initial capital: `100_000_000`
+- Initial capital: `1_000_000_000`
 - Individual ETF limit: `20%`
 - Risk asset limit: `70%`
 - Initial turnover limit: `80%`

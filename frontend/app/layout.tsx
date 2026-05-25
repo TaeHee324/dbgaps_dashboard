@@ -4,8 +4,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 
 const navigation = [
-  { href: "/", label: "홈" },
-  { href: "/operations", label: "운용현황" },
+  { href: "/", label: "운용 대시보드" },
   { href: "/portfolio", label: "ETF 포트폴리오" },
   { href: "/comparison", label: "포트폴리오 비교" },
   { href: "/trades", label: "매매일지" },

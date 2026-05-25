@@ -3,17 +3,24 @@
 import { useMemo } from "react";
 import { DrawdownChart } from "@/components/charts/DrawdownChart";
 import { NavChart } from "@/components/charts/NavChart";
+import { DailyHeatmap } from "@/components/ui/DailyHeatmap";
+import { HoldingsCompositionPanel } from "@/components/ui/HoldingsCompositionPanel";
+import { HoldingsTable } from "@/components/ui/HoldingsTable";
 import { KpiStrip } from "@/components/ui/KpiStrip";
-import { MonthlyHeatmap } from "@/components/ui/MonthlyHeatmap";
+import { LivePortfolioSpec } from "@/components/ui/LivePortfolioSpec";
+import { RuleBadge } from "@/components/ui/RuleBadge";
 import { StatusBar } from "@/components/ui/StatusBar";
+import { TurnoverRow } from "@/components/ui/TurnoverRow";
 import {
   useBacktestNav,
   useDataDate,
-  usePortfolioDetail,
+  useLiveHoldings,
   usePortfolioSummary,
+  useRules,
   useTradeLog,
+  useTurnover,
+  type Holding,
   type NavPoint,
-  type PortfolioHolding,
   type TradeLogEntry,
 } from "@/lib/hooks/dashboard";
 
@@ -75,7 +82,7 @@ function Loading() {
   );
 }
 
-function Empty({ message = "데이터 없음" }: { message?: string }) {
+function Empty() {
   return (
     <div
       style={{
@@ -85,7 +92,7 @@ function Empty({ message = "데이터 없음" }: { message?: string }) {
         fontFamily: "JetBrains Mono, monospace",
       }}
     >
-      {message}
+      데이터 없음
     </div>
   );
 }
@@ -112,122 +119,14 @@ function toTradeMarkers(entries: TradeLogEntry[] | undefined) {
   }));
 }
 
-function formatWeight(value: number | null | undefined) {
-  if (value === null || value === undefined || !Number.isFinite(value)) return "—";
-  return `${(value * 100).toFixed(1)}%`;
-}
-
-function StrategyTable({ holdings }: { holdings: PortfolioHolding[] }) {
-  if (holdings.length === 0) return <Empty />;
-
-  const maxW = Math.max(...holdings.map((h) => h.weight));
-
-  return (
-    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
-      <thead>
-        <tr>
-          <th
-            style={{
-              padding: "8px 12px",
-              textAlign: "left",
-              fontSize: 10.5,
-              fontWeight: 600,
-              fontFamily: "JetBrains Mono, monospace",
-              color: "#8595A6",
-              textTransform: "uppercase",
-              letterSpacing: "0.09em",
-              background: "#F7F9FC",
-              borderBottom: "1px solid #E4E9EF",
-            }}
-          >
-            코드
-          </th>
-          <th
-            style={{
-              padding: "8px 12px",
-              textAlign: "right",
-              fontSize: 10.5,
-              fontWeight: 600,
-              fontFamily: "JetBrains Mono, monospace",
-              color: "#8595A6",
-              textTransform: "uppercase",
-              letterSpacing: "0.09em",
-              background: "#F7F9FC",
-              borderBottom: "1px solid #E4E9EF",
-              minWidth: 120,
-            }}
-          >
-            비중
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        {holdings.map((h) => {
-          const barPct = (h.weight / maxW) * 100;
-          return (
-            <tr key={h.code} style={{ borderBottom: "1px solid #EFF2F6" }}>
-              <td style={{ padding: "8px 12px" }}>
-                <span
-                  style={{
-                    fontFamily: "JetBrains Mono, monospace",
-                    fontWeight: 600,
-                    color: "#3F2EE0",
-                    fontSize: 12,
-                    letterSpacing: "0.02em",
-                  }}
-                >
-                  {h.code}
-                </span>
-              </td>
-              <td style={{ padding: "8px 12px", position: "relative", minWidth: 120 }}>
-                <div
-                  style={{
-                    position: "absolute",
-                    left: 0,
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    width: "56%",
-                    height: 6,
-                    background: "#EEEBFE",
-                    borderRadius: 2,
-                  }}
-                >
-                  <div
-                    style={{
-                      height: "100%",
-                      width: `${barPct}%`,
-                      background: "#3F2EE0",
-                      borderRadius: 2,
-                      opacity: 0.85,
-                    }}
-                  />
-                </div>
-                <span
-                  style={{
-                    position: "relative",
-                    display: "block",
-                    textAlign: "right",
-                    fontFamily: "JetBrains Mono, monospace",
-                    fontVariantNumeric: "tabular-nums",
-                  }}
-                >
-                  {formatWeight(h.weight)}
-                </span>
-              </td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
-  );
-}
-
 export default function HomePage() {
   const dataDateQuery = useDataDate();
   const summaryQuery = usePortfolioSummary();
   const navQuery = useBacktestNav();
   const tradeLogQuery = useTradeLog();
-  const portfolioQuery = usePortfolioDetail("base");
+  const turnoverQuery = useTurnover();
+  const rulesQuery = useRules();
+  const holdingsQuery = useLiveHoldings();
 
   const navData = useMemo(() => toNavSeries(navQuery.data), [navQuery.data]);
   const drawdownData = useMemo(() => toDrawdownSeries(navQuery.data), [navQuery.data]);
@@ -250,14 +149,22 @@ export default function HomePage() {
             color: "#0B1B2C",
           }}
         >
-          전략 대시보드
+          운용 대시보드
         </h1>
         <StatusBar date={dataDateQuery.data?.date ?? ""} />
       </div>
 
       {/* KPI 스트립 */}
       {summaryQuery.isLoading ? (
-        <div style={{ ...PANEL_STYLE, padding: "12px 14px", fontSize: 12, color: "#8595A6", fontFamily: "JetBrains Mono, monospace" }}>
+        <div
+          style={{
+            ...PANEL_STYLE,
+            padding: "12px 14px",
+            fontSize: 12,
+            color: "#8595A6",
+            fontFamily: "JetBrains Mono, monospace",
+          }}
+        >
           로딩 중...
         </div>
       ) : (
@@ -293,23 +200,46 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* 운용 전략 (full-width) */}
+      {/* 현재 보유 종목 */}
       <div style={PANEL_STYLE}>
-        <PanelTitle title="운용 전략" sub="전략 ID base" />
-        {portfolioQuery.isLoading ? (
+        <PanelTitle title="현재 보유 종목" />
+        {holdingsQuery.isLoading ? (
           <Loading />
-        ) : portfolioQuery.isError ? (
+        ) : holdingsQuery.isError ? (
           <Empty />
         ) : (
-          <StrategyTable holdings={portfolioQuery.data ?? []} />
+          <HoldingsTable holdings={(holdingsQuery.data ?? []) as Holding[]} />
         )}
       </div>
 
-      {/* 월별 히트맵 (full-width) */}
+      {/* 현 포트폴리오 백테스트 스펙 */}
+      <LivePortfolioSpec />
+
+      {/* 회전율 */}
       <div style={PANEL_STYLE}>
-        <PanelTitle title="월별 수익률 히트맵" sub="단위 %" />
-        <MonthlyHeatmap />
+        <PanelTitle title="회전율" />
+        {turnoverQuery.isLoading ? (
+          <Loading />
+        ) : (
+          <TurnoverRow turnover={turnoverQuery.data ?? null} />
+        )}
       </div>
+
+      {/* 투자 규칙 */}
+      <div style={PANEL_STYLE}>
+        <PanelTitle title="투자 규칙" />
+        {rulesQuery.isLoading ? (
+          <Loading />
+        ) : (
+          <RuleBadge rules={rulesQuery.data ?? null} />
+        )}
+      </div>
+
+      {/* 구성 비중 */}
+      <HoldingsCompositionPanel />
+
+      {/* 일별 수익률 */}
+      <DailyHeatmap />
 
     </div>
   );

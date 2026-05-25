@@ -40,7 +40,7 @@ def main() -> None:
 
     turnover = check_turnover_limits(
         trades,
-        capital_base=100_000_000,
+        capital_base=1_000_000_000,
         initial_end_date="2026-01-02",
     )
     pd.DataFrame([turnover["initial"]]).to_csv(OUTPUT / "turnover_initial.csv", index=False)

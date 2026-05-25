@@ -45,7 +45,7 @@ def price_matrix(prices: pd.DataFrame, codes: list[str] | None = None) -> pd.Dat
 def run_backtest(
     prices: pd.DataFrame,
     weights: pd.Series,
-    initial_value: float = 100_000_000,
+    initial_value: float = 1_000_000_000,
     rebalance: str | None = None,
 ) -> pd.DataFrame:
     """Run a close-to-close portfolio backtest.
@@ -94,7 +94,7 @@ def run_backtest(
     return result
 
 
-def benchmark_nav(prices: pd.DataFrame, benchmark_code: str, initial_value: float = 100_000_000) -> pd.Series:
+def benchmark_nav(prices: pd.DataFrame, benchmark_code: str, initial_value: float = 1_000_000_000) -> pd.Series:
     matrix = price_matrix(prices, [benchmark_code]).dropna()
     if benchmark_code not in matrix.columns or matrix.empty:
         raise ValueError(f"missing benchmark prices for code: {benchmark_code}")
@@ -116,7 +116,7 @@ def export_backtest_summary(
     portfolio_path: str | Path,
     output_path: str | Path,
     benchmark_code: str | None = None,
-    initial_value: float = 100_000_000,
+    initial_value: float = 1_000_000_000,
     risk_free_rate: float = 0.0,
 ) -> pd.DataFrame:
     prices = load_prices(prices_path)

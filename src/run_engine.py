@@ -23,7 +23,7 @@ DATA = ROOT / "data"
 OUTPUT = ROOT / "output"
 COMPARISON_OUTPUT = OUTPUT / "comparison"
 BENCHMARK_CODE = "069500"
-INITIAL_VALUE = 100_000_000
+INITIAL_VALUE = 1_000_000_000
 
 
 def format_pct(value: float | None) -> str:
@@ -133,7 +133,7 @@ def main() -> None:
     turnover_result = check_turnover_limits(
         trades,
         capital_base=INITIAL_VALUE,
-        initial_end_date="2026-01-02",
+        initial_end_date="2026-05-09",
     )
     pd.DataFrame([turnover_result["initial"]]).to_csv(OUTPUT / "turnover_initial.csv", index=False)
     turnover_result["weekly"].to_csv(OUTPUT / "turnover_weekly.csv", index=False)
