@@ -412,6 +412,145 @@ def _calc_live_holdings() -> list[dict]:
     return result
 
 
+@router.get("/actual-nav", response_model=list[schemas.NavPoint])
+def actual_nav():
+    """trade_log DB 기반 실제 운용 NAV 시계열. cash = 초기자본 - 누적 매수원금 + 매도 회수금."""
+    INITIAL_CAPITAL = 1_000_000_000
+
+    # 1. DB에서 거래 내역 전체 읽기
+    try:
+        with db.get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT date, action, etf_code, quantity, price "
+                    "FROM trade_log "
+                    "WHERE quantity IS NOT NULL AND price IS NOT NULL "
+                    "ORDER BY date ASC, id ASC"
+                )
+                trade_rows = cur.fetchall()
+    except Exception:
+        return []
+
+    if not trade_rows:
+        return []
+
+    # 2. prices_daily.csv 읽기
+    prices_df = _read_csv(DATA_DIR / "prices_daily.csv", dtype={"code": "string"})
+    if prices_df.empty or not {"code", "date", "close"}.issubset(prices_df.columns):
+        return []
+
+    prices_df["code"] = prices_df["code"].map(_normalize_code)
+    prices_df["date"] = pd.to_datetime(prices_df["date"], errors="coerce")
+    prices_df = prices_df.dropna(subset=["date"]).sort_values("date")
+
+    # 3. 거래 내역을 날짜별로 집계 (누적 보유 상태 계산용)
+    trade_list = []
+    for r in trade_rows:
+        trade_list.append({
+            "date": pd.to_datetime(r["date"]),
+            "action": str(r["action"]),
+            "code": _normalize_code(r["etf_code"]),
+            "quantity": float(r["quantity"]),
+            "price": float(r["price"]),
+        })
+
+    # 4. 거래 첫날부터 가격 데이터 마지막 날까지 일별 포트폴리오 가치 계산
+    first_trade_date = min(t["date"] for t in trade_list)
+    all_dates = prices_df["date"].unique()
+    all_dates = sorted(d for d in all_dates if d >= first_trade_date)
+
+    if not all_dates:
+        return []
+
+    # 가격 pivot: date × code
+    price_pivot = prices_df.pivot_table(index="date", columns="code", values="close", aggfunc="last")
+
+    holdings: dict[str, float] = {}   # code -> quantity
+    cost_basis: dict[str, float] = {} # code -> total cost
+    cumulative_buy_cost = 0.0         # 누적 매수원금
+    cumulative_sell_proceeds = 0.0    # 누적 매도 회수금
+
+    trade_idx = 0
+    nav_list: list[dict] = []
+    prev_value: float | None = None
+
+    for dt in all_dates:
+        # 해당 날짜의 거래 반영
+        while trade_idx < len(trade_list) and trade_list[trade_idx]["date"] <= dt:
+            t = trade_list[trade_idx]
+            code = t["code"]
+            qty = t["quantity"]
+            price = t["price"]
+            action = t["action"]
+
+            if action in ("매수", "리밸런싱"):
+                holdings[code] = holdings.get(code, 0.0) + qty
+                cost_basis[code] = cost_basis.get(code, 0.0) + qty * price
+                cumulative_buy_cost += qty * price
+            elif action == "매도":
+                held = holdings.get(code, 0.0)
+                sold = min(qty, held)
+                holdings[code] = held - sold
+                if held > 0:
+                    avg = cost_basis.get(code, 0.0) / held
+                    cost_basis[code] = cost_basis.get(code, 0.0) - avg * sold
+                cumulative_sell_proceeds += sold * price
+            trade_idx += 1
+
+        # 해당 날짜 포트폴리오 가치 계산
+        portfolio_value = 0.0
+        for code, qty in holdings.items():
+            if qty <= 0:
+                continue
+            if dt in price_pivot.index and code in price_pivot.columns:
+                close = price_pivot.at[dt, code]
+                if not pd.isna(close):
+                    portfolio_value += qty * close
+
+        if portfolio_value == 0.0 and not any(q > 0 for q in holdings.values()):
+            continue
+
+        cash = INITIAL_CAPITAL - cumulative_buy_cost + cumulative_sell_proceeds
+
+        daily_return = 0.0
+        if prev_value is not None and prev_value > 0:
+            daily_return = (portfolio_value - prev_value) / prev_value
+
+        total_value = portfolio_value  # 현금 제외 포트폴리오 가치
+        cumulative_return = (total_value - INITIAL_CAPITAL) / INITIAL_CAPITAL if INITIAL_CAPITAL > 0 else 0.0
+
+        nav_list.append({
+            "date": dt,
+            "portfolio_value": portfolio_value,
+            "daily_return": daily_return,
+            "cumulative_return": cumulative_return,
+            "cash": cash,
+        })
+        prev_value = portfolio_value
+
+    if not nav_list:
+        return []
+
+    # drawdown 계산
+    peak = 0.0
+    result = []
+    for i, row in enumerate(nav_list):
+        pv = row["portfolio_value"]
+        if pv > peak:
+            peak = pv
+        drawdown = (pv - peak) / peak if peak > 0 else 0.0
+        result.append({
+            "date": _format_date(row["date"]),
+            "portfolio_value": round(pv, 2),
+            "daily_return": round(row["daily_return"], 6),
+            "cumulative_return": round(row["cumulative_return"], 6),
+            "drawdown": round(drawdown, 6),
+            "cash": round(row["cash"], 2),
+        })
+
+    return result
+
+
 @router.get("/live-holdings", response_model=list[schemas.LiveHolding])
 def live_holdings():
     return _calc_live_holdings()
@@ -441,6 +580,90 @@ def report_image(filename: str):
         if path.exists() and path.suffix.lower() == ext:
             return FileResponse(str(path))
     raise HTTPException(status_code=404, detail="image not found")
+
+
+@router.get("/live-rules", response_model=schemas.RulesResponse | None)
+def live_rules():
+    """live holdings 기반 규칙 체크. src/rules.py import 없이 직접 구현."""
+    live = _calc_live_holdings()
+    if not live:
+        return None
+
+    total_mv = sum(h["market_value"] for h in live)
+    if total_mv <= 0:
+        return None
+
+    INDIVIDUAL_LIMIT = 0.20
+    RISK_ASSET_LIMIT = 0.70
+
+    # 세부 자산군별 상한 (asset_class -> limit)
+    ASSET_CLASS_LIMITS: dict[str, float] = {
+        "국내주식_지수": 0.30,
+        "국내주식_섹터": 0.15,
+        "해외주식_지수": 0.30,
+        "해외주식_섹터": 0.10,
+        "FX 및 원자재": 0.20,
+        "국내채권_종합": 0.50,
+        "국내채권_회사채": 0.30,
+        "해외채권_종합": 0.50,
+        "해외채권_회사채": 0.30,
+        "금리연계형/초단기채권": 0.50,
+    }
+
+    individual: list[dict] = []
+    for h in live:
+        w = h["market_value"] / total_mv
+        individual.append({
+            "code": h["code"],
+            "name": h["name"],
+            "current_weight": round(w, 6),
+            "limit": INDIVIDUAL_LIMIT,
+            "excess": round(w - INDIVIDUAL_LIMIT, 6),
+            "passed": w <= INDIVIDUAL_LIMIT,
+        })
+
+    # 위험자산 비중 (risk_type == "위험")
+    risky_labels = {"위험", "위험자산", "risk", "risky"}
+    risky_weight = sum(
+        h["market_value"] / total_mv
+        for h in live
+        if str(h.get("risk_type", "")).lower() in {lbl.lower() for lbl in risky_labels}
+    )
+
+    # 세부 자산군 비중 체크 — asset_class 기준 합산
+    asset_class_weights: dict[str, float] = {}
+    for h in live:
+        ac = str(h.get("asset_class", ""))
+        w = h["market_value"] / total_mv
+        asset_class_weights[ac] = asset_class_weights.get(ac, 0.0) + w
+
+    # 자산군 한도 위반 시 risk_asset 항목에 반영 (가장 심각한 위반 우선)
+    # 기본 위험자산 체크를 먼저 구성
+    risk_asset = {
+        "rule": "risk_asset_limit",
+        "risky_weight": round(risky_weight, 6),
+        "limit": RISK_ASSET_LIMIT,
+        "excess": round(risky_weight - RISK_ASSET_LIMIT, 6),
+        "passed": risky_weight <= RISK_ASSET_LIMIT,
+    }
+
+    # 세부 자산군 위반 항목을 individual에 추가 (자산군 집계 항목으로 표시)
+    for ac, limit in ASSET_CLASS_LIMITS.items():
+        w = asset_class_weights.get(ac, 0.0)
+        if w > 0:
+            individual.append({
+                "code": f"[{ac}]",
+                "name": f"자산군: {ac}",
+                "current_weight": round(w, 6),
+                "limit": limit,
+                "excess": round(w - limit, 6),
+                "passed": w <= limit,
+            })
+
+    return {
+        "individual": individual,
+        "risk_asset": risk_asset,
+    }
 
 
 @router.get("/update-log")

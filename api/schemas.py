@@ -43,6 +43,7 @@ class NavPoint(BaseModel):
     daily_return: float
     cumulative_return: float
     drawdown: float
+    cash: float | None = None
 
 
 class MonthlyReturn(BaseModel):
