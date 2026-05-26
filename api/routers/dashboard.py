@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import subprocess
+import threading
 from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from fastapi.responses import FileResponse
 
 import db
@@ -16,6 +18,21 @@ OUTPUT_DIR = ROOT / "output"
 DATA_DIR = ROOT / "data"
 
 router = APIRouter(prefix="/api", tags=["dashboard"])
+
+_refresh_state: dict = {"status": "idle", "updated_at": ""}
+
+
+def _run_refresh() -> None:
+    global _refresh_state
+    try:
+        subprocess.run(
+            ["python", "src/update_prices.py"],
+            capture_output=True,
+            text=True,
+        )
+        _refresh_state = {"status": "done", "updated_at": pd.Timestamp.now().isoformat()}
+    except Exception:
+        _refresh_state = {"status": "error", "updated_at": pd.Timestamp.now().isoformat()}
 
 
 def _read_csv(path: Path, **kwargs) -> pd.DataFrame:
@@ -664,6 +681,21 @@ def live_rules():
         "individual": individual,
         "risk_asset": risk_asset,
     }
+
+
+@router.post("/refresh-prices", status_code=202)
+def refresh_prices(background_tasks: BackgroundTasks) -> dict:
+    global _refresh_state
+    if _refresh_state["status"] == "running":
+        return {"status": "already_running"}
+    _refresh_state = {"status": "running", "updated_at": ""}
+    background_tasks.add_task(_run_refresh)
+    return {"status": "started"}
+
+
+@router.get("/refresh-status")
+def refresh_status() -> dict:
+    return _refresh_state
 
 
 @router.get("/update-log")

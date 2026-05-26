@@ -1,6 +1,6 @@
 "use client";
 
-type PieSlice = { label: string; value: number; color: string };
+type PieSlice = { label: string; value: number; color?: string };
 
 type PieChartProps = { data: PieSlice[]; size?: number };
 

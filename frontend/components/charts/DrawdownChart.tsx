@@ -18,6 +18,8 @@ const chartOptions = {
   },
   rightPriceScale: {
     borderColor: "#E2E8F0",
+    scaleMargins: { top: 0.1, bottom: 0.1 },
+    autoScale: true,
   },
   timeScale: {
     borderColor: "#E2E8F0",

@@ -1,5 +1,103 @@
 [
   {
+    "hash": "838773b3",
+    "date": "2026-05-26",
+    "subject": "feat: 그룹 C/D/E — 비교탭 전면 개선, 매매일지 수익/손실, 내비·룰·리서치·변경이력 탭",
+    "body": "- comparison/page.tsx: 기간 필터(1M/3M/6M/1Y/전체), 현재 운용 포트폴리오 pinned, 정렬, 삭제, y축 개선\n- page.tsx: 총 자산 카드, 카드 순서 정리, useActualNav 연결\n- trades/page.tsx: 매도 행 수익/손실 계산 표시\n- rules/page.tsx: 대회 룰 MD 전체 렌더링 (API route 경유)\n- frontend/app/api/rules-content/route.ts: 대회 룰 MD 파일 서빙 Next.js API route\n- ComparisonChart.tsx: pinnedName/pinnedColor/paletteOverride 지원\n- dashboard.ts, portfolio.ts: 훅 업데이트\n- api/schemas.py, portfolios.py, db.py: group_name 필드, 비교 요약 날짜 필터\n- CLAUDE.md: 프론트엔드 라우트 테이블 추가\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "feat"
+  },
+  {
+    "hash": "cbbbd245",
+    "date": "2026-05-26",
+    "subject": "feat(backend): 그룹 B — actual-nav, live-rules 엔드포인트 추가 + 회전율 공식 수정",
+    "body": "- api/schemas.py: NavPoint에 cash 필드(Optional[float]) 추가\n- api/routers/dashboard.py: GET /api/actual-nav 신설 (trade_log DB 기반 실제 NAV + cash 시계열)\n- api/routers/dashboard.py: GET /api/live-rules 신설 (live holdings 기반 규칙 체크, src/ import 없음)\n- src/turnover.py: 회전율 공식을 대회 룰 기준으로 수정 (총 매매금액 / 평균 자산, 평균 자산 = (기초+기말)/2)\n- src/run_engine.py: check_turnover_limits 호출에 initial_start_date, nav 인자 추가\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "feat"
+  },
+  {
+    "hash": "60380e17",
+    "date": "2026-05-26",
+    "subject": "chore: regenerate output CSVs after turnover formula fix",
+    "body": "Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "chore"
+  },
+  {
+    "hash": "3cb298fd",
+    "date": "2026-05-26",
+    "subject": "docs: 2026-05-26 개발 계획 파일 추가 (그룹 A~E 실행 순서 및 체크리스트)",
+    "body": "Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "docs"
+  },
+  {
+    "hash": "88efdf57",
+    "date": "2026-05-26",
+    "subject": "feat: 운용 대시보드 통합 + 데모 포트폴리오 구축 (10억 초기자본)",
+    "body": "[UI]\n- frontend/app/page.tsx: 홈+운용현황 통합 → \"운용 대시보드\" 단일 페이지\n  섹션 순서: Header → KpiStrip → NAV/Drawdown → 보유종목 → LivePortfolioSpec\n            → 회전율 → 투자규칙 → 구성비중 파이차트 → 일별수익률 히트맵\n- frontend/app/layout.tsx: \"홈\"+\"운용현황\" 두 항목 → \"운용 대시보드\" 하나로 통합\n- frontend/app/operations/page.tsx: redirect(\"/\") 로 교체\n- frontend/components/ui/DailyHeatmap.tsx: 신규 — 일별 수익률 캘린더 히트맵 (월~금 + 주간 합계)\n- frontend/components/ui/HoldingsCompositionPanel.tsx: 신규 — 위험구분/자산구분 파이차트\n- frontend/components/ui/LivePortfolioSpec.tsx: 신규 — 현 포트폴리오 온디맨드 백테스트 스펙\n\n[데이터/엔진]\n- src/backtest.py, src/run_engine.py, src/run_sample_engine.py: 초기자본 1억 → 10억\n- data/trades.csv: 데모 포트폴리오 매수 내역 (2026-05-04 기준 6종목)\n- scripts/reset_and_setup_demo.py, scripts/insert_demo_trade_log.py: 데모 세팅 스크립트\n- output/: run_engine.py 재실행 결과 갱신 (2026-05-22 기준)\n  CAGR 71.40%, MDD -11.55%, Sharpe 2.52\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "feat"
+  },
+  {
+    "hash": "33bb614d",
+    "date": "2026-05-25",
+    "subject": "docs: CLAUDE.md에 Sync Rules 섹션 추가 (SYNC-1~5)",
+    "body": "이번 세션 유지보수 중 발생한 반복 실수 방지를 위해 하네스에 내장.\n- SYNC-1: 메트릭 필드 추가 시 6곳 동시 수정 규칙\n- SYNC-2: 비교 CSV 두 생성 경로(run_engine / portfolios upsert) 동기화\n- SYNC-3: output/ 파일 커밋 필수 (Railway git 직독)\n- SYNC-4: summarize_backtest() DatetimeIndex 변환 필수\n- SYNC-5: 운용현황 보유종목 useLiveHoldings() 사용 (useCurrentHoldings 레거시)\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "docs"
+  },
+  {
+    "hash": "04d78e3b",
+    "date": "2026-05-25",
+    "subject": "fix: 포트폴리오 비교 탭 — drawdown 차트 + 소르티노·연간변동성·승률 수정",
+    "body": "- src/run_engine.py: comparison nav CSV에 drawdown 컬럼 추가, summary에 sortino·annual_volatility·win_rate 추가\n- api/routers/portfolios.py: 포트폴리오 저장 시 comparison 갱신에도 동일하게 반영\n- api/schemas.py: ComparisonNavPoint에 drawdown 필드 추가\n- api/routers/dashboard.py: /comparison/nav에서 drawdown 컬럼 읽기\n- frontend: ComparisonNavPoint 타입 drawdown 추가, Drawdown 모드에서 실제 데이터 차트로 표시\n- output/comparison/: drawdown·새 지표 컬럼 재계산 반영\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "fix"
+  },
+  {
+    "hash": "1f932817",
+    "date": "2026-05-25",
+    "subject": "fix: summarize_backtest nav index DatetimeIndex 변환 추가, output CSV 갱신",
+    "body": "- src/backtest.py: nav.index를 DatetimeIndex로 변환 → win_rate_monthly 계산 가능\n  (샘플 데이터는 단일 월이라 여전히 None, 실거래 다월 데이터에서 정상 작동)\n- Sortino는 음수 수익일 2개 이상 필요 — 실거래 데이터에서 자동 계산\n- output/: run_sample_engine.py 최신 실행 결과 반영\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "fix"
+  },
+  {
+    "hash": "b9ca4d49",
+    "date": "2026-05-25",
+    "subject": "fix: portfolio-summary API에 새 지표 컬럼 반환 누락 수정",
+    "body": "sortino·information_ratio·mdd_duration·win_rate_monthly·var_95·tail_ratio가\nCSV에는 있었으나 API 엔드포인트가 기존 9개 컬럼만 반환하도록 하드코딩되어\nKpiStrip에 값이 표시되지 않던 문제 수정\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "fix"
+  },
+  {
+    "hash": "34633d9f",
+    "date": "2026-05-25",
+    "subject": "chore: output CSV 갱신 (portfolio_summary 새 지표 컬럼 반영)",
+    "body": "- portfolio_summary.csv: sortino·information_ratio·mdd_duration·win_rate_monthly·var_95·tail_ratio 컬럼 포함\n- backtest_nav.csv·current_holdings.csv·rule_*.csv: 최신 엔진 실행 결과 반영\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "chore"
+  },
+  {
+    "hash": "c047d924",
+    "date": "2026-05-25",
+    "subject": "feat: LiveHolding 통합, 지표 확장, UI 개선 (ETF담기·비교탭·보고서·새탭)",
+    "body": "- 운용현황: trade_log DB 기반 LiveHolding으로 완전 교체 (run_engine.py 의존 제거)\n  - _calc_live_holdings()에 prices_daily.csv 현재가·etf_master.csv 구분 lookup 추가\n  - 시가평가금액·평가손익·수익률·비중 실시간 계산\n  - LiveHolding 스키마 13필드로 확장 (Holding과 동일)\n  - trades 매도 드롭다운도 portfolioEtfs(live 기반)로 통일\n\n- 지표 확장: Sortino·Information Ratio·MDD기간·월별승률·VaR 95%·Tail Ratio\n  - src/metrics.py: information_ratio(), var_historic(), tail_ratio() 신규\n  - MetricsSummary·portfolio_summary.csv·PortfolioSummary 스키마 확장\n  - KpiStrip에 4개 타일 추가 (소르티노·MDD기간·월별승률·VaR 95%)\n  - PieChart.tsx 신규 (SVG 기반 보유비중 파이차트)\n\n- ETF 포트폴리오: 차트 패널 하단 비중 입력 + 담기 버튼으로 클릭 한 번 추가\n- 홈 탭: 운용전략·월별히트맵 각각 full-width 패널로 분리\n- 운용보고서: 카드 그리드 → 좌측 스택탭 + 우측 콘텐츠 패널 레이아웃\n- 포트폴리오 비교: 체크박스 필터·NAV/Drawdown 토글·Sortino·Vol·승률 컬럼 추가\n- 신규 탭: 리서치·대회룰 (준비 중 플레이스홀더)\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "feat"
+  },
+  {
+    "hash": "b8894aef",
+    "date": "2026-05-25",
+    "subject": "test: add report image asset",
+    "body": "테스트: Markdown 보고서 이미지 렌더링 확인용 PNG를 추가합니다.",
+    "type": "test"
+  },
+  {
+    "hash": "8fba4a88",
+    "date": "2026-05-25",
+    "subject": "test: update monthly report markdown",
+    "body": "테스트: 주간 수익률 테이블과 이미지 렌더링 테스트 Markdown을 추가합니다.",
+    "type": "test"
+  },
+  {
+    "hash": "c5b09152",
+    "date": "2026-05-25",
+    "subject": "feat: 매매일지 개선, ETF 필터, 업데이트 로그, 운용보고서 마크다운, 포트폴리오 비교 자동갱신",
+    "body": "- 매매일지: trade_log에 quantity/price/amount 컬럼 추가, 수량·단가 입력 폼, 역산 계산기(목표 비중→필요 수량), 리밸런싱 시 운용 포트폴리오 ETF 드롭다운\n- 운용현황: trade_log DB 기반 실시간 보유종목 계산(/api/live-holdings, /api/portfolio-etfs)\n- ETF 포트폴리오: 위험구분·자산구분 2단계 Pill 필터 UI (API 데이터 반환 시 자동 활성화)\n- 운용보고서: remark-gfm + rehype-raw + Tailwind Typography 적용, 이미지 경로 자동 변환\n- 포트폴리오 비교: 저장 시 comparison CSV 자동 갱신, 데이터 시작일 컬럼 추가\n- 업데이트 로그: /changelog 탭 신규, CHANGELOG.json + 생성 스크립트, /api/update-log 엔드포인트\n- API: /api/etf-list에 risk_type·asset_class 포함, /api/report-image 이미지 서빙\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "feat"
+  },
+  {
     "hash": "e00184a8",
     "date": "2026-05-25",
     "subject": "feat: Claude.ai 승인 디자인 전면 적용 (Pretendard·JetBrains Mono, 새 토큰, KPI 스트립, 히트맵)",
@@ -250,40 +348,5 @@
     "subject": "docs: add reference repository notes",
     "body": "Comment: Add a root-level Markdown reference list for ETF investment OS architecture, backtesting, metrics, reporting, data, and dashboard repositories.\n\nTested: Reviewed the staged file list and confirmed only reference_repositories.md is included.\n\nConfidence: high\n\nCo-authored-by: OmX <omx@oh-my-codex.dev>",
     "type": "docs"
-  },
-  {
-    "hash": "6fd1fabd",
-    "date": "2026-05-22",
-    "subject": "session B",
-    "body": "",
-    "type": "update"
-  },
-  {
-    "hash": "f1d0831c",
-    "date": "2026-05-22",
-    "subject": "session A",
-    "body": "",
-    "type": "update"
-  },
-  {
-    "hash": "3afa1b9d",
-    "date": "2026-05-22",
-    "subject": "docs: 다음 세션 계획 및 Streamlit MVP 방향 정리",
-    "body": "- Streamlit vs Railway 역할 구분 명확화 (프레임워크 vs 호스팅)\n- 1차 MVP 기술스택 확정: Python + Streamlit + Plotly\n- web/ 디렉토리 구조 및 output/ 읽기 전용 규칙 명시\n- 대시보드 화면 구성 (성과→리스크→규칙→보유→보고서) 정의\n- 디자인 톤 및 색상 토큰 정의\n- 테스트 우선순위 정리 (boundaries, output schema, smoke test)\n- 병렬 세션 트랙 계획 수립 (A: 테스트 / B: 차트 / C: 문서)\n- run_card.json 산출물 및 데이터 신선도 표시 방향 추가\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
-    "type": "docs"
-  },
-  {
-    "hash": "d26e6e06",
-    "date": "2026-05-20",
-    "subject": "feat: harness 프레임워크 설치 및 DBGAPS 프로젝트 기초 구성",
-    "body": "- CLAUDE.md: 프로젝트 메모리 (기술스택, 데이터 흐름, CRITICAL 규칙 2개)\n- .claude/settings.json: Stop 훅(pytest), PreToolUse 안전장치\n- .claude/commands/harness.md, review.md: 워크플로우 명령어\n- docs/: PRD, ARCHITECTURE, ADR, UI_GUIDE 작성\n- scripts/execute.py: Harness 자동 실행 엔진 (원본 복사)\n- phases/: 0-foundation ~ 4-dashboard (step 파일 포함)\n- tests/conftest.py: 샘플 데이터 기반 pytest 픽스처\n- requirements.txt: pykrx, pytest, matplotlib 추가\n- requirements_execute.txt: anthropic (execute.py 전용)\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
-    "type": "feat"
-  },
-  {
-    "hash": "4dc55fb8",
-    "date": "2026-05-20",
-    "subject": "Initial commit: Python ETF dashboard project",
-    "body": "Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
-    "type": "update"
   }
 ]

@@ -1,8 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { DrawdownChart } from "@/components/charts/DrawdownChart";
 import { NavChart } from "@/components/charts/NavChart";
+import { PieChart } from "@/components/charts/PieChart";
 import { DailyHeatmap } from "@/components/ui/DailyHeatmap";
 import { HoldingsTable } from "@/components/ui/HoldingsTable";
 import { KpiStrip } from "@/components/ui/KpiStrip";
@@ -19,6 +21,8 @@ import {
   useTurnover,
   type ActualNavPoint,
   type Holding,
+  type LiveHolding,
+  type IndividualRule,
   type TradeLogEntry,
 } from "@/lib/hooks/dashboard";
 
@@ -118,202 +122,85 @@ function toTradeMarkers(entries: TradeLogEntry[] | undefined) {
 }
 
 function fmtKRW(value: number) {
-  if (value >= 1_000_000_000) {
-    return `${(value / 1_000_000_000).toFixed(2)}억원`;
+  if (value >= 100_000_000) {
+    return `${(value / 100_000_000).toFixed(2)}억원`;
   }
-  if (value >= 1_000_000) {
-    return `${(value / 1_000_000).toFixed(0)}만원`;
+  if (value >= 10_000) {
+    return `${(value / 10_000).toFixed(0)}만원`;
   }
   return `${value.toLocaleString()}원`;
 }
 
-function DonutChart({ etfRatio, cashRatio }: { etfRatio: number; cashRatio: number }) {
-  const size = 80;
-  const cx = size / 2;
-  const cy = size / 2;
-  const r = 28;
-  const strokeWidth = 12;
 
-  // etfRatio는 0~1 범위
-  const circ = 2 * Math.PI * r;
-  const etfDash = circ * etfRatio;
-  const cashDash = circ * cashRatio;
+const INITIAL_CAPITAL = 1_000_000_000;
 
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      {/* 배경 원 */}
-      <circle
-        cx={cx}
-        cy={cy}
-        r={r}
-        fill="none"
-        stroke="#EFF2F6"
-        strokeWidth={strokeWidth}
-      />
-      {/* ETF 비중 (시작: 12시 방향) */}
-      {etfRatio > 0 && (
-        <circle
-          cx={cx}
-          cy={cy}
-          r={r}
-          fill="none"
-          stroke="#533AFD"
-          strokeWidth={strokeWidth}
-          strokeDasharray={`${etfDash} ${circ - etfDash}`}
-          strokeDashoffset={circ / 4}
-          strokeLinecap="butt"
-        />
-      )}
-      {/* 현금 비중 */}
-      {cashRatio > 0 && (
-        <circle
-          cx={cx}
-          cy={cy}
-          r={r}
-          fill="none"
-          stroke="#22C55E"
-          strokeWidth={strokeWidth}
-          strokeDasharray={`${cashDash} ${circ - cashDash}`}
-          strokeDashoffset={circ / 4 - etfDash}
-          strokeLinecap="butt"
-        />
-      )}
-    </svg>
-  );
-}
+function AssetStatusCard({ holdings }: { holdings: LiveHolding[] | undefined }) {
+  const h = holdings ?? [];
 
-function AssetStatusCard({ navData }: { navData: ActualNavPoint[] | undefined }) {
-  const last = navData && navData.length > 0 ? navData[navData.length - 1] : null;
+  const totalMarketValue = h.reduce((sum, x) => sum + x.market_value, 0);
+  const totalCostBasis = h.reduce((sum, x) => sum + x.cost_basis, 0);
+  const cashBalance = Math.max(0, INITIAL_CAPITAL - totalCostBasis);
 
-  if (!last) {
-    return (
-      <div style={PANEL_STYLE}>
-        <PanelTitle title="총 자산 현황" />
-        <Empty />
-      </div>
-    );
+  const riskMap: Record<string, number> = {};
+  for (const x of h) {
+    riskMap[x.risk_type] = (riskMap[x.risk_type] ?? 0) + x.market_value;
   }
 
-  const portfolioValue = last.portfolio_value;
-  const cash = last.cash ?? 0;
-  const totalAsset = portfolioValue + cash;
-  const cumReturn = last.cumulative_return;
+  const assetMap: Record<string, number> = {};
+  for (const x of h) {
+    assetMap[x.asset_class] = (assetMap[x.asset_class] ?? 0) + x.market_value;
+  }
 
-  const etfRatio = totalAsset > 0 ? portfolioValue / totalAsset : 0;
-  const cashRatio = totalAsset > 0 ? cash / totalAsset : 0;
+  const total = cashBalance + totalMarketValue;
 
-  const returnColor = cumReturn >= 0 ? "#16A34A" : "#DC2626";
+  const cashInvestData = [
+    { label: "현금", value: total > 0 ? cashBalance / total : 0 },
+    { label: "투자자산", value: total > 0 ? totalMarketValue / total : 0 },
+  ];
+
+  const riskTotal = Object.values(riskMap).reduce((s, v) => s + v, 0);
+  const riskData = Object.entries(riskMap).map(([label, value]) => ({
+    label,
+    value: riskTotal > 0 ? value / riskTotal : 0,
+  }));
+
+  const assetTotal = Object.values(assetMap).reduce((s, v) => s + v, 0);
+  const assetData = Object.entries(assetMap).map(([label, value]) => ({
+    label,
+    value: assetTotal > 0 ? value / assetTotal : 0,
+  }));
+
+  const charts = [
+    { title: "현금/투자자산", data: cashInvestData },
+    { title: "위험/안전자산", data: riskData },
+    { title: "자산군별", data: assetData },
+  ];
 
   return (
     <div style={PANEL_STYLE}>
-      <PanelTitle title="총 자산 현황" sub={last.date} />
-      <div
-        style={{
-          padding: "16px 20px",
-          display: "flex",
-          alignItems: "center",
-          gap: 24,
-        }}
-      >
-        {/* 도넛 차트 */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-          <DonutChart etfRatio={etfRatio} cashRatio={cashRatio} />
-          <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <span
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: "50%",
-                  background: "#533AFD",
-                  display: "inline-block",
-                  flexShrink: 0,
-                }}
-              />
-              <span
-                style={{
-                  fontSize: 10.5,
-                  color: "#8595A6",
-                  fontFamily: "JetBrains Mono, monospace",
-                }}
-              >
-                ETF {(etfRatio * 100).toFixed(1)}%
-              </span>
+      <PanelTitle title="총 자산 현황" />
+      <div style={{ padding: "16px 20px", display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+        {charts.map(({ title, data }) => (
+          <div key={title} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: "#8595A6",
+                fontFamily: "JetBrains Mono, monospace",
+                textTransform: "uppercase",
+                letterSpacing: "0.07em",
+              }}
+            >
+              {title}
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <span
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: "50%",
-                  background: "#22C55E",
-                  display: "inline-block",
-                  flexShrink: 0,
-                }}
-              />
-              <span
-                style={{
-                  fontSize: 10.5,
-                  color: "#8595A6",
-                  fontFamily: "JetBrains Mono, monospace",
-                }}
-              >
-                현금 {(cashRatio * 100).toFixed(1)}%
-              </span>
-            </div>
+            {data.length > 0 ? (
+              <PieChart data={data} size={120} />
+            ) : (
+              <div style={{ fontSize: 12, color: "#8595A6" }}>데이터 없음</div>
+            )}
           </div>
-        </div>
-
-        {/* 구분선 */}
-        <div style={{ width: 1, height: 80, background: "#EFF2F6", flexShrink: 0 }} />
-
-        {/* 수치 */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: "10px 32px",
-            flex: 1,
-          }}
-        >
-          {[
-            { label: "총 자산", value: fmtKRW(totalAsset), color: "#0B1B2C" },
-            { label: "평가금액 (ETF)", value: fmtKRW(portfolioValue), color: "#0B1B2C" },
-            { label: "현금", value: fmtKRW(cash), color: "#0B1B2C" },
-            {
-              label: "누적수익률",
-              value: `${cumReturn >= 0 ? "+" : ""}${(cumReturn * 100).toFixed(2)}%`,
-              color: returnColor,
-            },
-          ].map(({ label, value, color }) => (
-            <div key={label} style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-              <div
-                style={{
-                  fontSize: 10.5,
-                  fontWeight: 600,
-                  color: "#8595A6",
-                  fontFamily: "JetBrains Mono, monospace",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.07em",
-                }}
-              >
-                {label}
-              </div>
-              <div
-                style={{
-                  fontSize: 17,
-                  fontWeight: 600,
-                  fontFamily: "JetBrains Mono, monospace",
-                  fontVariantNumeric: "tabular-nums",
-                  letterSpacing: "-0.01em",
-                  color,
-                }}
-              >
-                {value}
-              </div>
-            </div>
-          ))}
-        </div>
+        ))}
       </div>
     </div>
   );
@@ -327,6 +214,39 @@ export default function HomePage() {
   const turnoverQuery = useTurnover();
   const liveRulesQuery = useLiveRules();
   const holdingsQuery = useLiveHoldings();
+  const queryClient = useQueryClient();
+
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    setRefreshError(null);
+    try {
+      await fetch("/api/refresh-prices", { method: "POST" });
+    } catch {
+      setRefreshing(false);
+      setRefreshError("갱신 요청 실패");
+      return;
+    }
+    pollRef.current = setInterval(async () => {
+      try {
+        const res = await fetch("/api/refresh-status");
+        const data = await res.json();
+        if (data.status === "done" || data.status === "error") {
+          if (pollRef.current) clearInterval(pollRef.current);
+          setRefreshing(false);
+          if (data.status === "error") setRefreshError("갱신 중 오류 발생");
+          queryClient.invalidateQueries();
+        }
+      } catch {
+        if (pollRef.current) clearInterval(pollRef.current);
+        setRefreshing(false);
+        setRefreshError("상태 조회 실패");
+      }
+    }, 3000);
+  }
 
   const navData = useMemo(() => toNavSeries(actualNavQuery.data), [actualNavQuery.data]);
   const drawdownData = useMemo(() => toDrawdownSeries(actualNavQuery.data), [actualNavQuery.data]);
@@ -346,17 +266,42 @@ export default function HomePage() {
 
       {/* 헤더 */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <h1
-          style={{
-            margin: 0,
-            fontSize: 20,
-            fontWeight: 700,
-            letterSpacing: "-0.01em",
-            color: "#0B1B2C",
-          }}
-        >
-          운용 대시보드
-        </h1>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <h1
+            style={{
+              margin: 0,
+              fontSize: 20,
+              fontWeight: 700,
+              letterSpacing: "-0.01em",
+              color: "#0B1B2C",
+            }}
+          >
+            운용 대시보드
+          </h1>
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            style={{
+              padding: "4px 12px",
+              fontSize: 12,
+              fontFamily: "JetBrains Mono, monospace",
+              fontWeight: 600,
+              color: refreshing ? "#8595A6" : "#533AFD",
+              background: "#F4F2FF",
+              border: "1px solid #C4BBFC",
+              borderRadius: 4,
+              cursor: refreshing ? "not-allowed" : "pointer",
+              opacity: refreshing ? 0.7 : 1,
+            }}
+          >
+            {refreshing ? "갱신 중..." : "현재가 갱신"}
+          </button>
+          {refreshError && (
+            <span style={{ fontSize: 11, color: "#DC2626", fontFamily: "JetBrains Mono, monospace" }}>
+              {refreshError}
+            </span>
+          )}
+        </div>
         <StatusBar date={dataDateQuery.data?.date ?? ""} />
       </div>
 
@@ -378,13 +323,13 @@ export default function HomePage() {
       )}
 
       {/* 2. 총 자산 현황 카드 */}
-      {actualNavQuery.isLoading ? (
+      {holdingsQuery.isLoading ? (
         <div style={PANEL_STYLE}>
           <PanelTitle title="총 자산 현황" />
           <Loading />
         </div>
       ) : (
-        <AssetStatusCard navData={actualNavQuery.data} />
+        <AssetStatusCard holdings={holdingsQuery.data} />
       )}
 
       {/* 3. NAV + Drawdown */}
@@ -424,8 +369,23 @@ export default function HomePage() {
         <PanelTitle title="투자 규칙" />
         {liveRulesQuery.isLoading ? (
           <Loading />
+        ) : liveRulesQuery.data ? (
+          <div style={{ padding: "12px 14px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "#8595A6", fontFamily: "JetBrains Mono, monospace", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>
+                개별 ETF
+              </div>
+              <RuleBadge rules={{ individual: liveRulesQuery.data.individual.filter((r: IndividualRule) => !r.code.startsWith("[")), risk_asset: liveRulesQuery.data.risk_asset }} />
+            </div>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "#8595A6", fontFamily: "JetBrains Mono, monospace", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>
+                섹터 / 위험자산
+              </div>
+              <RuleBadge rules={{ individual: liveRulesQuery.data.individual.filter((r: IndividualRule) => r.code.startsWith("[")), risk_asset: liveRulesQuery.data.risk_asset }} />
+            </div>
+          </div>
         ) : (
-          <RuleBadge rules={liveRulesQuery.data ?? null} />
+          <RuleBadge rules={null} />
         )}
       </div>
 

@@ -351,7 +351,7 @@ export default function TradesPage() {
 
           <div className="grid grid-cols-3 gap-4">
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-inkSecondary">매수단가 (원)</label>
+              <label className="text-xs text-inkSecondary">{form.action === "매도" ? "매도단가(원)" : "매수단가(원)"}</label>
               <input
                 type="number"
                 min={0}
@@ -470,7 +470,7 @@ export default function TradesPage() {
             <table className="w-full text-sm">
               <thead className="bg-surfaceMuted text-xs text-inkSecondary">
                 <tr>
-                  {["날짜", "구분", "ETF 코드", "ETF 명", "비중 전", "비중 후", "수량", "단가", "수익/손실", "이유", ""].map((h, i) => (
+                  {["날짜", "구분", "ETF 코드", "ETF 명", "비중 전", "비중 후", "수량", "단가", "거래금액", "수익/손실", ""].map((h, i) => (
                     <th key={i} className="px-3 py-2 text-left font-medium">{h}</th>
                   ))}
                 </tr>
@@ -494,6 +494,11 @@ export default function TradesPage() {
                       <td className="px-3 py-2 tabular-nums">
                         {row.price != null ? row.price.toLocaleString("ko-KR") : "—"}
                       </td>
+                      <td className="px-3 py-2 tabular-nums">
+                        {row.quantity != null && row.price != null
+                          ? Math.round(row.quantity * row.price).toLocaleString("ko-KR")
+                          : "—"}
+                      </td>
                       <td className="px-3 py-2 tabular-nums whitespace-nowrap">
                         {row.action === "매도" ? (
                           pnlMap[row.id] != null ? (
@@ -509,7 +514,6 @@ export default function TradesPage() {
                           <span className="text-inkSecondary">—</span>
                         )}
                       </td>
-                      <td className="max-w-xs truncate px-3 py-2">{row.reason}</td>
                       <td className="px-3 py-2 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={() => handleEditClick(row)}
@@ -526,11 +530,11 @@ export default function TradesPage() {
                         </button>
                       </td>
                     </tr>
-                    {expandedIdx === idx && (row.note || (row.strategy_checklist && row.strategy_checklist.length > 0) || row.amount != null) && (
+                    {expandedIdx === idx && (
                       <tr className="border-t border-border bg-surfaceMuted">
                         <td colSpan={11} className="px-3 py-2 text-xs text-inkSecondary space-y-1">
+                          <div>이유: {row.reason && row.reason.trim() !== "" ? row.reason : "이유 없음"}</div>
                           {row.note && <div>메모: {row.note}</div>}
-                          {row.amount != null && <div>거래금액: {row.amount.toLocaleString("ko-KR")}원</div>}
                           {row.strategy_checklist && row.strategy_checklist.length > 0 && (
                             <div>전략: {row.strategy_checklist.join(", ")}</div>
                           )}

@@ -11,7 +11,7 @@ import {
   type ComparisonSummaryItem,
   type LiveHolding,
 } from "@/lib/hooks/dashboard";
-import { useDeletePortfolio } from "@/lib/hooks/portfolio";
+import { useDeletePortfolio, usePortfolioList } from "@/lib/hooks/portfolio";
 
 // ─── 기간 필터 ───────────────────────────────────────────────────────────────
 type PeriodKey = "1M" | "3M" | "6M" | "1Y" | "전체";
@@ -259,11 +259,14 @@ export default function ComparisonPage() {
   // 현재 운용 row (C1)
   const liveRow = useMemo(() => buildLiveRow(liveHoldings), [liveHoldings]);
 
-  // group_name 맵: portfolio_name -> group_name (comparison/summary에는 없으므로 빈 맵)
-  // group_name은 /api/portfolios에서 내려오지만, ComparisonSummaryItem에는 없음
-  // 간단히 표시만이므로 현재는 "기타" 그룹으로 모두 묶임
-  // (group_name 편집 UI는 이번 범위 제외)
-  const groupMap: Record<string, string | null | undefined> = {};
+  const { data: portfolioList } = usePortfolioList();
+
+  const groupMap = useMemo(
+    () => Object.fromEntries(
+      (portfolioList ?? []).map((p) => [p.name, p.group_name])
+    ),
+    [portfolioList],
+  );
 
   // C5: 정렬된 summary (현재 운용 행 제외)
   const sortedSummary = useMemo(() => {
