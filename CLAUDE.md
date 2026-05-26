@@ -58,9 +58,14 @@ frontend/               Next.js 프론트엔드 (App Router + TypeScript)
 output/                 Generated results; do not manually edit for UI convenience
 tests/                  pytest suite
 docs/                   Architecture, ADR, schema, UI guide, design files, project status
-phases/                 Harness phase plans
 scripts/                Harness and execution utilities
 ```
+
+Key scripts:
+- `execute.py`: 단계적 자동 실행 (phase plan runner)
+- `reset_and_setup_demo.py`: DB 초기화 + 데모 데이터 세팅
+- `insert_demo_trade_log.py`: 데모 trade_log 삽입
+- `update_changelog.py`: 변경이력 자동 갱신
 
 Expected `src/` roles:
 
@@ -70,16 +75,30 @@ Expected `src/` roles:
 - `rules.py`: ETF and risk-asset rule checks
 - `turnover.py`: turnover checks
 - `update_prices.py`: pykrx data collection only
-- `charts.py`: static chart output when implemented
-- `report_builder.py`: Markdown report generation when implemented
+- `report_builder.py`: Markdown report generation
 
 Expected `api/` roles:
 
 - `main.py`: FastAPI app, CORS middleware, router registration
 - `routers/dashboard.py`: output/ 및 data/ CSV 읽기 엔드포인트
 - `routers/portfolios.py`: PostgreSQL CRUD + POST /api/backtest (src/ import 허용 예외)
-- `routers/trades.py`: data/trade_log.json CRUD
+- `routers/trades.py`: PostgreSQL DB `trade_log` 테이블 CRUD (`data/trade_log.json`은 존재하지 않음)
 - `schemas.py`: Pydantic 응답 모델
+
+## Frontend Routes
+
+| 경로 | 파일 | 상태 | 설명 |
+|------|------|------|------|
+| `/` | `app/page.tsx` | 구현됨 | 운용현황 대시보드 (메인) |
+| `/operations` | `app/operations/page.tsx` | redirect → `/` | `redirect("/")` 래퍼, 직접 수정 금지 |
+| `/comparison` | `app/comparison/page.tsx` | 구현됨 | 포트폴리오 비교 백테스트 탭 |
+| `/portfolio` | `app/portfolio/page.tsx` | 구현됨 | ETF 포트폴리오 관리 |
+| `/trades` | `app/trades/page.tsx` | 구현됨 | 매매 거래내역 |
+| `/report` | `app/report/page.tsx` | 구현됨 | Markdown 월별 리포트 뷰어 |
+| `/changelog` | `app/changelog/page.tsx` | 구현됨 | 변경이력 |
+| `/market` | `app/market/page.tsx` | 준비중 | 시황 (플레이스홀더) |
+| `/rules` | `app/rules/page.tsx` | 준비중 | 대회 룰 (플레이스홀더) |
+| `/research` | `app/research/page.tsx` | 준비중 | 리서치 (플레이스홀더) |
 
 Expected `frontend/` roles:
 
@@ -97,6 +116,9 @@ Expected `frontend/` roles:
 Exception: `api/` 전체에서 `db` (root-level `db.py`) import 허용.
 
 Reason: calculation and API must remain deployable and testable independently.
+
+파생 규칙: `dashboard.py`에서 기간별 메트릭(CAGR/MDD/Sharpe)을 동적 재계산해야 할 때는
+`/api/comparison/nav` nav 시계열을 그대로 내려보내고 프론트엔드 JS에서 계산할 것.
 
 ### CRITICAL-2: `api/` must not import `pykrx` or fetch live data
 
@@ -214,6 +236,20 @@ nav.index = pd.to_datetime(nav.index, errors="coerce")
 ### SYNC-5: 현황 페이지 보유종목은 LiveHolding 사용
 
 `/api/holdings` (output/current_holdings.csv 기반)와 `/api/live-holdings` (trade_log DB 기반) 두 엔드포인트가 존재한다. 운용현황 페이지는 `useLiveHoldings()` 사용. `useCurrentHoldings()`는 레거시; 신규 UI에서 사용 금지.
+
+### SYNC-6: 규칙 체크는 live holdings 기반 엔드포인트 사용
+
+`/api/rules`는 엔진 마지막 실행 시점의 `output/*.csv`를 읽는다(stale).
+운용현황 페이지의 규칙 카드는 `useLiveHoldings()`와 동일한 시점 데이터를 보여야 한다.
+신규 규칙 엔드포인트는 `dashboard.py` 내에서 `src/` import 없이 직접 비중 체크로 구현.
+`useRules()` → `/api/rules`는 레거시; 운용현황 페이지 규칙 카드에서 사용 금지.
+
+## DB Schema Changes
+
+별도 마이그레이션 프레임워크 없음. 컬럼 추가·변경 시:
+1. Railway 콘솔 또는 psql로 SQL 직접 실행 (예: `ALTER TABLE portfolios ADD COLUMN group_name TEXT;`)
+2. `api/schemas.py` Pydantic 모델 동시 수정
+3. 해당 라우터(`portfolios.py` 등) 쿼리 동시 수정
 
 ## Validation
 

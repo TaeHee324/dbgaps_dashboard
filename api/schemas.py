@@ -133,6 +133,7 @@ class ReportResponse(BaseModel):
 
 class Portfolio(BaseModel):
     name: str
+    group_name: str | None = None
 
 
 class PortfolioHolding(BaseModel):
@@ -143,11 +144,13 @@ class PortfolioHolding(BaseModel):
 class PortfolioUpsertRequest(BaseModel):
     name: str
     holdings: list[PortfolioHolding]
+    group_name: str | None = None
 
 
 class PortfolioUpsertResponse(BaseModel):
     name: str
     holdings: list[PortfolioHolding]
+    group_name: str | None = None
 
 
 class BacktestRequest(BaseModel):

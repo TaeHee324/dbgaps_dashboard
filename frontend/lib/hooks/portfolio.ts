@@ -23,6 +23,7 @@ export type EtfPricePoint = {
 
 export type Portfolio = {
   name: string;
+  group_name?: string | null;
 };
 
 export type PortfolioHolding = {

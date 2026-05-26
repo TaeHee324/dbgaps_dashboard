@@ -51,7 +51,10 @@ def list_portfolios():
     if not _ensure_db():
         return []
     try:
-        return [{"name": item["name"]} for item in db.list_portfolios()]
+        return [
+            {"name": item["name"], "group_name": item.get("group_name")}
+            for item in db.list_portfolios()
+        ]
     except Exception:
         return []
 
@@ -74,7 +77,7 @@ def upsert_portfolio(payload: schemas.PortfolioUpsertRequest):
         {"code": _normalize_code(holding.code), "weight": holding.weight}
         for holding in payload.holdings
     ]
-    db.upsert_portfolio(payload.name, holdings)
+    db.upsert_portfolio(payload.name, holdings, group_name=payload.group_name)
 
     # 백테스트 자동 실행 (best-effort)
     try:
@@ -120,7 +123,7 @@ def upsert_portfolio(payload: schemas.PortfolioUpsertRequest):
     except Exception:
         pass  # 백테스트 실패해도 저장 자체는 성공
 
-    return {"name": payload.name, "holdings": holdings}
+    return {"name": payload.name, "holdings": holdings, "group_name": payload.group_name}
 
 
 @router.delete("/portfolios/{name}", status_code=status.HTTP_204_NO_CONTENT)

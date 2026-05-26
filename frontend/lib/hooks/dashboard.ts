@@ -29,6 +29,15 @@ export type NavPoint = {
   drawdown: number;
 };
 
+export type ActualNavPoint = {
+  date: string;
+  portfolio_value: number;
+  daily_return: number;
+  cumulative_return: number;
+  drawdown: number;
+  cash: number | null;
+};
+
 export type MonthlyReturn = {
   year: number;
   month: number;
@@ -264,6 +273,20 @@ export function useLiveHoldings() {
   return useQuery({
     queryKey: ["live-holdings"],
     queryFn: () => get<LiveHolding[]>("/api/live-holdings"),
+  });
+}
+
+export function useActualNav() {
+  return useQuery({
+    queryKey: ["actual-nav"],
+    queryFn: () => get<ActualNavPoint[]>("/api/actual-nav"),
+  });
+}
+
+export function useLiveRules() {
+  return useQuery({
+    queryKey: ["live-rules"],
+    queryFn: () => get<RulesResponse>("/api/live-rules"),
   });
 }
 

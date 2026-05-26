@@ -84,12 +84,18 @@ def init_db() -> None:
 
 
 def list_portfolios() -> list[dict]:
-    """Return [{"name": ..., "is_protected": ...}, ...] ordered protected-first then by name."""
+    """Return [{"name": ..., "is_protected": ..., "group_name": ...}, ...] ordered protected-first then by name."""
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(
-                "SELECT name, is_protected FROM portfolios ORDER BY is_protected DESC, name"
-            )
+            # group_name 컬럼이 없을 경우를 대비해 안전하게 조회
+            try:
+                cur.execute(
+                    "SELECT name, is_protected, group_name FROM portfolios ORDER BY is_protected DESC, name"
+                )
+            except Exception:
+                cur.execute(
+                    "SELECT name, is_protected FROM portfolios ORDER BY is_protected DESC, name"
+                )
             return [dict(row) for row in cur.fetchall()]
 
 
@@ -102,20 +108,34 @@ def get_portfolio(name: str) -> list[dict] | None:
             return row["holdings"] if row else None
 
 
-def upsert_portfolio(name: str, holdings: list[dict]) -> None:
+def upsert_portfolio(name: str, holdings: list[dict], group_name: str | None = None) -> None:
     """Insert or overwrite a portfolio (non-protected flag preserved on update)."""
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(
-                """
-                INSERT INTO portfolios (name, holdings, is_protected)
-                VALUES (%s, %s, FALSE)
-                ON CONFLICT (name) DO UPDATE
-                    SET holdings   = EXCLUDED.holdings,
-                        updated_at = NOW()
-                """,
-                (name, json.dumps(holdings)),
-            )
+            try:
+                cur.execute(
+                    """
+                    INSERT INTO portfolios (name, holdings, is_protected, group_name)
+                    VALUES (%s, %s, FALSE, %s)
+                    ON CONFLICT (name) DO UPDATE
+                        SET holdings   = EXCLUDED.holdings,
+                            group_name = EXCLUDED.group_name,
+                            updated_at = NOW()
+                    """,
+                    (name, json.dumps(holdings), group_name),
+                )
+            except Exception:
+                # group_name 컬럼이 없을 경우 fallback
+                cur.execute(
+                    """
+                    INSERT INTO portfolios (name, holdings, is_protected)
+                    VALUES (%s, %s, FALSE)
+                    ON CONFLICT (name) DO UPDATE
+                        SET holdings   = EXCLUDED.holdings,
+                            updated_at = NOW()
+                    """,
+                    (name, json.dumps(holdings)),
+                )
         conn.commit()
 
 

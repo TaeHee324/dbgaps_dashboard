@@ -5,6 +5,7 @@ import type { IChartApi } from "lightweight-charts";
 
 type ComparisonChartProps = {
   series: Record<string, { time: string; value: number }[]>;
+  yPadding?: number; // 0~1, default 0.01
 };
 
 const palette = ["#533AFD", "#0EA5E9", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6"];
@@ -31,12 +32,12 @@ const chartOptions = {
   },
 };
 
-export function ComparisonChart({ series }: ComparisonChartProps) {
+export function ComparisonChart({ series, yPadding = 0.01 }: ComparisonChartProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const entries = useMemo(
     () => Object.entries(series).filter(([, data]) => data.length > 0),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [JSON.stringify(series)],
+    [JSON.stringify(series), yPadding],
   );
 
   useEffect(() => {
@@ -64,6 +65,13 @@ export function ComparisonChart({ series }: ComparisonChartProps) {
         height: 320,
       });
 
+      // y축 범위 계산: 전체 데이터 최솟값 * (1-padding) ~ 최댓값 * (1+padding)
+      const allValues = entries.flatMap(([, pts]) => pts.map((p) => p.value));
+      const minVal = allValues.length > 0 ? Math.min(...allValues) : 0;
+      const maxVal = allValues.length > 0 ? Math.max(...allValues) : 0;
+      const yMin = minVal >= 0 ? minVal * (1 - yPadding) : minVal * (1 + yPadding);
+      const yMax = maxVal >= 0 ? maxVal * (1 + yPadding) : maxVal * (1 - yPadding);
+
       entries.forEach(([name, points], index) => {
         const lineSeries = chart?.addSeries(LineSeries, {
           color: palette[index % palette.length],
@@ -71,6 +79,10 @@ export function ComparisonChart({ series }: ComparisonChartProps) {
           title: name,
           priceLineVisible: false,
           lastValueVisible: false,
+          autoscaleInfoProvider: () => ({
+            priceRange: { minValue: yMin, maxValue: yMax },
+            margins: { above: 0, below: 0 },
+          }),
         });
 
         lineSeries?.setData(points);

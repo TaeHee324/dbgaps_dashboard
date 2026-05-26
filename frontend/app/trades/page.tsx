@@ -62,6 +62,47 @@ export default function TradesPage() {
 
   const sorted = [...tradeLog].sort((a, b) => b.date.localeCompare(a.date));
 
+  // P&L 계산: 날짜 오름차순으로 순회하며 ETF별 평균단가 누적
+  const pnlMap = (() => {
+    const asc = [...tradeLog].sort((a, b) => a.date.localeCompare(b.date));
+    // key: etf_code, value: { totalCost: number, totalQty: number }
+    const costBasis: Record<string, { totalCost: number; totalQty: number }> = {};
+    const result: Record<number, number | null> = {};
+
+    for (const trade of asc) {
+      if (trade.action === "매수" || trade.action === "리밸런싱") {
+        if (trade.price != null && trade.quantity != null) {
+          const prev = costBasis[trade.etf_code] ?? { totalCost: 0, totalQty: 0 };
+          costBasis[trade.etf_code] = {
+            totalCost: prev.totalCost + trade.price * trade.quantity,
+            totalQty: prev.totalQty + trade.quantity,
+          };
+        }
+        result[trade.id] = null; // 매수/리밸런싱은 P&L 없음
+      } else if (trade.action === "매도") {
+        if (trade.price != null && trade.quantity != null) {
+          const basis = costBasis[trade.etf_code];
+          if (basis && basis.totalQty > 0) {
+            const avgCost = basis.totalCost / basis.totalQty;
+            const pnl = (trade.price - avgCost) * trade.quantity;
+            result[trade.id] = pnl;
+            // 매도 후 cost basis 조정
+            const newQty = basis.totalQty - trade.quantity;
+            costBasis[trade.etf_code] = {
+              totalCost: newQty > 0 ? avgCost * newQty : 0,
+              totalQty: Math.max(0, newQty),
+            };
+          } else {
+            result[trade.id] = null; // 매수 이력 없으면 계산 불가
+          }
+        } else {
+          result[trade.id] = null; // price/quantity null이면 계산 불가
+        }
+      }
+    }
+    return result;
+  })();
+
   function handleEditClick(row: TradeLogEntry) {
     setEditId(row.id);
     setForm({
@@ -429,7 +470,7 @@ export default function TradesPage() {
             <table className="w-full text-sm">
               <thead className="bg-surfaceMuted text-xs text-inkSecondary">
                 <tr>
-                  {["날짜", "구분", "ETF 코드", "ETF 명", "비중 전", "비중 후", "수량", "단가", "이유", ""].map((h, i) => (
+                  {["날짜", "구분", "ETF 코드", "ETF 명", "비중 전", "비중 후", "수량", "단가", "수익/손실", "이유", ""].map((h, i) => (
                     <th key={i} className="px-3 py-2 text-left font-medium">{h}</th>
                   ))}
                 </tr>
@@ -453,6 +494,21 @@ export default function TradesPage() {
                       <td className="px-3 py-2 tabular-nums">
                         {row.price != null ? row.price.toLocaleString("ko-KR") : "—"}
                       </td>
+                      <td className="px-3 py-2 tabular-nums whitespace-nowrap">
+                        {row.action === "매도" ? (
+                          pnlMap[row.id] != null ? (
+                            <span className={pnlMap[row.id]! >= 0 ? "text-green-600" : "text-red-600"}>
+                              {pnlMap[row.id]! >= 0
+                                ? `+₩${Math.round(pnlMap[row.id]!).toLocaleString("ko-KR")}`
+                                : `-₩${Math.round(Math.abs(pnlMap[row.id]!)).toLocaleString("ko-KR")}`}
+                            </span>
+                          ) : (
+                            <span className="text-inkSecondary">—</span>
+                          )
+                        ) : (
+                          <span className="text-inkSecondary">—</span>
+                        )}
+                      </td>
                       <td className="max-w-xs truncate px-3 py-2">{row.reason}</td>
                       <td className="px-3 py-2 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         <button
@@ -472,7 +528,7 @@ export default function TradesPage() {
                     </tr>
                     {expandedIdx === idx && (row.note || (row.strategy_checklist && row.strategy_checklist.length > 0) || row.amount != null) && (
                       <tr className="border-t border-border bg-surfaceMuted">
-                        <td colSpan={10} className="px-3 py-2 text-xs text-inkSecondary space-y-1">
+                        <td colSpan={11} className="px-3 py-2 text-xs text-inkSecondary space-y-1">
                           {row.note && <div>메모: {row.note}</div>}
                           {row.amount != null && <div>거래금액: {row.amount.toLocaleString("ko-KR")}원</div>}
                           {row.strategy_checklist && row.strategy_checklist.length > 0 && (
