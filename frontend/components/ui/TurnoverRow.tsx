@@ -3,7 +3,8 @@ import type { TurnoverBase, TurnoverResponse, TurnoverWithDate } from "@/lib/hoo
 type TurnoverCardProps = {
   title: string;
   rows: Array<TurnoverBase | TurnoverWithDate>;
-  subtitle?: string;
+  metaLabel?: string;
+  metaValue?: string;
   showStatus?: boolean;
 };
 
@@ -37,12 +38,15 @@ function statusClasses(passed: boolean) {
     : "bg-dangerSoft text-danger border-danger/20";
 }
 
-function TurnoverCard({ title, rows, subtitle, showStatus = true }: TurnoverCardProps) {
+function TurnoverCard({ title, rows, metaLabel, metaValue, showStatus = true }: TurnoverCardProps) {
   return (
     <div className="rounded-md border border-border bg-surface p-md shadow-panel">
       <div className="text-sm font-semibold text-ink">{title}</div>
-      {subtitle ? (
-        <div className="mt-0.5 text-xs text-inkSecondary">{subtitle}</div>
+      {metaLabel ? (
+        <div className="mt-0.5 text-xs text-inkSecondary">
+          <span>{metaLabel}</span>{" "}
+          <span className="font-numeric tabular-nums">{metaValue ?? "N/A"}</span>
+        </div>
       ) : null}
       {rows.length > 0 ? (
         <div className="mt-sm space-y-sm">
@@ -53,9 +57,6 @@ function TurnoverCard({ title, rows, subtitle, showStatus = true }: TurnoverCard
             >
               <div className="flex items-start justify-between gap-sm">
                 <div>
-                  {hasDate(row) ? (
-                    <div className="text-xs font-medium text-inkSecondary">{row.date}</div>
-                  ) : null}
                   <div className="font-numeric text-lg font-semibold tabular-nums text-ink">
                     {formatPercent(row.turnover)}
                   </div>
@@ -99,21 +100,21 @@ export function TurnoverRow({ turnover }: TurnoverRowProps) {
     );
   }
 
+  const latestMonthly = turnover.monthly.at(-1);
+
   return (
-    <section aria-label="회전율" className="grid grid-cols-1 gap-sm lg:grid-cols-3">
+    <section aria-label="회전율" className="grid grid-cols-1 gap-sm lg:grid-cols-2">
       <TurnoverCard
         title="초기 누적 회전율"
-        subtitle="기간: 2026.6.1 ~ 2026.6.8"
+        metaLabel="기간"
+        metaValue="2026.6.1 ~ 2026.6.8"
         rows={[turnover.initial]}
       />
       <TurnoverCard
-        title="주간 회전율 최근값"
-        rows={turnover.weekly.slice(-3).reverse()}
-        showStatus={false}
-      />
-      <TurnoverCard
         title="월간 회전율 최근값"
-        rows={turnover.monthly.slice(-3).reverse()}
+        metaLabel="기준일"
+        metaValue={latestMonthly?.date}
+        rows={latestMonthly ? [latestMonthly] : []}
       />
     </section>
   );
