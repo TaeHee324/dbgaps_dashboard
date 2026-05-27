@@ -1,5 +1,12 @@
 [
   {
+    "hash": "184c5069",
+    "date": "2026-05-27",
+    "subject": "docs(claude): prices_daily DB 전환 반영 — SYNC-8, Data Flow, startCommand, DB Schema 업데이트",
+    "body": "Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "docs"
+  },
+  {
     "hash": "8648e9f8",
     "date": "2026-05-27",
     "subject": "Refine turnover rule cards",
@@ -341,12 +348,5 @@
     "subject": "chore: remove output/ from git tracking",
     "body": "output/ contains generated artifacts that should not be version-controlled.\nAdded output/ to .gitignore and removed all tracked files from index.\nLocal files are preserved.\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
     "type": "chore"
-  },
-  {
-    "hash": "df2c6615",
-    "date": "2026-05-23",
-    "subject": "security: remove .env from git tracking",
-    "body": ".env was force-tracked despite being in .gitignore.\nRemove from index while preserving local file.\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
-    "type": "update"
   }
 ]
