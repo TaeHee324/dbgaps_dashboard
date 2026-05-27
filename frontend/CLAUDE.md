@@ -24,3 +24,4 @@ npx tsc --noEmit # 타입 체크
 
 - 데이터 훅은 `lib/hooks/` 사용 (`dashboard.ts`, `portfolio.ts`, `trades.ts`)
 - 운용현황 페이지는 반드시 `useLiveHoldings()` 사용 (`useCurrentHoldings()` 레거시)
+- `fetch()` 직접 사용 금지 — `lib/api.ts`의 `get()`/`post()` 또는 `NEXT_PUBLIC_API_URL` 접두어 사용. 상대 URL `/api/...`은 Next.js 서버로 라우팅되어 FastAPI에 도달하지 못함.

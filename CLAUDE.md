@@ -126,6 +126,8 @@ Reason: calculation and API must remain deployable and testable independently.
 
 Reason: the API server must stay read-only, lightweight, and deterministic.
 
+Note: `api/requirements.txt`에 pykrx가 설치됨 — `_run_refresh()` subprocess 실행을 위해 필요. import 금지 원칙과 무관 (모듈 import ≠ subprocess 실행).
+
 ### CRITICAL-3: Generated outputs are contracts
 
 `output/` files are generated artifacts. Do not manually edit them to make the UI look right. Fix the engine or schema instead.
@@ -256,6 +258,14 @@ nav.index = pd.to_datetime(nav.index, errors="coerce")
 `src/turnover.py` `check_turnover_limits()`의 `passed` 판정은 반드시 `>=`.
 초기 80%, 월별 10%는 **최소 요건(하한)**이므로 `<=`(초과 시 위반)로 구현하면 통과/위반이 완전 반전된다.
 UI 레이블도 "한도"(상한 뉘앙스) 대신 "최소"를 사용할 것.
+
+### SYNC-8: 현재가 갱신은 update_prices → run_engine 순서 필수
+
+`/api/refresh-prices` 갱신 플로우는 두 단계가 모두 실행되어야 화면에 반영됨:
+1. `src/update_prices.py` → `data/prices_daily.csv` 갱신
+2. `src/run_engine.py` → `output/` CSV 재생성
+
+`update_prices.py`만 실행하면 prices CSV만 바뀌고 dashboard output은 stale 상태 유지.
 
 ## DB Schema Changes
 
