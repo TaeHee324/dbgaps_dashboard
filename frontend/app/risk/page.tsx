@@ -11,6 +11,7 @@ import {
 } from "@/lib/hooks/dashboard";
 import { computeActualOpsMetrics } from "@/lib/utils/metrics";
 import { EtfRiskLineChart } from "@/components/charts/EtfRiskLineChart";
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
 
 // ─── Design tokens ───────────────────────────────────────────────────────────
 const C = {
@@ -128,63 +129,6 @@ function Badge({ label, color, bg }: { label: string; color: string; bg: string 
   );
 }
 
-function HelpTooltip({ label, text }: { label: string; text: string }) {
-  return (
-    <span
-      className="risk-help"
-      aria-label={`${label} 설명`}
-      tabIndex={0}
-      style={{
-        position: "relative",
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        width: 16,
-        height: 16,
-        borderRadius: 999,
-        border: `1px solid ${C.border}`,
-        color: C.inkSecondary,
-        background: C.surface,
-        fontSize: 10,
-        fontWeight: 700,
-        cursor: "help",
-        flex: "0 0 auto",
-      }}
-    >
-      i
-      <span
-        className="risk-help-popover"
-        role="tooltip"
-        style={{
-          position: "absolute",
-          left: 0,
-          top: 22,
-          zIndex: 20,
-          width: 260,
-          padding: "9px 10px",
-          border: `1px solid ${C.border}`,
-          borderRadius: 6,
-          background: C.surface,
-          color: C.ink,
-          boxShadow: "0 8px 24px rgba(15, 23, 42, 0.10)",
-          fontSize: 11.5,
-          fontWeight: 500,
-          lineHeight: 1.45,
-          letterSpacing: 0,
-          opacity: 0,
-          pointerEvents: "none",
-          transform: "translateY(-2px)",
-          transition: "opacity .12s ease, transform .12s ease",
-          whiteSpace: "normal",
-        }}
-      >
-        <strong style={{ display: "block", marginBottom: 4, color: C.ink }}>{label}</strong>
-        {text}
-      </span>
-    </span>
-  );
-}
-
 // ─── Summary Card ─────────────────────────────────────────────────────────────
 function SummaryCard({
   title,
@@ -193,6 +137,7 @@ function SummaryCard({
   sub,
   accentColor,
   help,
+  helpAlign = "left",
   children,
 }: {
   title: string;
@@ -201,6 +146,7 @@ function SummaryCard({
   sub?: string;
   accentColor: string;
   help?: string;
+  helpAlign?: "left" | "right";
   children?: React.ReactNode;
 }) {
   return (
@@ -219,7 +165,7 @@ function SummaryCard({
           <span style={{ fontSize: 11.5, fontWeight: 700, color: C.ink, letterSpacing: "-0.005em" }}>
             {title}
           </span>
-          {help && <HelpTooltip label={title} text={help} />}
+          {help && <InfoTooltip label={title} text={help} align={helpAlign} />}
         </span>
         {badge}
       </div>
@@ -314,7 +260,7 @@ function RiskContributionBars({ items }: { items: EtfRiskItem[] }) {
         }}
       >
         <span style={{ fontSize: 12.5, fontWeight: 700, color: C.ink }}>위험기여도 분해</span>
-        <HelpTooltip
+        <InfoTooltip
           label="위험기여도"
           text="포트폴리오 전체 변동성 중 해당 ETF가 차지하는 비중입니다. 현재비중보다 크게 높으면 비중 대비 리스크가 집중된 상태로 봅니다."
         />
@@ -404,7 +350,7 @@ function EtfRiskTable({
             <th style={{ ...TH, textAlign: "left" }}>
               <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                 ETF
-                <HelpTooltip label="ETF 상세 차트" text="행을 클릭하면 하단에 해당 ETF의 가격, 누적수익률, 드로다운 차트를 표시합니다." />
+                <InfoTooltip label="ETF 상세 차트" text="행을 클릭하면 하단에 해당 ETF의 가격, 누적수익률, 드로다운 차트를 표시합니다." />
               </span>
             </th>
             <th style={TH}>현재비중</th>
@@ -471,7 +417,7 @@ function EtfRiskTable({
                     background: rcOverweight ? C.warningBg : undefined,
                     color: rcOverweight ? C.warning : C.inkSecondary,
                   }}
-                  title={rcOverweight ? "비중 대비 위험 집중" : undefined}
+                  aria-label={rcOverweight ? "비중 대비 위험 집중" : undefined}
                 >
                   {item.risk_contribution_pct !== null
                     ? `${(item.risk_contribution_pct * 100).toFixed(1)}%${rcOverweight ? " !" : ""}`
@@ -639,11 +585,6 @@ export default function RiskPage() {
   return (
     <div style={{ maxWidth: 1320, margin: "0 auto", display: "flex", flexDirection: "column", gap: 20 }}>
       <style jsx>{`
-        .risk-help:hover .risk-help-popover,
-        .risk-help:focus .risk-help-popover {
-          opacity: 1 !important;
-          transform: translateY(0) !important;
-        }
         @media (max-width: 900px) {
           .risk-summary-grid,
           .risk-selected-grid {
@@ -754,6 +695,7 @@ export default function RiskPage() {
           }
           accentColor={healthS.color}
           help="가격 데이터의 최신성을 점검합니다. 기준일이 오래되면 화면의 리스크 수치도 최신 시장 상태와 다를 수 있습니다."
+          helpAlign="right"
         />
       </div>
 

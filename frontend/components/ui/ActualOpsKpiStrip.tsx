@@ -1,4 +1,5 @@
 import type { ActualOpsMetrics } from "@/lib/utils/metrics";
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
 
 type Props = {
   metrics: ActualOpsMetrics;
@@ -42,7 +43,7 @@ export function ActualOpsKpiStrip({ metrics, since }: Props) {
         border: "1px solid #E4E9EF",
         borderRadius: 6,
         boxShadow: "0 1px 0 rgba(11,27,44,.04), 0 1px 2px rgba(11,27,44,.04)",
-        overflow: "hidden",
+        overflow: "visible",
       }}
     >
       {/* 헤더 */}
@@ -131,24 +132,11 @@ export function ActualOpsKpiStrip({ metrics, since }: Props) {
                 }}
               >
                 <span>{item.label}</span>
-                <span
-                  title={item.hint}
-                  style={{
-                    display: "inline-grid",
-                    placeItems: "center",
-                    width: 13,
-                    height: 13,
-                    border: "1px solid #E4E9EF",
-                    borderRadius: "50%",
-                    fontSize: 9,
-                    color: "#B6C1CC",
-                    cursor: "help",
-                    background: "#F7F9FC",
-                    flexShrink: 0,
-                  }}
-                >
-                  ?
-                </span>
+                <InfoTooltip
+                  label={item.label}
+                  text={item.hint}
+                  align={idx >= kpis.length - 2 ? "right" : "left"}
+                />
               </div>
               <div
                 style={{

@@ -1,4 +1,5 @@
 import type { StrategyMetrics } from "@/lib/utils/metrics";
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
 
 export type StrategyPeriod = "1Y" | "6M" | "3M";
 
@@ -49,7 +50,7 @@ export function StrategyKpiStrip({ metrics, period, onPeriodChange }: Props) {
         border: "1px solid #E4E9EF",
         borderRadius: 6,
         boxShadow: "0 1px 0 rgba(11,27,44,.04), 0 1px 2px rgba(11,27,44,.04)",
-        overflow: "hidden",
+        overflow: "visible",
       }}
     >
       {/* 헤더 */}
@@ -164,24 +165,11 @@ export function StrategyKpiStrip({ metrics, period, onPeriodChange }: Props) {
                 }}
               >
                 <span>{item.label}</span>
-                <span
-                  title={hint}
-                  style={{
-                    display: "inline-grid",
-                    placeItems: "center",
-                    width: 13,
-                    height: 13,
-                    border: `1px solid ${warn ? "#FCD34D" : "#E4E9EF"}`,
-                    borderRadius: "50%",
-                    fontSize: 9,
-                    color: warn ? "#B45309" : "#B6C1CC",
-                    cursor: "help",
-                    background: warn ? "#FFFBEB" : "#F7F9FC",
-                    flexShrink: 0,
-                  }}
-                >
-                  {warn ? "!" : "?"}
-                </span>
+                <InfoTooltip
+                  label={item.label}
+                  text={hint}
+                  align={idx >= kpis.length - 2 ? "right" : "left"}
+                />
               </div>
               <div
                 style={{
