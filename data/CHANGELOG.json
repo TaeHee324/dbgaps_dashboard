@@ -1,5 +1,12 @@
 [
   {
+    "hash": "130c0d3c",
+    "date": "2026-05-27",
+    "subject": "fix(changelog): changelog 커밋이 한도를 잠식하는 무한 반복 버그 수정",
+    "body": "git log에서 'chore: update changelog' 커밋을 -N 한도 계산 전에 제외\n(--invert-grep --grep=^chore: update changelog$)\n\n기존 동작: 매 push마다 changelog 커밋이 50개 슬롯 1개를 차지\n→ 진짜 커밋이 밀려나 항상 stale 판정 → 무한 반복\n수정 후: changelog 전용 커밋은 한도 밖으로 제외, 50개 = 항상 실제 커밋만\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "fix"
+  },
+  {
     "hash": "017b81e7",
     "date": "2026-05-27",
     "subject": "docs(claude): routers/risk.py 역할 하네스 추가",
@@ -339,13 +346,6 @@
     "hash": "da93b2fd",
     "date": "2026-05-23",
     "subject": "두번째 수정",
-    "body": "",
-    "type": "update"
-  },
-  {
-    "hash": "2ddc56cf",
-    "date": "2026-05-23",
-    "subject": "수정 세션 1",
     "body": "",
     "type": "update"
   }
