@@ -1,5 +1,12 @@
 [
   {
+    "hash": "017b81e7",
+    "date": "2026-05-27",
+    "subject": "docs(claude): routers/risk.py 역할 하네스 추가",
+    "body": "Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "docs"
+  },
+  {
     "hash": "9de285fe",
     "date": "2026-05-27",
     "subject": "chore: automate changelog updates",
@@ -332,13 +339,6 @@
     "hash": "da93b2fd",
     "date": "2026-05-23",
     "subject": "두번째 수정",
-    "body": "",
-    "type": "update"
-  },
-  {
-    "hash": "2ddc56cf",
-    "date": "2026-05-23",
-    "subject": "수정 세션 1",
     "body": "",
     "type": "update"
   }
