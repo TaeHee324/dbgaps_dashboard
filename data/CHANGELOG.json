@@ -1,5 +1,12 @@
 [
   {
+    "hash": "f4a3339b",
+    "date": "2026-05-27",
+    "subject": "test(portfolios): add deletion harness and fix path traversal in upsert",
+    "body": "- Fix path traversal vulnerability in upsert_portfolio: use Path(name).name\n  when constructing nav CSV path to prevent directory escape via crafted names\n- Add tests/test_portfolio_deletion.py (11 tests) covering:\n  artifact removal (_delete_comparison_outputs), DELETE route DB/file cleanup,\n  and orphan portfolio filtering in comparison summary/nav endpoints\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "test"
+  },
+  {
     "hash": "46071edf",
     "date": "2026-05-27",
     "subject": "Fix stale portfolio deletion state",
@@ -341,12 +348,5 @@
     "subject": "phase 0",
     "body": "",
     "type": "update"
-  },
-  {
-    "hash": "8a13b050",
-    "date": "2026-05-23",
-    "subject": "chore: restore output/ tracking and remove from .gitignore",
-    "body": "output/ files must be shared and version-controlled.\nReverts previous incorrect removal.\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
-    "type": "chore"
   }
 ]
