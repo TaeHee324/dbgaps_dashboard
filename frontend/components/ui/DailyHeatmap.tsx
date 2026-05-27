@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useBacktestNav, useMonthlyReturns, type NavPoint } from "@/lib/hooks/dashboard";
-import { MonthlyBarChart } from "@/components/charts/MonthlyBarChart";
+import { useBacktestNav, type NavPoint } from "@/lib/hooks/dashboard";
 
 const PANEL_STYLE: React.CSSProperties = {
   background: "#FFFFFF",
@@ -254,7 +253,6 @@ function CalendarGrid({
 
 export function DailyHeatmap() {
   const navQuery = useBacktestNav();
-  const monthlyQuery = useMonthlyReturns();
 
   const navPoints: NavPoint[] = navQuery.data ?? [];
 
@@ -267,9 +265,12 @@ export function DailyHeatmap() {
     return [...set].sort();
   }, [navPoints]);
 
-  // 기본 선택: 마지막(최신) 월
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
-  const activeMonth = selectedMonth ?? months[months.length - 1] ?? null;
+  const today = new Date();
+  const thisMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+  const defaultMonth =
+    [...months].reverse().find((m) => m <= thisMonth) ?? months[months.length - 1];
+  const activeMonth = selectedMonth ?? defaultMonth ?? null;
 
   // date → daily_return 맵
   const navByDate = useMemo(() => {
@@ -288,14 +289,6 @@ export function DailyHeatmap() {
       .map((p) => Math.abs(p.daily_return));
     return Math.max(...monthReturns, 0.02);
   }, [navPoints, activeMonth]);
-
-  // MonthlyBarChart 데이터
-  const barChartData = useMemo(() => {
-    return (monthlyQuery.data ?? []).map((mr) => ({
-      time: `${mr.year}-${String(mr.month).padStart(2, "0")}-01`,
-      value: mr.monthly_return,
-    }));
-  }, [monthlyQuery.data]);
 
   if (navPoints.length === 0) {
     return (
@@ -318,63 +311,48 @@ export function DailyHeatmap() {
   return (
     <div style={PANEL_STYLE}>
       <PanelTitle title="일별 수익률 히트맵" sub="단위 %" />
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "220px 1fr",
-          gap: 0,
-          padding: "12px 14px",
-        }}
-      >
-        {/* 좌측: MonthlyBarChart */}
-        <div style={{ paddingRight: 12, borderRight: "1px solid #E4E9EF" }}>
-          <MonthlyBarChart data={barChartData} />
+      <div style={{ padding: "12px 14px" }}>
+        {/* 월 탭 버튼 */}
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 4,
+            marginBottom: 10,
+          }}
+        >
+          {months.map((ym) => {
+            const isActive = ym === activeMonth;
+            return (
+              <button
+                key={ym}
+                onClick={() => setSelectedMonth(ym)}
+                style={{
+                  padding: "3px 8px",
+                  fontSize: 10.5,
+                  fontFamily: "JetBrains Mono, monospace",
+                  borderRadius: 3,
+                  border: isActive ? "1px solid #3F2EE0" : "1px solid #E4E9EF",
+                  background: isActive ? "#3F2EE0" : "#F7F9FC",
+                  color: isActive ? "#FFFFFF" : "#46586B",
+                  cursor: "pointer",
+                  letterSpacing: "0.02em",
+                }}
+              >
+                {ym}
+              </button>
+            );
+          })}
         </div>
 
-        {/* 우측: 월 탭 + 달력 히트맵 */}
-        <div style={{ paddingLeft: 12 }}>
-          {/* 월 탭 버튼 */}
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 4,
-              marginBottom: 10,
-            }}
-          >
-            {months.map((ym) => {
-              const isActive = ym === activeMonth;
-              return (
-                <button
-                  key={ym}
-                  onClick={() => setSelectedMonth(ym)}
-                  style={{
-                    padding: "3px 8px",
-                    fontSize: 10.5,
-                    fontFamily: "JetBrains Mono, monospace",
-                    borderRadius: 3,
-                    border: isActive ? "1px solid #3F2EE0" : "1px solid #E4E9EF",
-                    background: isActive ? "#3F2EE0" : "#F7F9FC",
-                    color: isActive ? "#FFFFFF" : "#46586B",
-                    cursor: "pointer",
-                    letterSpacing: "0.02em",
-                  }}
-                >
-                  {ym}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* 달력 그리드 */}
-          {activeMonth && (
-            <CalendarGrid
-              yearMonth={activeMonth}
-              navByDate={navByDate}
-              maxAbs={maxAbs}
-            />
-          )}
-        </div>
+        {/* 달력 그리드 */}
+        {activeMonth && (
+          <CalendarGrid
+            yearMonth={activeMonth}
+            navByDate={navByDate}
+            maxAbs={maxAbs}
+          />
+        )}
       </div>
     </div>
   );
