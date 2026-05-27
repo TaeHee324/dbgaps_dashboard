@@ -20,6 +20,7 @@ Before changing UI, UX, visual design, frontend copy, charts, tables, or any fil
 - `docs/DESIGN-LANGUAGE.md`
 - `docs/design-tokens.json`
 - `docs/QA_CHECKLIST.md`
+- `docs/UI_GUIDE.md`
 
 Design authority order:
 
@@ -66,6 +67,7 @@ Key scripts:
 - `reset_and_setup_demo.py`: DB 초기화 + 데모 데이터 세팅
 - `insert_demo_trade_log.py`: 데모 trade_log 삽입
 - `update_changelog.py`: 변경이력 자동 갱신
+- `migrate_prices_to_db.py`: data/prices_daily.csv → DB 1회성 마이그레이션
 
 Expected `src/` roles:
 
@@ -138,6 +140,13 @@ Note: `api/requirements.txt`에 pykrx가 설치됨 — `_run_refresh()` subproce
 ### CRITICAL-4: UI work must follow design harness files
 
 Any UI or UX work must read the design files listed above before editing. Do not rely on generic "make it pretty" behavior.
+
+### CRITICAL-5: Next.js API 라우트는 FastAPI 프록시가 아님
+
+`frontend/app/api/` 하위 라우트(예: `rules-content/route.ts`)는 Next.js 서버사이드 핸들러다.
+FastAPI에 도달하려면 반드시 `NEXT_PUBLIC_API_URL` 접두어를 붙인 절대 URL을 사용해야 한다.
+상대 URL `/api/...`는 Next.js 서버로 라우팅되어 FastAPI에 도달하지 못한다.
+`lib/api.ts`의 `get()`/`post()`가 이 접두어를 자동 처리한다.
 
 ## Design Rules
 
