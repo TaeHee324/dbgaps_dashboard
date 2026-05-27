@@ -160,8 +160,8 @@ output/*.csv -> api/ FastAPI -> frontend/ Next.js
 - Initial capital: `1_000_000_000`
 - Individual ETF limit: `20%`
 - Risk asset limit: `70%`
-- Initial turnover limit: `80%`
-- Weekly/monthly turnover limit: `10%`
+- Initial turnover minimum: `80%` (하한 — 미달 시 위반; `passed = turnover >= 0.80`)
+- Monthly turnover minimum: `10%` (하한 — 미달 시 위반; `passed = turnover >= 0.10`)
 
 ## Environment Setup
 
@@ -250,6 +250,12 @@ nav.index = pd.to_datetime(nav.index, errors="coerce")
 운용현황 페이지의 규칙 카드는 `useLiveHoldings()`와 동일한 시점 데이터를 보여야 한다.
 신규 규칙 엔드포인트는 `dashboard.py` 내에서 `src/` import 없이 직접 비중 체크로 구현.
 `useRules()` → `/api/rules`는 레거시; 운용현황 페이지 규칙 카드에서 사용 금지.
+
+### SYNC-7: 회전율 기준은 하한(이상)이며 상한(이하)이 아님
+
+`src/turnover.py` `check_turnover_limits()`의 `passed` 판정은 반드시 `>=`.
+초기 80%, 월별 10%는 **최소 요건(하한)**이므로 `<=`(초과 시 위반)로 구현하면 통과/위반이 완전 반전된다.
+UI 레이블도 "한도"(상한 뉘앙스) 대신 "최소"를 사용할 것.
 
 ## DB Schema Changes
 
