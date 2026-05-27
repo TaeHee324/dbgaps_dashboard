@@ -1,5 +1,12 @@
 [
   {
+    "hash": "9de285fe",
+    "date": "2026-05-27",
+    "subject": "chore: automate changelog updates",
+    "body": "The changelog generator now supports stale checks, UTF-8 git log parsing, and a repository pre-push hook that creates a dedicated changelog commit before publishing.\n\nConstraint: Keep the dashboard read-only and continue serving /changelog from data/CHANGELOG.json.\n\nTested: python scripts\\\\update_changelog.py --check; Git Bash .githooks/pre-push; python -m pytest tests/ -q; npm run lint\n\nCo-authored-by: OmX <omx@oh-my-codex.dev>",
+    "type": "chore"
+  },
+  {
     "hash": "80494681",
     "date": "2026-05-27",
     "subject": "feat(risk): /risk 리스크 관리 탭 신설",
@@ -334,19 +341,5 @@
     "subject": "수정 세션 1",
     "body": "",
     "type": "update"
-  },
-  {
-    "hash": "332d8ee3",
-    "date": "2026-05-23",
-    "subject": "탭 재설정 및 프론트엔드 수정",
-    "body": "",
-    "type": "update"
-  },
-  {
-    "hash": "a1441f5d",
-    "date": "2026-05-23",
-    "subject": "docs: replace phase plans with unified ROADMAP.md",
-    "body": "- Remove completed phase plans (phases/, PLAN.md) — Phase 0~6 all done\n- Add ROADMAP.md as the single source of truth for upcoming work\n  (Phase A tab restructure, B trade log, C candlestick, D metrics)\n- Add quantstats_image.webp as design reference\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
-    "type": "docs"
   }
 ]
