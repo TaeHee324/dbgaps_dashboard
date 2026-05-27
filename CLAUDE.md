@@ -106,6 +106,7 @@ Expected `frontend/` roles:
 - `components/`: 재사용 UI 컴포넌트 (charts, tables, badges)
 - `lib/api.ts`: fetch 래퍼 (get, post, del)
 - `lib/hooks/`: TanStack Query 훅 (dashboard.ts, portfolio.ts, trades.ts)
+- `lib/utils/metrics.ts`: 순수 계산 유틸 (`computeActualOpsMetrics`, `computeStrategyMetrics`)
 
 ## Critical Boundaries
 
@@ -266,6 +267,22 @@ UI 레이블도 "한도"(상한 뉘앙스) 대신 "최소"를 사용할 것.
 2. `src/run_engine.py` → `output/` CSV 재생성
 
 `update_prices.py`만 실행하면 prices CSV만 바뀌고 dashboard output은 stale 상태 유지.
+
+### SYNC-9: `actual_nav()` NAV = ETF시가 + 현금
+
+`api/routers/dashboard.py::actual_nav()`가 반환하는 `portfolio_value` 필드 = ETF시가 합계 + 현금잔고(total_value).
+`daily_return`·`cumulative_return`·`drawdown` 모두 total_value 기준으로 계산됨.
+`price_pivot`에 `.ffill()` 필수 — 누락 시 국경일·거래중단 ETF가 0으로 계산되어 NAV 가짜 급락 발생.
+변경 시 `prev_total_value` 추적 패턴 유지할 것 (`prev_value`로 되돌리면 매도 당일 NAV 폭락 버그 재발).
+
+### SYNC-10: 운용현황 KPI는 두 스트립으로 이원화됨
+
+`/` 페이지 KPI는 성격이 다른 두 섹션으로 분리됨:
+- `ActualOpsKpiStrip` ← `computeActualOpsMetrics(actualNav)`: 누적수익률·MDD·일간승률·변동성·MDD기간 (실제 거래 기반)
+- `StrategyKpiStrip` ← `computeStrategyMetrics(strategyPoints)`: CAGR·샤프·칼마·소르티노·월별승률·VaR95% (백테스트, 기간 필터 후 전달)
+
+`usePortfolioSummary()` 및 `computeMetricsFromNav()`는 운용현황 페이지에서 사용 금지 (레거시 제거됨).
+`computeStrategyMetrics()`에서 백테스트 nav의 `cumulative_return`·`drawdown` 필드를 그대로 쓰면 안 됨 — 전체 역사 고점 기준이므로 기간 필터 후 `portfolio_value`로 구간 내 직접 재계산해야 함 (metrics.ts 구현 참조).
 
 ## DB Schema Changes
 
