@@ -337,3 +337,15 @@ For UI changes:
 - Check `docs/QA_CHECKLIST.md`.
 - Preserve `tests/test_boundaries.py` expectations.
 - Confirm `api/` (portfolios.py 제외) remains output-driven and src/ import-free.
+
+## Testing Patterns (Windows)
+
+- `FastAPI TestClient`를 pytest function-scope fixture에서 호출마다 새로 생성하면 두 번째부터 `OSError: [WinError 10014]` (socketpair 실패)로 죽는다.
+- 대신 라우터 함수를 직접 import해서 호출하고, 모듈 변수를 `unittest.mock.patch`로 교체한다.
+- 패턴: `patch("api.routers.portfolios.db", mock_db)` + `patch("api.routers.portfolios.COMPARISON_OUTPUT", tmp_path)` → `delete_portfolio(name)` 직접 호출.
+- `tests/test_portfolio_deletion.py`가 이 패턴의 레퍼런스 구현.
+
+## File Path Safety Rule
+
+- `output/comparison/` 에 파일을 쓸 때 사용자 입력(포트폴리오 이름 등)을 경로에 포함하면 반드시 `Path(name).name`으로 경로 구분자를 제거한다.
+- `_delete_comparison_outputs`는 이미 이 처리가 되어 있음 — upsert 쪽도 반드시 동일하게 맞출 것. 비대칭이면 path traversal 구멍이 된다.
