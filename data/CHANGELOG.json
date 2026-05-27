@@ -1,5 +1,26 @@
 [
   {
+    "hash": "4f60f449",
+    "date": "2026-05-27",
+    "subject": "feat(risk): ETF별 리스크 라인차트 및 탭 UI 추가",
+    "body": "- EtfRiskLineChart 컴포넌트 신규 추가 (TradingView Lightweight Charts)\n- risk/page.tsx 탭 UI 전면 개편 (ETF별 MDD/변동성/위험기여도 시계열 시각화)\n- dashboard.ts에 ETF 리스크 시계열 데이터 훅 추가\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "feat"
+  },
+  {
+    "hash": "6f34fe25",
+    "date": "2026-05-27",
+    "subject": "docs: 코드베이스 리뷰 및 문서 전면 현행화 (v7)",
+    "body": "Streamlit → FastAPI+Next.js 마이그레이션 이후 구식 상태였던 문서를\n실제 코드베이스에 맞게 전면 갱신하고 레거시 파일을 정리함.\n\n주요 변경:\n- CODEBASE_REVIEW.md: 전면 갱신 (라우터 4개, 엔드포인트 21개, 훅 20개, 페이지 11개 반영)\n- docs/ARCHITECTURE.md: web/charts.py/phases/ 등 구시대 내용 제거, 3-tier 현행 구조로 완전 재작성\n- docs/PROJECT_STATUS.md: Railway startCommand 오류 수정 (run_sample_engine 제거, SYNC-3), API 테이블 현행화\n- docs/ADR.md: ADR-001(PostgreSQL 도입), ADR-004(FastAPI+Next.js 완료), ADR-005(TradingView 교체) 갱신\n- docs/data_schema.md: portfolio_summary.csv 6개 컬럼 추가, turnover_source 추가, monthly_returns/comparison 스키마 추가\n- docs/PRD.md: 현재 상태 섹션 추가, 2~3차 완료 표시, 완료 기준 체크박스 체크\n- docs/QA_CHECKLIST.md: Streamlit alert 항목 제거, web/ → frontend/ 수정\n- docs/DESIGN.md: web/ 참조 제거, Implementation Contract를 Next.js 구조로 교체\n- docs/UI_GUIDE.md: Streamlit 내용 제거, 폐기 공지 + 현행 문서 링크로 교체\n\n레거시 삭제:\n- data/trade_log.json (빈 배열, PostgreSQL로 이전)\n- design-prototype/kpi-demo.tsx (구 KPI 디자인 시안)\n- output/스택탭 예시.png (미참조 디자인 스케치)\n\n파일 정리:\n- 수정사항_v1~v6, 계획_2026-05-26.md → 수정사항/ 폴더로 이동\n- 수정사항_v7_코드베이스리뷰.md 추가\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "docs"
+  },
+  {
+    "hash": "4d6ef8a1",
+    "date": "2026-05-27",
+    "subject": "feat(rules): 대회 룰 탭 전면 재작성 및 회전율 카드 수정",
+    "body": "- rules/page.tsx: 평가 구조 점수 수정(수익률 30점·운용철학 70점), 주요 일정 6개 항목 확장,\n  컷오프 규칙 9개로 확대 + 회전율 정의 공식 추가, 편입비중 상한 13개 자산군 표 신규,\n  위험배분 체크포인트 7가지 표 신규, 운용 주의사항 5가지 상세화,\n  투자계획서·운용보고서·PT 평가 포인트 섹션 신규\n- TurnoverRow.tsx: 출처(actual_trades) 표시 제거, 초기 누적 회전율 카드에\n  기간(2026.6.1~2026.6.8) 부제목 추가, 주간 회전율 카드에서 통과/위반 배지 및\n  최소 기준 제거(대회 규칙에 주간 최소 기준 없음)\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "feat"
+  },
+  {
     "hash": "a1075985",
     "date": "2026-05-27",
     "subject": "수정사항",
@@ -325,27 +346,6 @@
     "hash": "aef1a322",
     "date": "2026-05-23",
     "subject": "migration plan",
-    "body": "",
-    "type": "update"
-  },
-  {
-    "hash": "cc21c5de",
-    "date": "2026-05-23",
-    "subject": "여기까지 streamlit",
-    "body": "",
-    "type": "update"
-  },
-  {
-    "hash": "d4fcba63",
-    "date": "2026-05-23",
-    "subject": "feat: PostgreSQL 포트폴리오 저장 — 파일시스템에서 DB로 마이그레이션",
-    "body": "- db.py 신규: 연결, 테이블 자동생성, CSV 시딩, CRUD (list/get/upsert/delete)\n- 1_ETF_포트폴리오.py: 불러오기·저장·삭제 UI 추가, 파일 저장 → DB 저장으로 교체\n- run_engine.py: portfolios/*.csv 대신 DB에서 포트폴리오 읽도록 변경\n- requirements.txt: psycopg2-binary, python-dotenv 추가\n- .env.example: 로컬 개발용 DATABASE_URL 템플릿\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
-    "type": "feat"
-  },
-  {
-    "hash": "cce03de5",
-    "date": "2026-05-23",
-    "subject": "output update",
     "body": "",
     "type": "update"
   }
