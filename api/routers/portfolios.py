@@ -119,8 +119,9 @@ def upsert_portfolio(payload: schemas.PortfolioUpsertRequest):
             _summary = summarize_backtest(_bt, None)
 
             COMPARISON_OUTPUT.mkdir(parents=True, exist_ok=True)
+            _safe_name = Path(payload.name).name  # strip path separators
             _bt[["date", "portfolio_value", "cumulative_return", "drawdown"]].to_csv(
-                COMPARISON_OUTPUT / f"{payload.name}_nav.csv", index=False
+                COMPARISON_OUTPUT / f"{_safe_name}_nav.csv", index=False
             )
 
             # summary.csv 갱신: 기존 행 교체 또는 신규 추가
