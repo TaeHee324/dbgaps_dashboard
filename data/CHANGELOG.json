@@ -1,5 +1,12 @@
 [
   {
+    "hash": "7346ee04",
+    "date": "2026-05-27",
+    "subject": "docs(claude): add Windows TestClient gotcha and file path safety rule",
+    "body": "Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "docs"
+  },
+  {
     "hash": "f4a3339b",
     "date": "2026-05-27",
     "subject": "test(portfolios): add deletion harness and fix path traversal in upsert",
@@ -339,13 +346,6 @@
     "hash": "8f0e1cf8",
     "date": "2026-05-23",
     "subject": "phase 1",
-    "body": "",
-    "type": "update"
-  },
-  {
-    "hash": "66df6064",
-    "date": "2026-05-23",
-    "subject": "phase 0",
     "body": "",
     "type": "update"
   }
