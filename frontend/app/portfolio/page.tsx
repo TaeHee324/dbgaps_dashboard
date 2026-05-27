@@ -174,6 +174,13 @@ export default function PortfolioPage() {
     deleteMutation.mutate(deleteTarget, {
       onSuccess: () => {
         void queryClient.invalidateQueries({ queryKey: ["portfolio-list"] });
+        void queryClient.invalidateQueries({ queryKey: ["comparison-summary"] });
+        void queryClient.invalidateQueries({ queryKey: ["comparison-nav"] });
+        queryClient.removeQueries({ queryKey: ["portfolio-detail", deleteTarget] });
+        if (loadName === deleteTarget) {
+          setLoadName("");
+          setPortfolioRows([{ code: "", weight: 0 }]);
+        }
         setDeleteTarget("");
       },
     });

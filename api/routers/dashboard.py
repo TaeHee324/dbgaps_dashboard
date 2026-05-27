@@ -108,6 +108,14 @@ def _records(df: pd.DataFrame, columns: list[str], date_columns: set[str] | None
     return out
 
 
+def _active_portfolio_names() -> set[str] | None:
+    try:
+        db.init_db()
+        return {str(item["name"]) for item in db.list_portfolios()}
+    except Exception:
+        return None
+
+
 @router.get("/portfolio-summary", response_model=schemas.PortfolioSummary | None)
 def portfolio_summary():
     df = _read_csv(OUTPUT_DIR / "portfolio_summary.csv")
@@ -183,6 +191,9 @@ def monthly_returns():
 @router.get("/comparison/summary", response_model=list[schemas.ComparisonSummaryItem])
 def comparison_summary():
     df = _read_csv(OUTPUT_DIR / "comparison" / "summary.csv")
+    active_names = _active_portfolio_names()
+    if active_names is not None and "portfolio_name" in df.columns:
+        df = df[df["portfolio_name"].isin(active_names)]
     base_cols = ["portfolio_name", "cagr", "mdd", "sharpe", "calmar"]
     extra_cols = [c for c in ["sortino", "annual_volatility", "win_rate"] if c in df.columns]
     return _records(df, base_cols + extra_cols)
@@ -193,10 +204,13 @@ def comparison_nav():
     comparison_dir = OUTPUT_DIR / "comparison"
     if not comparison_dir.exists():
         return {}
+    active_names = _active_portfolio_names()
     result: dict[str, list[dict]] = {}
     for path in sorted(comparison_dir.glob("*_nav.csv")):
         df = _read_csv(path)
         name = path.name.removesuffix("_nav.csv")
+        if active_names is not None and name not in active_names:
+            continue
         cols = ["date", "portfolio_value", "cumulative_return"]
         if "drawdown" in df.columns:
             cols.append("drawdown")

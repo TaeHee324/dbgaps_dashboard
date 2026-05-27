@@ -233,9 +233,12 @@ export default function ComparisonPage() {
     setDeleteError(null);
     try {
       await deleteMutation.mutateAsync(name);
-      queryClient.invalidateQueries({ queryKey: ["comparison-summary"] });
-      queryClient.invalidateQueries({ queryKey: ["comparison-nav"] });
-      queryClient.invalidateQueries({ queryKey: ["portfolio-list"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["comparison-summary"] }),
+        queryClient.invalidateQueries({ queryKey: ["comparison-nav"] }),
+        queryClient.invalidateQueries({ queryKey: ["portfolio-list"] }),
+      ]);
+      queryClient.removeQueries({ queryKey: ["portfolio-detail", name] });
       setSelectedPortfolios((prev) => {
         const next = new Set(prev);
         next.delete(name);

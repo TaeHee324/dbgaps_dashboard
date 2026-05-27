@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = ROOT / "data"
 SRC = ROOT / "src"
 ETF_MASTER_PATH = DATA_DIR / "etf_master.csv"
+COMPARISON_OUTPUT = ROOT / "output" / "comparison"
 BENCHMARK_CODE = "069500"
 
 router = APIRouter(prefix="/api", tags=["portfolios"])
@@ -43,6 +44,29 @@ def _ensure_db() -> bool:
         return True
     except Exception:
         return False
+
+
+def _delete_comparison_outputs(name: str) -> None:
+    """Remove generated comparison artifacts for a deleted portfolio."""
+    if not COMPARISON_OUTPUT.exists():
+        return
+
+    nav_path = COMPARISON_OUTPUT / f"{Path(name).name}_nav.csv"
+    if nav_path.exists():
+        nav_path.unlink()
+
+    summary_path = COMPARISON_OUTPUT / "summary.csv"
+    if not summary_path.exists():
+        return
+
+    summary = pd.read_csv(summary_path)
+    if "portfolio_name" not in summary.columns:
+        return
+
+    filtered = summary[summary["portfolio_name"] != name]
+    if len(filtered) == len(summary):
+        return
+    filtered.to_csv(summary_path, index=False)
 
 
 @router.get("/portfolios", response_model=list[schemas.Portfolio])
@@ -86,7 +110,6 @@ def upsert_portfolio(payload: schemas.PortfolioUpsertRequest):
         import pandas as _pd
         from backtest import run_backtest, summarize_backtest  # noqa: E402
 
-        COMPARISON_OUTPUT = ROOT / "output" / "comparison"
         INITIAL_VALUE = 100_000_000
 
         _prices = db.load_prices_from_db()
@@ -131,6 +154,7 @@ def delete_portfolio(name: str):
         raise HTTPException(status_code=404, detail="not found")
     try:
         db.delete_portfolio(name)
+        _delete_comparison_outputs(name)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return Response(status_code=status.HTTP_204_NO_CONTENT)
