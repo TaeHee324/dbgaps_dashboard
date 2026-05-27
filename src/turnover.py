@@ -259,19 +259,19 @@ def check_turnover_limits(
     monthly = monthly_turnover(trades, capital_base, nav=nav)
     weekly["limit"] = period_limit
     monthly["limit"] = period_limit
-    weekly["passed"] = weekly["turnover"] <= period_limit
-    monthly["passed"] = monthly["turnover"] <= period_limit
+    weekly["passed"] = weekly["turnover"] >= period_limit
+    monthly["passed"] = monthly["turnover"] >= period_limit
 
     return {
         "passed": bool(
-            initial["turnover"] <= initial_limit
+            initial["turnover"] >= initial_limit
             and (weekly.empty or weekly["passed"].all())
             and (monthly.empty or monthly["passed"].all())
         ),
         "initial": {
             **initial,
             "limit": initial_limit,
-            "passed": initial["turnover"] <= initial_limit,
+            "passed": initial["turnover"] >= initial_limit,
         },
         "weekly": weekly,
         "monthly": monthly,

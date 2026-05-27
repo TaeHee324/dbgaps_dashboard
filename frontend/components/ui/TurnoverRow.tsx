@@ -65,7 +65,7 @@ function TurnoverCard({ title, rows }: TurnoverCardProps) {
               </div>
               <div className="mt-xs grid grid-cols-2 gap-xs text-xs text-inkSecondary">
                 <span>거래금액 {formatAmount(row.traded_value)}</span>
-                <span>한도 {formatPercent(row.limit)}</span>
+                <span>최소 {formatPercent(row.limit)}</span>
                 <span className="col-span-2">출처 {row.turnover_source || "-"}</span>
               </div>
             </div>
