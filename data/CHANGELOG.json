@@ -1,5 +1,12 @@
 [
   {
+    "hash": "8648e9f8",
+    "date": "2026-05-27",
+    "subject": "Refine turnover rule cards",
+    "body": "",
+    "type": "update"
+  },
+  {
     "hash": "1cc1e2dd",
     "date": "2026-05-27",
     "subject": "feat(prices): prices_daily CSV → PostgreSQL 영속성 전환 + 갱신 UI 피드백 개선",
@@ -340,13 +347,6 @@
     "date": "2026-05-23",
     "subject": "security: remove .env from git tracking",
     "body": ".env was force-tracked despite being in .gitignore.\nRemove from index while preserving local file.\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
-    "type": "update"
-  },
-  {
-    "hash": "e0cdff77",
-    "date": "2026-05-23",
-    "subject": "env migration",
-    "body": "",
     "type": "update"
   }
 ]
