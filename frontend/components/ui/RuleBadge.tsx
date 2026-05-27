@@ -1,7 +1,9 @@
 import type { IndividualRule, RiskAssetRule, RulesResponse } from "@/lib/hooks/dashboard";
 
 type RuleBadgeProps = {
-  rules: RulesResponse;
+  rules: RulesResponse | null;
+  showRiskAsset?: boolean;
+  emptyLabel?: string;
 };
 
 type RuleRowProps = {
@@ -60,7 +62,11 @@ function riskTitle(rule: RiskAssetRule) {
   return rule.rule ? `위험자산 70% 상한 · ${rule.rule}` : "위험자산 70% 상한";
 }
 
-export function RuleBadge({ rules }: RuleBadgeProps) {
+export function RuleBadge({
+  rules,
+  showRiskAsset = true,
+  emptyLabel = "개별 ETF 규칙 데이터 없음",
+}: RuleBadgeProps) {
   if (!rules) {
     return (
       <div className="rounded-md border border-border bg-surface px-md py-sm text-sm text-inkSecondary">
@@ -86,16 +92,18 @@ export function RuleBadge({ rules }: RuleBadgeProps) {
           ))
         ) : (
           <li className="rounded-md border border-border bg-surface px-md py-sm text-sm text-inkSecondary">
-            개별 ETF 규칙 데이터 없음
+            {emptyLabel}
           </li>
         )}
-        <RuleRow
-          title={riskTitle(rules.risk_asset)}
-          current={formatPercent(rules.risk_asset.risky_weight)}
-          limit={formatPercent(rules.risk_asset.limit)}
-          excess={formatPercent(rules.risk_asset.excess)}
-          passed={rules.risk_asset.passed}
-        />
+        {showRiskAsset ? (
+          <RuleRow
+            title={riskTitle(rules.risk_asset)}
+            current={formatPercent(rules.risk_asset.risky_weight)}
+            limit={formatPercent(rules.risk_asset.limit)}
+            excess={formatPercent(rules.risk_asset.excess)}
+            passed={rules.risk_asset.passed}
+          />
+        ) : null}
       </ul>
     </section>
   );

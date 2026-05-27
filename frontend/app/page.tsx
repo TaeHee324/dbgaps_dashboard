@@ -365,29 +365,55 @@ export default function HomePage() {
       <DailyHeatmap />
 
       {/* 5. 투자 규칙 카드 */}
-      <div style={PANEL_STYLE}>
-        <PanelTitle title="투자 규칙" />
+      <section style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div
+          style={{
+            fontSize: 12.5,
+            fontWeight: 700,
+            color: "#0B1B2C",
+          }}
+        >
+          투자 규칙
+        </div>
         {liveRulesQuery.isLoading ? (
-          <Loading />
+          <div style={PANEL_STYLE}>
+            <Loading />
+          </div>
         ) : liveRulesQuery.data ? (
-          <div style={{ padding: "12px 14px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: "#8595A6", fontFamily: "JetBrains Mono, monospace", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>
-                개별 ETF
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 12 }}>
+            <div style={PANEL_STYLE}>
+              <PanelTitle title="개별 ETF" />
+              <div style={{ padding: "12px 14px" }}>
+                <RuleBadge
+                  rules={{
+                    individual: liveRulesQuery.data.individual.filter((r: IndividualRule) => !r.code.startsWith("[")),
+                    risk_asset: liveRulesQuery.data.risk_asset,
+                  }}
+                  showRiskAsset={false}
+                />
               </div>
-              <RuleBadge rules={{ individual: liveRulesQuery.data.individual.filter((r: IndividualRule) => !r.code.startsWith("[")), risk_asset: liveRulesQuery.data.risk_asset }} />
             </div>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: "#8595A6", fontFamily: "JetBrains Mono, monospace", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>
-                섹터 / 위험자산
+            <div style={PANEL_STYLE}>
+              <PanelTitle title="섹터 / 위험자산" />
+              <div style={{ padding: "12px 14px" }}>
+                <RuleBadge
+                  rules={{
+                    individual: liveRulesQuery.data.individual.filter((r: IndividualRule) => r.code.startsWith("[")),
+                    risk_asset: liveRulesQuery.data.risk_asset,
+                  }}
+                  emptyLabel="섹터 규칙 데이터 없음"
+                />
               </div>
-              <RuleBadge rules={{ individual: liveRulesQuery.data.individual.filter((r: IndividualRule) => r.code.startsWith("[")), risk_asset: liveRulesQuery.data.risk_asset }} />
             </div>
           </div>
         ) : (
-          <RuleBadge rules={null} />
+          <div style={PANEL_STYLE}>
+            <div style={{ padding: "12px 14px" }}>
+              <RuleBadge rules={null} />
+            </div>
+          </div>
         )}
-      </div>
+      </section>
 
       {/* 6. 현재 보유 종목 */}
       <div style={PANEL_STYLE}>
