@@ -48,7 +48,6 @@ export default function RootLayout({
               style={{ boxShadow: "1px 0 0 #E4E9EF" }}
             >
               <div className="flex h-full flex-col gap-0 px-0 py-0">
-                {/* Brand */}
                 <div className="border-b border-border px-4 py-4">
                   <div className="flex items-center gap-2.5">
                     <div
@@ -86,7 +85,6 @@ export default function RootLayout({
                   </div>
                 </div>
 
-                {/* Navigation */}
                 <nav
                   aria-label="주요 화면"
                   className="flex gap-0.5 overflow-x-auto p-2 lg:flex-col lg:overflow-visible"

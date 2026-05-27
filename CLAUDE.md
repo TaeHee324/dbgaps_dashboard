@@ -192,6 +192,28 @@ python src/run_sample_engine.py   # sample data engine — 로컬 테스트 전�
 python -m pytest tests/ -q
 python scripts/execute.py <phase-dir>
 ```
+## Changelog Automation
+
+`/changelog` displays `data/CHANGELOG.json` through `GET /api/update-log`.
+Keep that file generated from git history; do not hand-edit entries.
+
+Install repository hooks once per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+The `pre-push` hook checks whether `data/CHANGELOG.json` is current. If stale,
+it generates the file, creates a dedicated `chore: update changelog` commit, and
+stops the push. Run `git push` again after that hook-created commit.
+
+Manual refresh:
+
+```bash
+python scripts/update_changelog.py
+git add data/CHANGELOG.json
+git commit -m "chore: update changelog"
+```
 
 ## Sync Rules (Critical)
 

@@ -1,5 +1,103 @@
 [
   {
+    "hash": "80494681",
+    "date": "2026-05-27",
+    "subject": "feat(risk): /risk 리스크 관리 탭 신설",
+    "body": "변경 사항:\n- api/routers/risk.py: 신규 라우터\n  · GET /api/risk/portfolio — HHI 집중도 + 데이터 헬스 (영업일 경과, 상태)\n  · GET /api/risk/etf-analysis — ETF별 개별MDD·현재낙폭·20일변동성·위험기여도·목표비중 이탈폭\n  · FIFO 보유 현황·목표비중 DB 직접 쿼리 (dashboard.py 미임포트, CRITICAL-1 준수)\n  · 위험기여도: numpy 순수 구현 pct_contrib = (w*(cov@w)) / (w@cov@w)\n\n- api/schemas.py: DataHealth, RiskPortfolioResponse, EtfRiskItem 추가\n\n- api/main.py: risk 라우터 등록\n\n- frontend/lib/hooks/dashboard.ts:\n  · RiskPortfolioResponse, EtfRiskItem 타입 추가\n  · useRiskPortfolio(), useEtfRiskAnalysis() 훅 추가\n\n- frontend/app/risk/page.tsx: 신규 페이지\n  · 섹션 1: 요약 카드 4개 (MDD 단계 배지+좌측 강조선, HHI 프로그레스바, 변동성, 데이터헬스)\n  · 조건부 리밸런싱 경고 배너 (|이탈폭| ≥ 5%p)\n  · 섹션 2: ETF별 리스크 테이블 (현재낙폭 셀 색상, 위험기여도 과부담 경고, 이탈폭 방향 표시)\n\n- frontend/app/layout.tsx: 내비게이션에 \"리스크 관리\" 추가\n\n- CLAUDE.md: /risk 라우트 테이블 추가\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "feat"
+  },
+  {
+    "hash": "2e013ce0",
+    "date": "2026-05-27",
+    "subject": "fix(kpi): 실제 운용/전략 특성 KPI 이원화 및 계산 오류 수정",
+    "body": "- actual_nav: cash 포함 total_value 기반 daily_return·cumulative_return 계산\n  (매도 후 현금 증가 시 NAV 폭락 버그 수정)\n- actual_nav: price_pivot ffill 추가 — 거래 중단일 전일 종가 대체\n- actual_nav: portfolio_value==0 guard → total_value<=0 기준으로 수정\n- metrics.ts: computeActualOpsMetrics / computeStrategyMetrics 분리\n- computeStrategyMetrics: cumReturn을 portfolio_value 비율로 직접 계산\n  (lastPoint.cumulative_return 사용 시 전체 기간 기준값 오염 수정)\n- computeStrategyMetrics: 구간 내 MDD 직접 재계산\n  (사전 계산 drawdown은 전체 역사 고점 기준으로 구간 MDD 과대 계상)\n- computeStrategyMetrics: slice(1) 제거 — 슬라이스 첫 행도 유효한 수익률\n- docs: 수정사항_v5.md 추가\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "fix"
+  },
+  {
+    "hash": "2625564c",
+    "date": "2026-05-27",
+    "subject": "docs(harness): CLAUDE.md에 SYNC-9·SYNC-10 및 utils 디렉토리 추가",
+    "body": "- frontend/lib/utils/metrics.ts 역할 명시 (Expected frontend/ roles)\n- SYNC-9: actual_nav() NAV = ETF시가+현금 규칙, .ffill() 필수, prev_total_value 패턴 설명\n- SYNC-10: 운용현황 KPI 이원화 구조 — ActualOpsKpiStrip / StrategyKpiStrip 설계 의도,\n  computeMetricsFromNav 레거시 금지, 백테스트 cumulative_return 직접 사용 금지 주의사항\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "docs"
+  },
+  {
+    "hash": "bc12fa13",
+    "date": "2026-05-27",
+    "subject": "feat(kpi): KPI 이원화 — 실제 운용 성과 / 전략 특성 백테스트 분리",
+    "body": "[수정사항_v5.md Step 1] actual_nav() 버그 2개 수정\n- Bug A: daily_return·cumulative_return을 portfolio_value(ETF 시가)만으로 계산하던 문제 수정\n  → total_value = portfolio_value + cash 기반으로 변경\n  → prev_value → prev_total_value 추적으로 매도 당일 NAV 폭락 방지\n- Bug B: price_pivot에 .ffill() 추가 → 국경일·거래중단 시 전일 종가로 대체, 가짜 급락 방지\n\n[수정사항_v5.md Step 2] frontend/lib/utils/metrics.ts 함수 분리\n- computeMetricsFromNav() 제거\n- computeActualOpsMetrics(): 실제 거래 NAV → 누적수익률·MDD·일간승률·변동성·MDD기간 5개\n- computeStrategyMetrics(): 백테스트 NAV(기간 필터 후 전달) → CAGR·샤프·칼마·소르티노·월별승률·VaR95% 6개\n\n[수정사항_v5.md Step 3~5] frontend/app/page.tsx KPI 스트립 교체\n- strategyPeriod 상태(1Y/6M/3M) 추가, useBacktestNav() 추가\n- KpiStrip 제거 → ActualOpsKpiStrip + StrategyKpiStrip 두 개로 교체\n\n[신규] frontend/components/ui/ActualOpsKpiStrip.tsx\n- \"실제 운용 성과 · since {날짜} · 실제 거래 기반\" 헤더\n- 5개 KPI 그리드\n\n[신규] frontend/components/ui/StrategyKpiStrip.tsx\n- \"전략 특성 · 백테스트 기반\" 헤더 + [1Y][6M][3M] 기간 토글\n- 3M 선택 시 샤프·소르티노에 낮은 신뢰도 경고(!·amber) 표시\n\n[기타 미커밋 변경 포함]\n- frontend/lib/hooks/dashboard.ts: PortfolioSummary의 alpha·beta·sharpe·calmar nullable 처리\n- frontend/app/portfolio/page.tsx: fmt() 함수 nullable 타입 수용\n- frontend/components/ui/DailyHeatmap.tsx: useBacktestNav → useActualNav 교체\n- 맨 위 대시보드 카드 이미지.png 삭제\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "feat"
+  },
+  {
+    "hash": "1427cabb",
+    "date": "2026-05-27",
+    "subject": "docs(claude): 현재가 갱신 버그 수정 후 하네스 보완",
+    "body": "- frontend/CLAUDE.md: fetch() 직접 사용 금지 패턴 추가\n  (상대 URL /api/...는 Next.js로 라우팅되어 FastAPI 미도달)\n- CLAUDE.md CRITICAL-2: pykrx가 api/requirements.txt에 설치됨 명시\n  (import 금지와 subprocess 실행은 별개임을 구분)\n- CLAUDE.md SYNC-8: 현재가 갱신 2단계 플로우 명시\n  (update_prices.py만으로는 output/ 미갱신)\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "docs"
+  },
+  {
+    "hash": "e12598a4",
+    "date": "2026-05-27",
+    "subject": "docs(claude): 회전율 기준 하한 명시 및 SYNC-7 추가",
+    "body": "Defaults 섹션의 'turnover limit' 표현이 상한으로 오해될 수 있어\n'minimum'으로 수정하고 passed 방향(>=)을 명시.\nSYNC-7: check_turnover_limits() passed 판정은 >= 임을 경고 노트로 추가.\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "docs"
+  },
+  {
+    "hash": "3a0a55c7",
+    "date": "2026-05-27",
+    "subject": "fix(refresh): 현재가 갱신 버튼 작동 불량 3종 수정",
+    "body": "문제 1 — URL 불일치 (상태 조회 실패)\npage.tsx에서 fetch(\"/api/refresh-prices\"), fetch(\"/api/refresh-status\")를\n상대 URL로 호출해 Next.js 서버로 잘못 라우팅됨.\nNEXT_PUBLIC_API_URL 기반 절대 URL로 교체.\n\n문제 2 — pykrx 미설치\napi/requirements.txt에 pykrx가 없어 Railway 백엔드에서\nsubprocess로 update_prices.py 실행 시 ImportError로 즉시 실패.\napi/requirements.txt에 pykrx 추가.\n\n문제 3 — 엔진 미실행 + 실패 무시\n_run_refresh()가 update_prices.py 성공/실패 여부를 확인하지 않고\n항상 \"done\"으로 상태를 기록, 또한 output/ 재생성을 위한\nrun_engine.py를 실행하지 않아 가격 갱신이 화면에 반영되지 않음.\nreturncode 체크 추가 및 update_prices → run_engine 순차 실행으로 수정.\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "fix"
+  },
+  {
+    "hash": "f6bdbb62",
+    "date": "2026-05-27",
+    "subject": "fix(turnover): 회전율 통과/위반 판정 로직 반전 수정",
+    "body": "대회 규칙상 회전율은 상한(최대)이 아니라 하한(최소) 기준임.\n- 초기 누적: 80% 이상 충족 필요 (미달 시 위반)\n- 주간/월간: 10% 이상 유지 필요 (미달 시 위반)\n\nsrc/turnover.py check_turnover_limits()의 passed 판정을\n<= (초과 시 위반) → >= (미달 시 위반)으로 수정.\nUI 레이블 \"한도\"도 \"최소\"로 변경하여 하한 기준임을 명시.\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "fix"
+  },
+  {
+    "hash": "572a6802",
+    "date": "2026-05-27",
+    "subject": "Split investment rules into focused cards",
+    "body": "The dashboard now separates individual ETF limits from sector and risk asset limits so the risk asset rule appears once in the correct group.\n\nConstraint: Keep the change limited to frontend rule presentation without touching API, generated output, or calculation logic.\n\nTested: npm run lint; npx tsc --noEmit; npm run build\n\nCo-authored-by: OmX <omx@oh-my-codex.dev>",
+    "type": "update"
+  },
+  {
+    "hash": "2d801a09",
+    "date": "2026-05-27",
+    "subject": "docs(claude): railway.toml 위치 및 run_sample_engine 배포 금지 규칙 추가",
+    "body": "Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "docs"
+  },
+  {
+    "hash": "3cb161a6",
+    "date": "2026-05-27",
+    "subject": "fix(railway): 시작 시 run_sample_engine.py 제거 — 샘플 CSV 덮어쓰기 방지",
+    "body": "run_sample_engine.py가 매 시작마다 sample_prices_daily.csv(2026-01 11행)로\noutput/backtest_nav.csv를 덮어써 히트맵에 1월 데이터만 표시되던 문제 수정.\nRailway는 git에 커밋된 output/ CSV를 직접 읽는다(SYNC-3).\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "fix"
+  },
+  {
+    "hash": "4b7a56e9",
+    "date": "2026-05-27",
+    "subject": "fix(heatmap): 월별 바 차트 제거 및 기본 월 선택 오늘 날짜 기준으로 수정",
+    "body": "- MonthlyBarChart 및 관련 import/state(monthlyQuery, barChartData) 전체 삭제\n- 2단 그리드 레이아웃을 단일 div로 교체하여 히트맵이 카드 전체 너비 사용\n- activeMonth 기본값을 오늘 날짜 기준 가장 최근 이하 월로 명시적 계산\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "fix"
+  },
+  {
+    "hash": "5a8e6dee",
+    "date": "2026-05-26",
+    "subject": "수정사항 md 파일 저장",
+    "body": "",
+    "type": "update"
+  },
+  {
+    "hash": "b487ac3e",
+    "date": "2026-05-26",
+    "subject": "feat: v3 스프린트 전면 적용 — P0 버그 수정 + P1 기능 추가",
+    "body": "P0 버그 수정:\n- fmtKRW divisor 버그: 억원/만원 기준값 교정 (100_000_000 / 10_000)\n- api/main.py 임시 subprocess 엔드포인트 제거\n- CHANGELOG.json 갱신 (2026-05-26 커밋 반영)\n- 매매일지 단가 레이블 조건부 렌더링 (매도/매수)\n\nP1 기능 추가:\n- 대시보드 총 자산 파이차트 3개 분리 (현금/투자자산·위험/안전·자산군별)\n- 투자 규칙 카드 2열 레이아웃 (개별 ETF / 섹터+위험자산)\n- 현재가 갱신 버튼 + 폴링 (POST /api/refresh-prices, GET /api/refresh-status)\n- 매매일지 거래금액 컬럼 추가 + 이유 accordion\n- 대회 룰 탭 구축 (5섹션 + 실시간 통과/위반 배지)\n- NAV/MDD 차트 Y축 scaleMargins 적용\n- 비교 탭 groupMap DB 연결 (usePortfolioList 기반)\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "feat"
+  },
+  {
     "hash": "838773b3",
     "date": "2026-05-26",
     "subject": "feat: 그룹 C/D/E — 비교탭 전면 개선, 매매일지 수익/손실, 내비·룰·리서치·변경이력 탭",
@@ -249,104 +347,6 @@
     "date": "2026-05-23",
     "subject": "docs: replace phase plans with unified ROADMAP.md",
     "body": "- Remove completed phase plans (phases/, PLAN.md) — Phase 0~6 all done\n- Add ROADMAP.md as the single source of truth for upcoming work\n  (Phase A tab restructure, B trade log, C candlestick, D metrics)\n- Add quantstats_image.webp as design reference\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
-    "type": "docs"
-  },
-  {
-    "hash": "5be23bc9",
-    "date": "2026-05-22",
-    "subject": "phase 5 & phase 6",
-    "body": "",
-    "type": "update"
-  },
-  {
-    "hash": "d9d039ec",
-    "date": "2026-05-22",
-    "subject": "last upgrade complete",
-    "body": "",
-    "type": "update"
-  },
-  {
-    "hash": "2df1a858",
-    "date": "2026-05-22",
-    "subject": "designe harness update",
-    "body": "",
-    "type": "update"
-  },
-  {
-    "hash": "b5eb6cf7",
-    "date": "2026-05-22",
-    "subject": "docs: codify dashboard design language",
-    "body": "The design guidance now defines the DBGAPS financial dashboard visual system, implementation guardrails, review checklist, and reusable design tokens for future Streamlit UI work.\n\nTested: python -m pytest tests/ -q\n\nCo-authored-by: OmX <omx@oh-my-codex.dev>",
-    "type": "docs"
-  },
-  {
-    "hash": "7720000c",
-    "date": "2026-05-22",
-    "subject": "feat: expand dashboard phase 5 sections",
-    "body": "The Streamlit page now reads prepared output CSVs for turnover and monthly returns, renders the new dashboard sections, and shows the data date from the backtest NAV series instead of file modification time.\n\nTested: python -m pytest tests/ -q; streamlit run web/app.py returned HTTP 200 on localhost:8507\n\nCo-authored-by: OmX <omx@oh-my-codex.dev>",
-    "type": "feat"
-  },
-  {
-    "hash": "79b4f127",
-    "date": "2026-05-22",
-    "subject": "feat: export dashboard analytics outputs",
-    "body": "The engine now writes the monthly returns and split turnover outputs that the dashboard consumes directly, while turnover rows identify actual trade sourcing for auditability.\n\nTested: python -m pytest tests/ -q\n\nCo-authored-by: OmX <omx@oh-my-codex.dev>",
-    "type": "feat"
-  },
-  {
-    "hash": "52ad6628",
-    "date": "2026-05-22",
-    "subject": "wave 1 complete",
-    "body": "",
-    "type": "update"
-  },
-  {
-    "hash": "3b8bedb8",
-    "date": "2026-05-22",
-    "subject": "progect_status-revise",
-    "body": "",
-    "type": "update"
-  },
-  {
-    "hash": "2c2fb01b",
-    "date": "2026-05-22",
-    "subject": "harness upgrade",
-    "body": "",
-    "type": "update"
-  },
-  {
-    "hash": "17d0eac7",
-    "date": "2026-05-22",
-    "subject": "docs: replace NEXT_SESSION_NOTES with PROJECT_STATUS",
-    "body": "Summarizes completed work (engine, tests, dashboard, deployment)\nand remaining tasks in priority order.\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
-    "type": "docs"
-  },
-  {
-    "hash": "6b738bbe",
-    "date": "2026-05-22",
-    "subject": "배포 완료",
-    "body": "",
-    "type": "update"
-  },
-  {
-    "hash": "f9879e4b",
-    "date": "2026-05-22",
-    "subject": "deploy: add railway.toml for Streamlit deployment",
-    "body": "Generates output/ at startup via run_sample_engine.py before\nlaunching Streamlit on Railway dynamic PORT.\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
-    "type": "update"
-  },
-  {
-    "hash": "67bf31cf",
-    "date": "2026-05-22",
-    "subject": "session C",
-    "body": "",
-    "type": "update"
-  },
-  {
-    "hash": "51462c9d",
-    "date": "2026-05-22",
-    "subject": "docs: add reference repository notes",
-    "body": "Comment: Add a root-level Markdown reference list for ETF investment OS architecture, backtesting, metrics, reporting, data, and dashboard repositories.\n\nTested: Reviewed the staged file list and confirmed only reference_repositories.md is included.\n\nConfidence: high\n\nCo-authored-by: OmX <omx@oh-my-codex.dev>",
     "type": "docs"
   }
 ]

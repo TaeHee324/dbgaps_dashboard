@@ -1,0 +1,32 @@
+#!/bin/sh
+set -eu
+
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+if python scripts/update_changelog.py --check --quiet; then
+  exit 0
+fi
+
+if ! git diff --cached --quiet; then
+  cat >&2 <<'EOF'
+CHANGELOG.json is stale, but there are already staged changes.
+Commit or unstage them, then run git push again so the hook can create a clean changelog commit.
+EOF
+  exit 1
+fi
+
+python scripts/update_changelog.py --quiet
+git add data/CHANGELOG.json
+
+if git diff --cached --quiet -- data/CHANGELOG.json; then
+  exit 0
+fi
+
+git commit -m "chore: update changelog" --no-verify
+
+cat >&2 <<'EOF'
+Created chore: update changelog.
+Run git push again to publish the new changelog commit.
+EOF
+exit 1

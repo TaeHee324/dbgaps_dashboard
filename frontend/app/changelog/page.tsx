@@ -53,7 +53,7 @@ export default function ChangelogPage() {
           <table className="w-full text-sm">
             <thead className="bg-surfaceMuted text-xs text-inkSecondary">
               <tr>
-                {["날짜", "타입", "내용", "커밋", ""].map((h, i) => (
+                {["날짜", "유형", "내용", "커밋", ""].map((h, i) => (
                   <th key={i} className="px-3 py-2 text-left font-medium">
                     {h}
                   </th>
@@ -69,7 +69,7 @@ export default function ChangelogPage() {
                     }
                     className="cursor-pointer border-t border-border hover:bg-surfaceMuted"
                   >
-                    <td className="px-3 py-2 tabular-nums text-inkSecondary whitespace-nowrap">
+                    <td className="whitespace-nowrap px-3 py-2 tabular-nums text-inkSecondary">
                       {entry.date}
                     </td>
                     <td className="px-3 py-2">
@@ -86,7 +86,7 @@ export default function ChangelogPage() {
                       {entry.hash}
                     </td>
                     <td className="px-3 py-2 text-xs text-inkMuted">
-                      {entry.body ? "▼" : ""}
+                      {entry.body ? "열기" : ""}
                     </td>
                   </tr>
                   {expandedIdx === idx && entry.body && (
