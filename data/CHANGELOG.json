@@ -1,5 +1,12 @@
 [
   {
+    "hash": "6c93b0fe",
+    "date": "2026-05-28",
+    "subject": "Unify dashboard info tooltips",
+    "body": "",
+    "type": "update"
+  },
+  {
     "hash": "7346ee04",
     "date": "2026-05-27",
     "subject": "docs(claude): add Windows TestClient gotcha and file path safety rule",
@@ -339,13 +346,6 @@
     "hash": "fe79a6eb",
     "date": "2026-05-24",
     "subject": "streammlit eliminate",
-    "body": "",
-    "type": "update"
-  },
-  {
-    "hash": "8f0e1cf8",
-    "date": "2026-05-23",
-    "subject": "phase 1",
     "body": "",
     "type": "update"
   }
