@@ -2,7 +2,7 @@
 
 ## Role
 
-This file is the source of truth for the product's visual direction. Any AI or human editing the dashboard UI should read this before changing `web/`, `docs/UI_GUIDE.md`, or frontend-facing text.
+This file is the source of truth for the product's visual direction. Any AI or human editing the dashboard UI should read this before changing `frontend/` or frontend-facing text.
 
 DBGAPS is an internal financial operations dashboard for ETF portfolio review. It is not a marketing site, landing page, trading signal product, or consumer investment app.
 
@@ -70,7 +70,7 @@ Rules:
 
 ### Typography
 
-- Use system UI fonts for reliability in Streamlit and Railway.
+- Use system UI fonts for reliability.
 - Use deep navy for primary text.
 - Use tabular numerals for all KPIs, percentages, quantities, prices, and money.
 - Keep dashboard headings compact. Do not use marketing-scale hero typography.
@@ -112,7 +112,7 @@ KPI cards:
 Status bar:
 - Always show data freshness.
 - Show whether outputs are sample or real data when that is known.
-- Use a quiet, compact treatment instead of a large Streamlit alert.
+- Use a quiet, compact treatment.
 
 Rule badges:
 - Use compact status pills or rows.
@@ -141,26 +141,26 @@ Tables:
 - Generic labels such as "Data", "Chart", "Info" when specific financial labels are available.
 - Broken or garbled Korean labels.
 - AI investment advice language such as "buy signal", "sell signal", "recommendation", or "AI pick".
-- `web/` importing from `src/`.
-- `web/` importing `pykrx` or fetching live market data.
-- Dashboard code recalculating metrics instead of reading `output/`.
+- `frontend/` importing from `src/`.
+- `frontend/` importing `pykrx` or fetching live market data.
+- Dashboard code recalculating metrics instead of reading `output/` (via API).
 
 ## Implementation Contract
 
-- `web/app.py`: page composition only.
-- `web/components.py`: reusable Streamlit/Plotly UI components.
-- `web/style.py`: CSS injection, visual tokens, and formatting helpers.
-- `web/data_loader.py`: reads `output/` only.
-- `design-tokens.json`: machine-readable design tokens.
-- `docs/UI_GUIDE.md`: implementation guide for the current Streamlit UI.
-- `DESIGN-LANGUAGE.md`: design judgment rules and anti-pattern checks.
-- `QA_CHECKLIST.md`: visual and UX review checklist before shipping UI changes.
+- `frontend/app/`: Next.js App Router 페이지 (page.tsx per route).
+- `frontend/components/`: 재사용 UI 컴포넌트 (charts/, ui/).
+- `frontend/lib/api.ts`: fetch 래퍼 (get, post, del).
+- `frontend/lib/hooks/`: TanStack Query 훅 (dashboard.ts, portfolio.ts, trades.ts).
+- `frontend/lib/utils/metrics.ts`: 순수 계산 유틸 (computeActualOpsMetrics, computeStrategyMetrics).
+- `docs/design-tokens.json`: machine-readable design tokens.
+- `docs/DESIGN-LANGUAGE.md`: design judgment rules and anti-pattern checks.
+- `docs/QA_CHECKLIST.md`: visual and UX review checklist before shipping UI changes.
 
 ## Review Standard
 
 Before a UI change is considered done:
 - Run boundary tests if code changed.
-- Verify no `web/` import from `src`.
+- Verify no `frontend/` import from `src`.
 - Check desktop and mobile layout.
 - Confirm no text overflow.
 - Confirm all financial values have labels and units.

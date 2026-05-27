@@ -2,7 +2,7 @@
 
 This document defines the CSV contracts used by the DBGAPS pipeline.
 
-Core boundary: `web/` reads only files under `output/`. It must not import `src/`.
+Core boundary: `api/` reads only files under `output/` (dashboard.py). It must not import `src/` (CRITICAL-1). Exception: `api/routers/portfolios.py` POST /api/backtest may import src/.
 
 ## Input Files
 
@@ -48,9 +48,9 @@ Trade ledger used to calculate current holdings and turnover.
 | fee | number | Transaction fee. |
 | memo | string | Optional note. |
 
-### portfolios/base.csv
+### portfolios/base.csv, portfolios/aggressive.csv, portfolios/conservative.csv
 
-Target portfolio weights used by the sample engine.
+Target portfolio weights used by the sample engine. Seeded into PostgreSQL `portfolios` table via `db.init_db()` at startup. `is_protected=TRUE` — cannot be deleted via API.
 
 | column | type | description |
 |---|---|---|
@@ -76,6 +76,12 @@ One-row performance summary for the portfolio backtest.
 | win_rate | number | Fraction of positive daily return observations. |
 | sharpe | number | Annualized Sharpe ratio using the configured risk-free rate. |
 | calmar | number | CAGR divided by absolute maximum drawdown. |
+| sortino | number | Sortino ratio (downside deviation based). |
+| information_ratio | number | Information ratio versus benchmark. |
+| mdd_duration | number | MDD peak-to-recovery duration in calendar days. |
+| win_rate_monthly | number | Fraction of positive monthly return observations. |
+| var_95 | number | 5th percentile daily return (Value at Risk, 95% confidence). |
+| tail_ratio | number | Ratio of 95th to 5th percentile of returns. |
 
 ### output/backtest_nav.csv
 
@@ -142,7 +148,8 @@ One-row initial turnover limit check.
 |---|---|---|
 | traded_value | number | Total traded value during the initial period. |
 | turnover | number | Traded value divided by capital base. |
-| limit | number | Initial turnover limit. |
+| turnover_source | string | Source label for the turnover period (e.g. `"initial"`). |
+| limit | number | Initial turnover minimum (0.80 — lower bound, must be ≥). |
 | passed | boolean | Whether the turnover check passed. |
 
 ### output/turnover_weekly.csv
@@ -154,7 +161,8 @@ Weekly turnover limit checks.
 | date | date | Period end date in `YYYY-MM-DD` format. |
 | traded_value | number | Total traded value in the period. |
 | turnover | number | Traded value divided by capital base. |
-| limit | number | Weekly turnover limit. |
+| turnover_source | string | Source label (e.g. `"weekly"`). |
+| limit | number | Weekly turnover minimum (0.10 — lower bound, must be ≥). |
 | passed | boolean | Whether the period passed the turnover rule. |
 
 ### output/turnover_monthly.csv
@@ -166,5 +174,31 @@ Monthly turnover limit checks.
 | date | date | Period end date in `YYYY-MM-DD` format. |
 | traded_value | number | Total traded value in the period. |
 | turnover | number | Traded value divided by capital base. |
-| limit | number | Monthly turnover limit. |
+| turnover_source | string | Source label (e.g. `"monthly"`). |
+| limit | number | Monthly turnover minimum (0.10 — lower bound, must be ≥). |
 | passed | boolean | Whether the period passed the turnover rule. |
+
+### output/monthly_returns.csv
+
+Monthly portfolio return aggregates.
+
+| column | type | description |
+|---|---|---|
+| year | number | Year. |
+| month | number | Month (1–12). |
+| monthly_return | number | Compounded monthly return as a decimal fraction. |
+
+### output/comparison/summary.csv
+
+Per-portfolio performance summary for the multi-portfolio comparison view.
+
+| column | type | description |
+|---|---|---|
+| portfolio_name | string | Portfolio identifier. |
+| cagr | number | Annualized compound growth rate. |
+| mdd | number | Maximum drawdown. |
+| sharpe | number | Annualized Sharpe ratio. |
+| calmar | number | Calmar ratio. |
+| sortino | number | Sortino ratio. |
+| annual_volatility | number | Annualized volatility. |
+| win_rate | number | Fraction of positive daily return observations. |

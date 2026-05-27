@@ -24,6 +24,8 @@
 
 **재검토 조건**: 가격 데이터가 수십만 행을 넘거나, 웹에서 직접 매매일지를 수정해야 하는 경우 SQLite 또는 Railway PostgreSQL 검토.
 
+**갱신 (2026-05-27)**: PostgreSQL 부분 도입 완료. portfolios 테이블(포트폴리오 비중 정의) 및 trade_log 테이블(매매 내역)은 Railway PostgreSQL로 이전됨. 가격 데이터(`prices_daily.csv`)와 엔진 산출물(`output/*.csv`)은 여전히 CSV 유지. `db.py`가 공유 PostgreSQL 모듈 역할.
+
 ---
 
 ## ADR-002: 가격 데이터 수집에 pykrx 사용
@@ -72,7 +74,7 @@
 - 무료 플랜 sleep 문제 (유료 플랜 필요할 수 있음)
 - 파일 기반 CSV는 Railway 재시작 시 휘발 → 데이터는 Git에서 관리하거나 Volume 마운트 필요
 
-**미결정**: 웹 대시보드 프레임워크 (Streamlit / FastAPI+HTML) — phase-4 시작 전 결정.
+**결정됨 (2026-05-27)**: FastAPI + Next.js 15 App Router + TypeScript + Tailwind CSS로 완료. "Flask, FastAPI, Streamlit 모두 가능"이라는 미결정 상태는 해소됨. Railway 2개 서비스(백엔드 FastAPI + 프론트엔드 Next.js)로 배포 중. PostgreSQL은 Railway 추가 서비스로 운영.
 
 ---
 
@@ -87,3 +89,5 @@
 
 **트레이드오프**:
 - 인터랙티브 기능 없음 (hover, zoom 불가)
+
+**갱신 (2026-05-27)**: TradingView Lightweight Charts v5로 교체 완료. `output/charts/` PNG 파일 및 `src/charts.py`는 더 이상 사용하지 않음. 차트 렌더링이 프론트엔드(`frontend/components/charts/`)에서 전담. NavChart, DrawdownChart, ComparisonChart, MonthlyBarChart, PieChart 컴포넌트 구현됨.

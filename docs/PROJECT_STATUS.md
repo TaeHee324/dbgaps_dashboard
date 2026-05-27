@@ -1,6 +1,6 @@
 # PROJECT_STATUS — DBGAPS 포트폴리오 자동화 대시보드
 
-최종 업데이트: 2026-05-24
+최종 업데이트: 2026-05-27
 
 ---
 
@@ -11,7 +11,7 @@
 | **GitHub** | https://github.com/TaeHee324/dbgaps_dashboard |
 | **백엔드 (Railway)** | FastAPI + uvicorn, 루트 `railway.toml` |
 | **프론트엔드 (Railway)** | Next.js 15, `frontend/railway.toml`, Root Directory = `frontend/` |
-| **백엔드 시작 명령** | `python src/run_sample_engine.py && uvicorn api.main:app --host 0.0.0.0 --port $PORT` |
+| **백엔드 시작 명령** | `uvicorn api.main:app --host 0.0.0.0 --port $PORT` |
 | **프론트엔드 시작 명령** | `npm start` |
 
 ### 환경변수
@@ -62,26 +62,30 @@ PostgreSQL ↔ api/routers/portfolios.py (포트폴리오 CRUD)
 
 | 파일 | 내용 |
 |---|---|
-| `main.py` | FastAPI 앱, CORS 미들웨어 (`ALLOWED_ORIGINS` 환경변수) |
+| `main.py` | FastAPI 앱, CORS 미들웨어 (`ALLOWED_ORIGINS` 환경변수), 라우터 4개 등록 |
 | `schemas.py` | Pydantic v2 응답 모델 전체 |
-| `routers/dashboard.py` | output/ CSV 읽기 엔드포인트 (12개) |
+| `routers/dashboard.py` | output/ CSV 읽기 + trade_log DB 기반 엔드포인트 (21개) |
 | `routers/portfolios.py` | PostgreSQL CRUD + POST /api/backtest (src/ import 허용 예외) |
-| `routers/trades.py` | data/trade_log.json CRUD |
-| `CONTRACT.md` | API 전체 계약 문서 (엔드포인트 18개, TypeScript 타입, 에러 규칙) |
+| `routers/trades.py` | PostgreSQL trade_log 테이블 CRUD (GET/POST/PUT/DELETE 4개) |
+| `routers/risk.py` | HHI·데이터헬스·ETF별 MDD/변동성/위험기여도 (FIFO 인라인, DB+CSV 직접 읽기) |
 
 ---
 
 ## 프론트엔드 (`frontend/`)
 
-| 라우트 | 내용 |
-|---|---|
-| `/` | 홈 — 전략 요약 KPI, NAV+Drawdown 차트, 매매일지 마커 |
-| `/operations` | 운용 현황 — 전체 섹션 (KPI, 차트, 회전율, 규칙, 월별수익률, 비교, 보유현황) |
-| `/portfolio` | ETF 탐색기 + 포트폴리오 빌더 + 백테스트 + CRUD |
-| `/comparison` | 멀티 포트폴리오 비교 (기간 필터, NAV 차트, 지표 테이블) |
-| `/trades` | 매매일지 입력 + 이력 조회 |
-| `/report` | 월간보고서 Markdown 렌더링 |
-| `/market` | 시장 현황 — 준비 중 |
+| 라우트 | 상태 | 내용 |
+|---|---|---|
+| `/` | 구현됨 | 운용현황 대시보드 (메인) — 실제 운용 KPI, NAV 차트, 보유종목, 규칙·회전율 |
+| `/operations` | redirect | redirect → `/` (직접 수정 금지) |
+| `/risk` | 구현됨 | 리스크 관리 — HHI 분산도, 데이터헬스, ETF별 MDD/변동성/위험기여도 |
+| `/portfolio` | 구현됨 | ETF 포트폴리오 관리 — ETF 구성, 백테스트, CRUD |
+| `/comparison` | 구현됨 | 포트폴리오 비교 백테스트 — 기간 필터, NAV 차트, 지표 테이블 |
+| `/trades` | 구현됨 | 매매 거래내역 — 입력, 수정, 삭제, 이력 조회 |
+| `/report` | 구현됨 | Markdown 월별 리포트 뷰어 |
+| `/changelog` | 구현됨 | 변경이력 (`data/CHANGELOG.json`) |
+| `/market` | 준비중 | 시황 — 플레이스홀더 |
+| `/rules` | 준비중 | 대회 룰 — 플레이스홀더 |
+| `/research` | 준비중 | 리서치 — 플레이스홀더 |
 
 ---
 

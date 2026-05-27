@@ -24,7 +24,6 @@ Use this checklist before shipping dashboard design or UX changes.
 - [ ] The page is not dominated by a single hue family.
 - [ ] Spacing creates hierarchy without wasting vertical space.
 - [ ] Shadows are subtle and rare.
-- [ ] Streamlit default alerts do not dominate the interface.
 
 ## Typography And Labels
 
@@ -57,7 +56,7 @@ Use this checklist before shipping dashboard design or UX changes.
 
 ## Architecture
 
-- [ ] `web/` does not import `src`.
-- [ ] `web/` does not import `pykrx`.
-- [ ] Dashboard reads from `output/` only.
+- [ ] `frontend/` does not import `src`.
+- [ ] `frontend/` does not import `pykrx`.
+- [ ] Dashboard reads from `output/` only (via FastAPI).
 - [ ] Calculation logic stays outside the UI.
