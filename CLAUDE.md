@@ -37,8 +37,8 @@ Design authority order:
 - Next.js 15 App Router + TypeScript + Tailwind CSS (프론트엔드)
 - TanStack Query v5 (클라이언트 상태관리)
 - TradingView Lightweight Charts v5 (차트)
-- CSV files as the primary storage format for prices and trade history
-- PostgreSQL (via Railway) for portfolio definitions; accessed through `db.py`
+- PostgreSQL (via Railway) for portfolio definitions AND daily prices; accessed through `db.py`
+- CSV files for trade history (`data/trades.csv`) and static master data only
 - psycopg2-binary + python-dotenv for database connectivity
 - Railway 2개 서비스 (FastAPI 백엔드 + Next.js 프론트엔드)
 
@@ -153,8 +153,8 @@ Any UI or UX work must read the design files listed above before editing. Do not
 ## Data Flow
 
 ```text
-pykrx -> src/update_prices.py -> data/prices_daily.csv
-data/*.csv + portfolios/*.csv -> src/ calculation engine -> output/
+pykrx -> src/update_prices.py -> PostgreSQL prices_daily  (영구 보존, Railway 재배포에도 유지)
+PostgreSQL prices_daily + data/*.csv -> src/ calculation engine -> output/
 output/*.csv -> api/ FastAPI -> frontend/ Next.js
 ```
 
@@ -246,7 +246,9 @@ git commit -m "chore: update changelog"
 Railway 백엔드는 `output/*.csv`를 git에서 직접 읽는다. 엔진 실행 후 output/ 변경분을 커밋·푸시하지 않으면 배포된 서비스에 반영되지 않는다.
 
 **CRITICAL**: `railway.toml`(`frontend/railway.toml`도 동일) startCommand에 `run_sample_engine.py`를 포함하면 `data/sample_prices_daily.csv`(2026-01 11행 샘플)로 `output/` CSV를 덮어씌워 커밋된 데이터가 무효화된다.
-올바른 백엔드 startCommand: `uvicorn api.main:app --host 0.0.0.0 --port $PORT`
+올바른 백엔드 startCommand: `python src/run_engine.py; uvicorn api.main:app --host 0.0.0.0 --port $PORT`
+- `;` 사용 이유: DB가 비어있을 때 run_engine.py가 graceful return(exit 0)하여 uvicorn이 차단되지 않도록.
+- run_engine.py가 배포마다 PostgreSQL prices_daily에서 가격을 읽어 output/ 재생성 — Railway ephemeral 파일시스템 대응.
 
 Railway 설정 파일 위치:
 - 백엔드: `railway.toml`
@@ -288,10 +290,11 @@ UI 레이블도 "한도"(상한 뉘앙스) 대신 "최소"를 사용할 것.
 ### SYNC-8: 현재가 갱신은 update_prices → run_engine 순서 필수
 
 `/api/refresh-prices` 갱신 플로우는 두 단계가 모두 실행되어야 화면에 반영됨:
-1. `src/update_prices.py` → `data/prices_daily.csv` 갱신
+1. `src/update_prices.py` → `PostgreSQL prices_daily` 갱신 (CSV 아님; Railway 재배포 후에도 유지)
 2. `src/run_engine.py` → `output/` CSV 재생성
 
-`update_prices.py`만 실행하면 prices CSV만 바뀌고 dashboard output은 stale 상태 유지.
+`update_prices.py`만 실행하면 prices DB만 바뀌고 dashboard output은 stale 상태 유지.
+`dashboard.py`의 `_calc_live_holdings()`와 `actual_nav()`도 `db.load_prices_from_db()` 사용 (CSV 아님).
 
 ### SYNC-9: `actual_nav()` NAV = ETF시가 + 현금
 
@@ -315,6 +318,12 @@ UI 레이블도 "한도"(상한 뉘앙스) 대신 "최소"를 사용할 것.
 1. Railway 콘솔 또는 psql로 SQL 직접 실행 (예: `ALTER TABLE portfolios ADD COLUMN group_name TEXT;`)
 2. `api/schemas.py` Pydantic 모델 동시 수정
 3. 해당 라우터(`portfolios.py` 등) 쿼리 동시 수정
+
+현재 테이블 목록:
+- `portfolios`: 포트폴리오 정의 (name, holdings JSONB, is_protected, group_name)
+- `trade_log`: 매매 거래내역
+- `prices_daily`: ETF 일별 종가 (date DATE, code VARCHAR(6), close NUMERIC) — PRIMARY KEY (date, code)
+  초기 데이터 투입: `python scripts/migrate_prices_to_db.py` (data/prices_daily.csv → DB, 1회성)
 
 ## Validation
 
