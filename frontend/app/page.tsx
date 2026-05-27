@@ -220,11 +220,13 @@ export default function HomePage() {
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+
   async function handleRefresh() {
     setRefreshing(true);
     setRefreshError(null);
     try {
-      await fetch("/api/refresh-prices", { method: "POST" });
+      await fetch(`${apiBase}/api/refresh-prices`, { method: "POST" });
     } catch {
       setRefreshing(false);
       setRefreshError("갱신 요청 실패");
@@ -232,7 +234,7 @@ export default function HomePage() {
     }
     pollRef.current = setInterval(async () => {
       try {
-        const res = await fetch("/api/refresh-status");
+        const res = await fetch(`${apiBase}/api/refresh-status`);
         const data = await res.json();
         if (data.status === "done" || data.status === "error") {
           if (pollRef.current) clearInterval(pollRef.current);

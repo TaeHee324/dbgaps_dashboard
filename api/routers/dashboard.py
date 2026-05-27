@@ -25,11 +25,22 @@ _refresh_state: dict = {"status": "idle", "updated_at": ""}
 def _run_refresh() -> None:
     global _refresh_state
     try:
-        subprocess.run(
+        r1 = subprocess.run(
             ["python", "src/update_prices.py"],
             capture_output=True,
             text=True,
+            cwd=ROOT,
         )
+        if r1.returncode != 0:
+            raise RuntimeError(r1.stderr or "update_prices failed")
+        r2 = subprocess.run(
+            ["python", "src/run_engine.py"],
+            capture_output=True,
+            text=True,
+            cwd=ROOT,
+        )
+        if r2.returncode != 0:
+            raise RuntimeError(r2.stderr or "run_engine failed")
         _refresh_state = {"status": "done", "updated_at": pd.Timestamp.now().isoformat()}
     except Exception:
         _refresh_state = {"status": "error", "updated_at": pd.Timestamp.now().isoformat()}
