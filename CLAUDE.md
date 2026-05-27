@@ -90,6 +90,7 @@ Expected `api/` roles:
 | 경로 | 파일 | 상태 | 설명 |
 |------|------|------|------|
 | `/` | `app/page.tsx` | 구현됨 | 운용현황 대시보드 (메인) |
+| `/risk` | `app/risk/page.tsx` | 구현됨 | 리스크 관리 (HHI, MDD, ETF별 분석) |
 | `/operations` | `app/operations/page.tsx` | redirect → `/` | `redirect("/")` 래퍼, 직접 수정 금지 |
 | `/comparison` | `app/comparison/page.tsx` | 구현됨 | 포트폴리오 비교 백테스트 탭 |
 | `/portfolio` | `app/portfolio/page.tsx` | 구현됨 | ETF 포트폴리오 관리 |

@@ -5,6 +5,7 @@ import { Providers } from "./providers";
 
 const navigation = [
   { href: "/", label: "운용 대시보드" },
+  { href: "/risk", label: "리스크 관리" },
   { href: "/portfolio", label: "ETF 포트폴리오" },
   { href: "/comparison", label: "포트폴리오 비교" },
   { href: "/trades", label: "매매일지" },

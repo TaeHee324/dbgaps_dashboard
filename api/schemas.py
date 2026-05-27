@@ -244,3 +244,27 @@ class LiveHolding(BaseModel):
     current_weight: float
     risk_type: str
     asset_class: str
+
+
+class DataHealth(BaseModel):
+    latest_price_date: str
+    business_days_stale: int
+    status: str  # "정상" | "주의" | "오류"
+
+
+class RiskPortfolioResponse(BaseModel):
+    hhi: float
+    hhi_label: str  # "분산양호" | "보통" | "집중경고"
+    data_health: DataHealth
+
+
+class EtfRiskItem(BaseModel):
+    code: str
+    name: str
+    current_weight: float
+    target_weight: float | None = None
+    weight_drift: float | None = None
+    individual_mdd: float
+    current_drawdown: float
+    vol_20d: float | None = None
+    risk_contribution_pct: float | None = None

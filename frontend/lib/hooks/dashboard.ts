@@ -296,3 +296,39 @@ export function usePortfolioEtfs() {
     queryFn: () => get<{ code: string; name: string }[]>("/api/portfolio-etfs"),
   });
 }
+
+export type RiskPortfolioResponse = {
+  hhi: number;
+  hhi_label: string;
+  data_health: {
+    latest_price_date: string;
+    business_days_stale: number;
+    status: string;
+  };
+} | null;
+
+export type EtfRiskItem = {
+  code: string;
+  name: string;
+  current_weight: number;
+  target_weight: number | null;
+  weight_drift: number | null;
+  individual_mdd: number;
+  current_drawdown: number;
+  vol_20d: number | null;
+  risk_contribution_pct: number | null;
+};
+
+export function useRiskPortfolio() {
+  return useQuery({
+    queryKey: ["risk-portfolio"],
+    queryFn: () => get<RiskPortfolioResponse>("/api/risk/portfolio"),
+  });
+}
+
+export function useEtfRiskAnalysis() {
+  return useQuery({
+    queryKey: ["etf-risk-analysis"],
+    queryFn: () => get<EtfRiskItem[]>("/api/risk/etf-analysis"),
+  });
+}

@@ -5,7 +5,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.routers import dashboard, portfolios, trades
+from api.routers import dashboard, portfolios, risk, trades
 
 
 def _allowed_origins() -> list[str]:
@@ -25,3 +25,4 @@ app.add_middleware(
 app.include_router(dashboard.router)
 app.include_router(portfolios.router)
 app.include_router(trades.router)
+app.include_router(risk.router)
