@@ -221,6 +221,7 @@ export default function HomePage() {
   const queryClient = useQueryClient();
 
   const [refreshing, setRefreshing] = useState(false);
+  const [refreshStep, setRefreshStep] = useState<string>("");
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [strategyPeriod, setStrategyPeriod] = useState<StrategyPeriod>("1Y");
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -229,6 +230,7 @@ export default function HomePage() {
 
   async function handleRefresh() {
     setRefreshing(true);
+    setRefreshStep("");
     setRefreshError(null);
     try {
       await fetch(`${apiBase}/api/refresh-prices`, { method: "POST" });
@@ -241,19 +243,30 @@ export default function HomePage() {
       try {
         const res = await fetch(`${apiBase}/api/refresh-status`);
         const data = await res.json();
+        setRefreshStep(data.step ?? "");
         if (data.status === "done" || data.status === "error") {
           if (pollRef.current) clearInterval(pollRef.current);
           setRefreshing(false);
+          setRefreshStep("");
           if (data.status === "error") setRefreshError("갱신 중 오류 발생");
           queryClient.invalidateQueries();
         }
       } catch {
         if (pollRef.current) clearInterval(pollRef.current);
         setRefreshing(false);
+        setRefreshStep("");
         setRefreshError("상태 조회 실패");
       }
     }, 3000);
   }
+
+  const refreshLabel = refreshing
+    ? refreshStep === "fetching_prices"
+      ? "1/2 가격 수집 중..."
+      : refreshStep === "running_engine"
+        ? "2/2 엔진 재계산 중..."
+        : "갱신 중..."
+    : "현재가 갱신";
 
   const actualOpsMetrics = useMemo(
     () => computeActualOpsMetrics(actualNavQuery.data ?? []),
@@ -322,8 +335,13 @@ export default function HomePage() {
               opacity: refreshing ? 0.7 : 1,
             }}
           >
-            {refreshing ? "갱신 중..." : "현재가 갱신"}
+            {refreshLabel}
           </button>
+          {refreshing && refreshStep === "fetching_prices" && (
+            <span style={{ fontSize: 11, color: "#8595A6", fontFamily: "JetBrains Mono, monospace" }}>
+              약 30~45초 소요
+            </span>
+          )}
           {refreshError && (
             <span style={{ fontSize: 11, color: "#DC2626", fontFamily: "JetBrains Mono, monospace" }}>
               {refreshError}

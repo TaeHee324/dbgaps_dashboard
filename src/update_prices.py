@@ -15,11 +15,17 @@ modules consume the generated CSV with pandas only.
 from __future__ import annotations
 
 import argparse
+import sys
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Iterable
 
 import pandas as pd
+
+_ROOT = Path(__file__).resolve().parents[1]
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
 
 try:
     from pykrx import stock
@@ -106,43 +112,68 @@ def update_prices(
     prices_path: Path = PRICES_DAILY_PATH,
     dry_run: bool = False,
 ) -> pd.DataFrame:
-    existing = load_existing_prices(prices_path)
-    fetched_frames: list[pd.DataFrame] = []
+    if dry_run:
+        existing = load_existing_prices(prices_path)
+        max_dates: dict[str, str] = {}
+    else:
+        import db as _db
+        max_dates = _db.get_max_date_by_code()
+        existing = pd.DataFrame(columns=PRICE_COLUMNS)
 
-    for code in codes:
-        code = str(code).zfill(6)
-        code_start = next_start_date(existing, code, start)
+    def _start_for_code(code: str) -> date:
+        if dry_run:
+            return next_start_date(existing, code, start)
+        latest = max_dates.get(code)
+        if latest is None:
+            return start
+        return (datetime.strptime(latest, "%Y-%m-%d").date() + timedelta(days=1))
+
+    codes_list = [str(c).zfill(6) for c in codes]
+
+    def fetch_one(code: str) -> pd.DataFrame | None:
+        code_start = _start_for_code(code)
         if code_start > end:
             print(f"skip {code}: already up to date")
-            continue
+            return None
         print(f"fetch {code}: {code_start} to {end}")
         try:
             fetched = fetch_daily_close(code, code_start, end)
         except Exception as exc:  # pragma: no cover - network/provider dependent
             print(f"error {code}: {exc}")
-            continue
+            return None
         if fetched.empty:
             print(f"empty {code}: no rows returned")
-            continue
+            return None
         print(f"ok {code}: {len(fetched)} rows")
-        fetched_frames.append(fetched)
+        return fetched
+
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        results = list(executor.map(fetch_one, codes_list))
+
+    fetched_frames = [r for r in results if r is not None]
+
+    if dry_run:
+        if fetched_frames:
+            combined = pd.concat([existing, *fetched_frames], ignore_index=True)
+        else:
+            combined = existing.copy()
+        if combined.empty:
+            combined = pd.DataFrame(columns=PRICE_COLUMNS)
+        else:
+            combined = combined.drop_duplicates(["date", "code"], keep="last")
+            combined = combined.sort_values(["code", "date"]).reset_index(drop=True)
+        return combined
 
     if fetched_frames:
-        combined = pd.concat([existing, *fetched_frames], ignore_index=True)
-    else:
-        combined = existing.copy()
+        all_fetched = pd.concat(fetched_frames, ignore_index=True)
+        rows_to_upsert = [
+            {"date": row["date"], "code": row["code"], "close": float(row["close"])}
+            for _, row in all_fetched.iterrows()
+        ]
+        _db.upsert_prices(rows_to_upsert)
+        return all_fetched
 
-    if combined.empty:
-        combined = pd.DataFrame(columns=PRICE_COLUMNS)
-    else:
-        combined = combined.drop_duplicates(["date", "code"], keep="last")
-        combined = combined.sort_values(["code", "date"]).reset_index(drop=True)
-
-    if not dry_run:
-        prices_path.parent.mkdir(parents=True, exist_ok=True)
-        combined.to_csv(prices_path, index=False, encoding="utf-8")
-
-    return combined
+    return pd.DataFrame(columns=PRICE_COLUMNS)
 
 
 def build_parser() -> argparse.ArgumentParser:

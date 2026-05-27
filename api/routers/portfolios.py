@@ -13,7 +13,6 @@ from api import schemas
 ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = ROOT / "data"
 SRC = ROOT / "src"
-PRICES_PATH = DATA_DIR / "prices_daily.csv"
 ETF_MASTER_PATH = DATA_DIR / "etf_master.csv"
 BENCHMARK_CODE = "069500"
 
@@ -85,13 +84,13 @@ def upsert_portfolio(payload: schemas.PortfolioUpsertRequest):
         if str(SRC) not in _sys.path:
             _sys.path.insert(0, str(SRC))
         import pandas as _pd
-        from backtest import load_prices, run_backtest, summarize_backtest  # noqa: E402
+        from backtest import run_backtest, summarize_backtest  # noqa: E402
 
         COMPARISON_OUTPUT = ROOT / "output" / "comparison"
         INITIAL_VALUE = 100_000_000
 
-        if PRICES_PATH.exists():
-            _prices = load_prices(str(PRICES_PATH))
+        _prices = db.load_prices_from_db()
+        if not _prices.empty:
             _weights = _pd.Series({h["code"]: h["weight"] for h in holdings})
             _bt = run_backtest(_prices, _weights, initial_value=INITIAL_VALUE)
             _summary = summarize_backtest(_bt, None)
@@ -238,14 +237,16 @@ def run_backtest(payload: schemas.BacktestRequest):
     if str(SRC) not in sys.path:
         sys.path.insert(0, str(SRC))
 
-    from backtest import benchmark_nav, load_prices, run_backtest, summarize_backtest
+    from backtest import benchmark_nav, run_backtest, summarize_backtest
     from metrics import monthly_returns
 
     if not payload.holdings:
         raise HTTPException(status_code=422, detail="holdings must not be empty")
 
     try:
-        prices = load_prices(PRICES_PATH)
+        prices = db.load_prices_from_db()
+        if prices.empty:
+            raise HTTPException(status_code=503, detail="가격 데이터가 없습니다. 먼저 현재가 갱신을 실행하세요.")
         if payload.start_date:
             prices = prices[prices["date"] >= pd.to_datetime(payload.start_date)]
         if payload.end_date:

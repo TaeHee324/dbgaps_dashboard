@@ -19,12 +19,13 @@ DATA_DIR = ROOT / "data"
 
 router = APIRouter(prefix="/api", tags=["dashboard"])
 
-_refresh_state: dict = {"status": "idle", "updated_at": ""}
+_refresh_state: dict = {"status": "idle", "step": "", "updated_at": ""}
 
 
 def _run_refresh() -> None:
     global _refresh_state
     try:
+        _refresh_state = {"status": "running", "step": "fetching_prices", "updated_at": ""}
         r1 = subprocess.run(
             ["python", "src/update_prices.py"],
             capture_output=True,
@@ -33,6 +34,7 @@ def _run_refresh() -> None:
         )
         if r1.returncode != 0:
             raise RuntimeError(r1.stderr or "update_prices failed")
+        _refresh_state["step"] = "running_engine"
         r2 = subprocess.run(
             ["python", "src/run_engine.py"],
             capture_output=True,
@@ -41,9 +43,9 @@ def _run_refresh() -> None:
         )
         if r2.returncode != 0:
             raise RuntimeError(r2.stderr or "run_engine failed")
-        _refresh_state = {"status": "done", "updated_at": pd.Timestamp.now().isoformat()}
+        _refresh_state = {"status": "done", "step": "done", "updated_at": pd.Timestamp.now().isoformat()}
     except Exception:
-        _refresh_state = {"status": "error", "updated_at": pd.Timestamp.now().isoformat()}
+        _refresh_state = {"status": "error", "step": "error", "updated_at": pd.Timestamp.now().isoformat()}
 
 
 def _read_csv(path: Path, **kwargs) -> pd.DataFrame:
@@ -376,13 +378,11 @@ def _calc_live_holdings() -> list[dict]:
                     h["quantity"] = 0.0
                     h["cost_basis"] = 0.0
 
-    # prices_daily.csv — 코드별 최신 종가 및 날짜
+    # prices_daily DB — 코드별 최신 종가 및 날짜
     prices_latest: dict[str, tuple[float, str]] = {}  # code -> (close, date_str)
     try:
-        prices_df = _read_csv(DATA_DIR / "prices_daily.csv", dtype={"code": "string"})
-        if not prices_df.empty and {"code", "date", "close"}.issubset(prices_df.columns):
-            prices_df["code"] = prices_df["code"].map(_normalize_code)
-            prices_df["date"] = pd.to_datetime(prices_df["date"], errors="coerce")
+        prices_df = db.load_prices_from_db()
+        if not prices_df.empty:
             idx = prices_df.groupby("code")["date"].idxmax()
             latest_prices = prices_df.loc[idx].set_index("code")
             for c, row in latest_prices.iterrows():
@@ -462,14 +462,12 @@ def actual_nav():
     if not trade_rows:
         return []
 
-    # 2. prices_daily.csv 읽기
-    prices_df = _read_csv(DATA_DIR / "prices_daily.csv", dtype={"code": "string"})
-    if prices_df.empty or not {"code", "date", "close"}.issubset(prices_df.columns):
+    # 2. prices_daily DB 읽기
+    prices_df = db.load_prices_from_db()
+    if prices_df.empty:
         return []
 
-    prices_df["code"] = prices_df["code"].map(_normalize_code)
-    prices_df["date"] = pd.to_datetime(prices_df["date"], errors="coerce")
-    prices_df = prices_df.dropna(subset=["date"]).sort_values("date")
+    prices_df = prices_df.sort_values("date")
 
     # 3. 거래 내역을 날짜별로 집계 (누적 보유 상태 계산용)
     trade_list = []
@@ -699,7 +697,7 @@ def refresh_prices(background_tasks: BackgroundTasks) -> dict:
     global _refresh_state
     if _refresh_state["status"] == "running":
         return {"status": "already_running"}
-    _refresh_state = {"status": "running", "updated_at": ""}
+    _refresh_state = {"status": "running", "step": "", "updated_at": ""}
     background_tasks.add_task(_run_refresh)
     return {"status": "started"}
 

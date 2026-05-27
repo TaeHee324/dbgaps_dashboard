@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from backtest import benchmark_nav, load_prices, run_backtest, summarize_backtest  # noqa: E402
+from backtest import benchmark_nav, run_backtest, summarize_backtest  # noqa: E402
 from metrics import monthly_returns  # noqa: E402
 from portfolio import evaluate_holdings, load_trades  # noqa: E402
 from report_builder import build_report  # noqa: E402
@@ -95,11 +95,10 @@ def run_comparison_backtests(prices: pd.DataFrame, portfolios: dict[str, list[di
 def main() -> None:
     OUTPUT.mkdir(parents=True, exist_ok=True)
 
-    prices_path = DATA / "prices_daily.csv"
-    if not prices_path.exists() or prices_path.stat().st_size == 0:
-        raise FileNotFoundError("data/prices_daily.csv is missing or empty. Run `python src/update_prices.py` first.")
-
-    prices = load_prices(prices_path)
+    prices = db.load_prices_from_db()
+    if prices.empty:
+        print("prices_daily DB가 비어 있습니다. 먼저 scripts/migrate_prices_to_db.py 또는 src/update_prices.py를 실행하세요.")
+        return
     portfolios = discover_portfolios()
     if not portfolios:
         raise RuntimeError("DB에 포트폴리오가 없습니다. 먼저 portfolios/*.csv가 있는지 확인하세요.")

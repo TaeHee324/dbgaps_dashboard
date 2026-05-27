@@ -15,8 +15,9 @@ import json
 import os
 from pathlib import Path
 
+import pandas as pd
 import psycopg2
-from psycopg2.extras import RealDictCursor
+from psycopg2.extras import RealDictCursor, execute_values
 
 try:
     from dotenv import load_dotenv
@@ -150,6 +151,64 @@ def delete_portfolio(name: str) -> None:
             if row["is_protected"]:
                 raise ValueError(f"'{name}'은 기본 포트폴리오로 삭제할 수 없습니다.")
             cur.execute("DELETE FROM portfolios WHERE name = %s", (name,))
+        conn.commit()
+
+
+def load_prices_from_db() -> pd.DataFrame:
+    """SELECT date, code, close FROM prices_daily. Returns empty DataFrame if table is empty or missing."""
+    try:
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT date, code, close FROM prices_daily ORDER BY date, code")
+                rows = cur.fetchall()
+    except Exception:
+        return pd.DataFrame(columns=["date", "code", "close"])
+    if not rows:
+        return pd.DataFrame(columns=["date", "code", "close"])
+    df = pd.DataFrame([dict(r) for r in rows])
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    df["code"] = df["code"].str.zfill(6)
+    df["close"] = pd.to_numeric(df["close"], errors="coerce")
+    return df.dropna(subset=["date", "code", "close"])
+
+
+def get_max_date_by_code() -> dict[str, str]:
+    """Return {code: "YYYY-MM-DD"} with the latest date per code from prices_daily."""
+    try:
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT code, MAX(date) AS max_date FROM prices_daily GROUP BY code")
+                rows = cur.fetchall()
+    except Exception:
+        return {}
+    return {
+        str(row["code"]).zfill(6): row["max_date"].isoformat()
+        for row in rows
+        if row["max_date"] is not None
+    }
+
+
+def upsert_prices(rows: list[dict]) -> None:
+    """Insert or update rows into prices_daily (batch).
+
+    rows: [{"date": "YYYY-MM-DD", "code": "xxxxxx", "close": float}, ...]
+    Each thread must call this with its own connection (psycopg2 connections are not thread-safe).
+    """
+    if not rows:
+        return
+    values = [(row["date"], str(row["code"]).zfill(6), float(row["close"])) for row in rows]
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            execute_values(
+                cur,
+                """
+                INSERT INTO prices_daily (date, code, close)
+                VALUES %s
+                ON CONFLICT (date, code) DO UPDATE SET close = EXCLUDED.close
+                """,
+                values,
+                page_size=1000,
+            )
         conn.commit()
 
 
