@@ -327,12 +327,5 @@
     "subject": "feat: PostgreSQL 포트폴리오 저장 — 파일시스템에서 DB로 마이그레이션",
     "body": "- db.py 신규: 연결, 테이블 자동생성, CSV 시딩, CRUD (list/get/upsert/delete)\n- 1_ETF_포트폴리오.py: 불러오기·저장·삭제 UI 추가, 파일 저장 → DB 저장으로 교체\n- run_engine.py: portfolios/*.csv 대신 DB에서 포트폴리오 읽도록 변경\n- requirements.txt: psycopg2-binary, python-dotenv 추가\n- .env.example: 로컬 개발용 DATABASE_URL 템플릿\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
     "type": "feat"
-  },
-  {
-    "hash": "cce03de5",
-    "date": "2026-05-23",
-    "subject": "output update",
-    "body": "",
-    "type": "update"
   }
 ]
