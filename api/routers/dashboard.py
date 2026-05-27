@@ -535,11 +535,11 @@ def actual_nav():
                 if not pd.isna(close):
                     portfolio_value += qty * close
 
-        if portfolio_value == 0.0 and not any(q > 0 for q in holdings.values()):
-            continue
-
         cash = INITIAL_CAPITAL - cumulative_buy_cost + cumulative_sell_proceeds
         total_value = portfolio_value + cash
+
+        if total_value <= 0:
+            continue
 
         daily_return = 0.0
         if prev_total_value is not None and prev_total_value > 0:

@@ -70,17 +70,28 @@ export function computeActualOpsMetrics(points: ActualNavPoint[]): ActualOpsMetr
 export function computeStrategyMetrics(points: NavPoint[]): StrategyMetrics {
   if (!points || points.length < 2) return null;
 
-  const returns = points.slice(1).map((p) => p.daily_return);
+  // 슬라이스된 구간 내 daily_return 전부 사용 (actual_nav와 달리 첫 행도 유효)
+  const returns = points.map((p) => p.daily_return);
   const n = returns.length;
   if (n === 0) return null;
 
-  const lastPoint = points[points.length - 1];
-  const cumReturn = lastPoint.cumulative_return;
+  // 구간 누적수익률: lastPoint.cumulative_return 은 전체 백테스트 기준이므로 사용 불가.
+  // portfolio_value 비율로 직접 계산.
+  const firstValue = points[0].portfolio_value;
+  const lastValue = points[points.length - 1].portfolio_value;
+  const cumReturn = firstValue > 0 ? lastValue / firstValue - 1 : 0;
 
-  const years = n / TRADING_DAYS_PER_YEAR;
+  const years = (n - 1) / TRADING_DAYS_PER_YEAR;
   const cagr = years > 0 ? Math.pow(1 + cumReturn, 1 / years) - 1 : null;
 
-  const mddValue = Math.min(...points.map((p) => p.drawdown ?? 0));
+  // 구간 내 MDD: 사전 계산된 drawdown 컬럼은 전체 역사 고점 기준이므로 직접 재계산.
+  let peak = points[0].portfolio_value;
+  let mddValue = 0;
+  for (const p of points) {
+    if (p.portfolio_value > peak) peak = p.portfolio_value;
+    const dd = peak > 0 ? (p.portfolio_value - peak) / peak : 0;
+    if (dd < mddValue) mddValue = dd;
+  }
 
   const mean = returns.reduce((s, r) => s + r, 0) / n;
   const variance = n > 1 ? returns.reduce((s, r) => s + (r - mean) ** 2, 0) / (n - 1) : 0;
@@ -106,7 +117,7 @@ export function computeStrategyMetrics(points: NavPoint[]): StrategyMetrics {
   let winRateMonthly: number | null = null;
   {
     const monthlyMap = new Map<string, number[]>();
-    for (const p of points.slice(1)) {
+    for (const p of points) {
       const ym = p.date.slice(0, 7);
       if (!monthlyMap.has(ym)) monthlyMap.set(ym, []);
       monthlyMap.get(ym)!.push(p.daily_return);
