@@ -37,6 +37,8 @@ def _run_git_log() -> list[dict]:
             "--encoding=UTF-8",
             f"--pretty=format:{fmt}",
             f"-{COMMIT_LIMIT}",
+            "--invert-grep",
+            f"--grep=^{AUTO_CHANGELOG_SUBJECT}$",
         ],
         cwd=ROOT,
         capture_output=True,
