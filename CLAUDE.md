@@ -184,7 +184,7 @@ uvicorn api.main:app --reload     # FastAPI 개발 서버
 cd frontend && npm install && npm run dev  # Next.js 개발 서버
 python src/update_prices.py
 python src/run_engine.py          # production engine (real data → output/)
-python src/run_sample_engine.py   # sample data engine (test/dev use)
+python src/run_sample_engine.py   # sample data engine — 로컬 테스트 전용; Railway startCommand에 포함 금지
 python -m pytest tests/ -q
 python scripts/execute.py <phase-dir>
 ```
@@ -216,6 +216,13 @@ python scripts/execute.py <phase-dir>
 ### SYNC-3: `output/` 파일 커밋 필수
 
 Railway 백엔드는 `output/*.csv`를 git에서 직접 읽는다. 엔진 실행 후 output/ 변경분을 커밋·푸시하지 않으면 배포된 서비스에 반영되지 않는다.
+
+**CRITICAL**: `railway.toml`(`frontend/railway.toml`도 동일) startCommand에 `run_sample_engine.py`를 포함하면 `data/sample_prices_daily.csv`(2026-01 11행 샘플)로 `output/` CSV를 덮어씌워 커밋된 데이터가 무효화된다.
+올바른 백엔드 startCommand: `uvicorn api.main:app --host 0.0.0.0 --port $PORT`
+
+Railway 설정 파일 위치:
+- 백엔드: `railway.toml`
+- 프론트엔드: `frontend/railway.toml`
 
 엔진 실행 후 체크리스트:
 
