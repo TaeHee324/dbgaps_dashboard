@@ -1,12 +1,14 @@
 import type { TurnoverBase, TurnoverResponse, TurnoverWithDate } from "@/lib/hooks/dashboard";
 
-type TurnoverRowProps = {
-  turnover: TurnoverResponse;
-};
-
 type TurnoverCardProps = {
   title: string;
   rows: Array<TurnoverBase | TurnoverWithDate>;
+  subtitle?: string;
+  showStatus?: boolean;
+};
+
+type TurnoverRowProps = {
+  turnover: TurnoverResponse;
 };
 
 function formatPercent(value: number | null | undefined) {
@@ -35,10 +37,13 @@ function statusClasses(passed: boolean) {
     : "bg-dangerSoft text-danger border-danger/20";
 }
 
-function TurnoverCard({ title, rows }: TurnoverCardProps) {
+function TurnoverCard({ title, rows, subtitle, showStatus = true }: TurnoverCardProps) {
   return (
     <div className="rounded-md border border-border bg-surface p-md shadow-panel">
       <div className="text-sm font-semibold text-ink">{title}</div>
+      {subtitle ? (
+        <div className="mt-0.5 text-xs text-inkSecondary">{subtitle}</div>
+      ) : null}
       {rows.length > 0 ? (
         <div className="mt-sm space-y-sm">
           {rows.map((row, index) => (
@@ -55,19 +60,24 @@ function TurnoverCard({ title, rows }: TurnoverCardProps) {
                     {formatPercent(row.turnover)}
                   </div>
                 </div>
-                <span
-                  className={`inline-flex items-center rounded-pill border px-sm py-xxs text-xs font-semibold ${statusClasses(
-                    row.passed,
-                  )}`}
-                >
-                  {row.passed ? "통과" : "위반"}
-                </span>
+                {showStatus ? (
+                  <span
+                    className={`inline-flex items-center rounded-pill border px-sm py-xxs text-xs font-semibold ${statusClasses(row.passed)}`}
+                  >
+                    {row.passed ? "통과" : "위반"}
+                  </span>
+                ) : null}
               </div>
-              <div className="mt-xs grid grid-cols-2 gap-xs text-xs text-inkSecondary">
-                <span>거래금액 {formatAmount(row.traded_value)}</span>
-                <span>최소 {formatPercent(row.limit)}</span>
-                <span className="col-span-2">출처 {row.turnover_source || "-"}</span>
-              </div>
+              {showStatus ? (
+                <div className="mt-xs grid grid-cols-2 gap-xs text-xs text-inkSecondary">
+                  <span>거래금액 {formatAmount(row.traded_value)}</span>
+                  <span>최소 {formatPercent(row.limit)}</span>
+                </div>
+              ) : (
+                <div className="mt-xs text-xs text-inkSecondary">
+                  거래금액 {formatAmount(row.traded_value)}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -91,9 +101,20 @@ export function TurnoverRow({ turnover }: TurnoverRowProps) {
 
   return (
     <section aria-label="회전율" className="grid grid-cols-1 gap-sm lg:grid-cols-3">
-      <TurnoverCard title="초기 누적 회전율" rows={[turnover.initial]} />
-      <TurnoverCard title="주간 회전율 최근값" rows={turnover.weekly.slice(-3).reverse()} />
-      <TurnoverCard title="월간 회전율 최근값" rows={turnover.monthly.slice(-3).reverse()} />
+      <TurnoverCard
+        title="초기 누적 회전율"
+        subtitle="기간: 2026.6.1 ~ 2026.6.8"
+        rows={[turnover.initial]}
+      />
+      <TurnoverCard
+        title="주간 회전율 최근값"
+        rows={turnover.weekly.slice(-3).reverse()}
+        showStatus={false}
+      />
+      <TurnoverCard
+        title="월간 회전율 최근값"
+        rows={turnover.monthly.slice(-3).reverse()}
+      />
     </section>
   );
 }
