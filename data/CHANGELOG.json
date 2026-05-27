@@ -1,5 +1,12 @@
 [
   {
+    "hash": "46071edf",
+    "date": "2026-05-27",
+    "subject": "Fix stale portfolio deletion state",
+    "body": "",
+    "type": "update"
+  },
+  {
     "hash": "184c5069",
     "date": "2026-05-27",
     "subject": "docs(claude): prices_daily DB 전환 반영 — SYNC-8, Data Flow, startCommand, DB Schema 업데이트",
@@ -340,13 +347,6 @@
     "date": "2026-05-23",
     "subject": "chore: restore output/ tracking and remove from .gitignore",
     "body": "output/ files must be shared and version-controlled.\nReverts previous incorrect removal.\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
-    "type": "chore"
-  },
-  {
-    "hash": "b2db23a1",
-    "date": "2026-05-23",
-    "subject": "chore: remove output/ from git tracking",
-    "body": "output/ contains generated artifacts that should not be version-controlled.\nAdded output/ to .gitignore and removed all tracked files from index.\nLocal files are preserved.\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
     "type": "chore"
   }
 ]
