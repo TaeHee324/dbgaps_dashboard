@@ -1,13 +1,16 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   useActualNav,
   useRiskPortfolio,
   useEtfRiskAnalysis,
+  useEtfPrices,
   type EtfRiskItem,
+  type EtfPricePoint,
 } from "@/lib/hooks/dashboard";
 import { computeActualOpsMetrics } from "@/lib/utils/metrics";
+import { EtfRiskLineChart } from "@/components/charts/EtfRiskLineChart";
 
 // ─── Design tokens ───────────────────────────────────────────────────────────
 const C = {
@@ -37,6 +40,8 @@ const PANEL: React.CSSProperties = {
 
 const MONO: React.CSSProperties = { fontFamily: "JetBrains Mono, monospace" };
 
+type ChartMode = "price" | "return" | "drawdown";
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function pct(v: number | null | undefined, decimals = 1): string {
   if (v === null || v === undefined || !Number.isFinite(v)) return "—";
@@ -47,6 +52,31 @@ function pctP(v: number | null | undefined, decimals = 1): string {
   if (v === null || v === undefined || !Number.isFinite(v)) return "—";
   const s = (v * 100).toFixed(decimals);
   return v > 0 ? `+${s}%p` : `${s}%p`;
+}
+
+function chartModeLabel(mode: ChartMode): string {
+  if (mode === "price") return "가격";
+  if (mode === "return") return "누적수익률";
+  return "드로다운";
+}
+
+function chartData(prices: EtfPricePoint[], mode: ChartMode): { time: string; value: number }[] {
+  const clean = prices
+    .filter((p) => Number.isFinite(p.close) && p.close > 0)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  if (clean.length === 0) return [];
+  if (mode === "price") {
+    return clean.map((p) => ({ time: p.date, value: p.close }));
+  }
+  if (mode === "return") {
+    const first = clean[0].close;
+    return clean.map((p) => ({ time: p.date, value: ((p.close / first) - 1) * 100 }));
+  }
+  let peak = clean[0].close;
+  return clean.map((p) => {
+    peak = Math.max(peak, p.close);
+    return { time: p.date, value: ((p.close - peak) / peak) * 100 };
+  });
 }
 
 // ─── MDD badge ───────────────────────────────────────────────────────────────
@@ -98,6 +128,63 @@ function Badge({ label, color, bg }: { label: string; color: string; bg: string 
   );
 }
 
+function HelpTooltip({ label, text }: { label: string; text: string }) {
+  return (
+    <span
+      className="risk-help"
+      aria-label={`${label} 설명`}
+      tabIndex={0}
+      style={{
+        position: "relative",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: 16,
+        height: 16,
+        borderRadius: 999,
+        border: `1px solid ${C.border}`,
+        color: C.inkSecondary,
+        background: C.surface,
+        fontSize: 10,
+        fontWeight: 700,
+        cursor: "help",
+        flex: "0 0 auto",
+      }}
+    >
+      i
+      <span
+        className="risk-help-popover"
+        role="tooltip"
+        style={{
+          position: "absolute",
+          left: 0,
+          top: 22,
+          zIndex: 20,
+          width: 260,
+          padding: "9px 10px",
+          border: `1px solid ${C.border}`,
+          borderRadius: 6,
+          background: C.surface,
+          color: C.ink,
+          boxShadow: "0 8px 24px rgba(15, 23, 42, 0.10)",
+          fontSize: 11.5,
+          fontWeight: 500,
+          lineHeight: 1.45,
+          letterSpacing: 0,
+          opacity: 0,
+          pointerEvents: "none",
+          transform: "translateY(-2px)",
+          transition: "opacity .12s ease, transform .12s ease",
+          whiteSpace: "normal",
+        }}
+      >
+        <strong style={{ display: "block", marginBottom: 4, color: C.ink }}>{label}</strong>
+        {text}
+      </span>
+    </span>
+  );
+}
+
 // ─── Summary Card ─────────────────────────────────────────────────────────────
 function SummaryCard({
   title,
@@ -105,6 +192,7 @@ function SummaryCard({
   value,
   sub,
   accentColor,
+  help,
   children,
 }: {
   title: string;
@@ -112,6 +200,7 @@ function SummaryCard({
   value: React.ReactNode;
   sub?: string;
   accentColor: string;
+  help?: string;
   children?: React.ReactNode;
 }) {
   return (
@@ -126,8 +215,11 @@ function SummaryCard({
       }}
     >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <span style={{ fontSize: 11.5, fontWeight: 700, color: C.ink, letterSpacing: "-0.005em" }}>
-          {title}
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 11.5, fontWeight: 700, color: C.ink, letterSpacing: "-0.005em" }}>
+            {title}
+          </span>
+          {help && <HelpTooltip label={title} text={help} />}
         </span>
         {badge}
       </div>
@@ -200,13 +292,78 @@ function drawdownCellStyle(dd: number): React.CSSProperties {
 
 function driftCell(drift: number | null): { text: string; color: string } {
   if (drift === null || !Number.isFinite(drift)) return { text: "—", color: C.inkSecondary };
-  const abs = Math.abs(drift);
   if (drift >= 0.05) return { text: `▲ ${pctP(drift)}`, color: C.danger };
   if (drift <= -0.05) return { text: `▼ ${pctP(drift)}`, color: C.warning };
   return { text: pctP(drift), color: C.inkSecondary };
 }
 
-function EtfRiskTable({ items }: { items: EtfRiskItem[] }) {
+function RiskContributionBars({ items }: { items: EtfRiskItem[] }) {
+  const rows = items.filter((item) => item.risk_contribution_pct !== null);
+  if (rows.length === 0) return null;
+
+  return (
+    <div style={PANEL}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "10px 14px",
+          borderBottom: `1px solid ${C.border}`,
+          background: C.surfaceMuted,
+        }}
+      >
+        <span style={{ fontSize: 12.5, fontWeight: 700, color: C.ink }}>위험기여도 분해</span>
+        <HelpTooltip
+          label="위험기여도"
+          text="포트폴리오 전체 변동성 중 해당 ETF가 차지하는 비중입니다. 현재비중보다 크게 높으면 비중 대비 리스크가 집중된 상태로 봅니다."
+        />
+      </div>
+      <div style={{ display: "grid", gap: 10, padding: "13px 14px" }}>
+        {rows.map((item) => {
+          const value = item.risk_contribution_pct ?? 0;
+          const over = item.current_weight > 0 && value > item.current_weight * 2;
+          return (
+            <div
+              key={item.code}
+              style={{ display: "grid", gridTemplateColumns: "minmax(150px, 220px) 1fr 58px", gap: 10, alignItems: "center" }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12, fontWeight: 700, color: C.ink }}>
+                  {item.name}
+                </div>
+                <div style={{ ...MONO, fontSize: 10, color: C.inkSecondary }}>{item.code}</div>
+              </div>
+              <div style={{ height: 8, borderRadius: 999, background: C.border, overflow: "hidden" }}>
+                <div
+                  style={{
+                    width: `${Math.min(value * 100, 100)}%`,
+                    height: "100%",
+                    borderRadius: 999,
+                    background: over ? C.warning : C.primary,
+                  }}
+                />
+              </div>
+              <div style={{ ...MONO, textAlign: "right", fontSize: 12, color: over ? C.warning : C.inkSecondary }}>
+                {(value * 100).toFixed(1)}%
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function EtfRiskTable({
+  items,
+  selectedCode,
+  onSelect,
+}: {
+  items: EtfRiskItem[];
+  selectedCode: string | null;
+  onSelect: (item: EtfRiskItem) => void;
+}) {
   if (items.length === 0) {
     return (
       <div style={{ ...MONO, padding: "12px 14px", fontSize: 12, color: C.inkSecondary }}>
@@ -244,7 +401,12 @@ function EtfRiskTable({ items }: { items: EtfRiskItem[] }) {
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
           <tr>
-            <th style={{ ...TH, textAlign: "left" }}>ETF</th>
+            <th style={{ ...TH, textAlign: "left" }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                ETF
+                <HelpTooltip label="ETF 상세 차트" text="행을 클릭하면 하단에 해당 ETF의 가격, 누적수익률, 드로다운 차트를 표시합니다." />
+              </span>
+            </th>
             <th style={TH}>현재비중</th>
             <th style={TH}>목표비중</th>
             <th style={TH}>이탈폭</th>
@@ -264,8 +426,19 @@ function EtfRiskTable({ items }: { items: EtfRiskItem[] }) {
               item.current_weight > 0 &&
               item.risk_contribution_pct > item.current_weight * 2;
 
+            const selected = selectedCode === item.code;
+
             return (
-              <tr key={item.code} style={{ background: rowBg }}>
+              <tr
+                key={item.code}
+                onClick={() => onSelect(item)}
+                style={{
+                  background: selected ? "#EEF2FF" : rowBg,
+                  cursor: "pointer",
+                  outline: selected ? `1px solid ${C.primary}` : undefined,
+                  outlineOffset: -1,
+                }}
+              >
                 <td
                   style={{
                     ...TD_BASE,
@@ -313,6 +486,105 @@ function EtfRiskTable({ items }: { items: EtfRiskItem[] }) {
   );
 }
 
+function SelectedEtfPanel({
+  item,
+  prices,
+  isLoading,
+}: {
+  item: EtfRiskItem | null;
+  prices: EtfPricePoint[];
+  isLoading: boolean;
+}) {
+  const [mode, setMode] = useState<ChartMode>("return");
+  const series = useMemo(() => chartData(prices, mode), [prices, mode]);
+
+  if (!item) {
+    return (
+      <div style={{ ...PANEL, padding: "14px", ...MONO, fontSize: 12, color: C.inkSecondary }}>
+        ETF 행을 선택하면 하단에 상세 차트가 표시됩니다.
+      </div>
+    );
+  }
+
+  return (
+    <div style={PANEL}>
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          padding: "12px 14px",
+          borderBottom: `1px solid ${C.border}`,
+          background: C.surfaceMuted,
+        }}
+      >
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 13, fontWeight: 800, color: C.ink }}>{item.name}</span>
+            <span style={{ ...MONO, fontSize: 10.5, color: C.inkSecondary }}>{item.code}</span>
+          </div>
+          <div style={{ marginTop: 4, fontSize: 11.5, color: C.inkSecondary }}>
+            선택 ETF 상세: 가격 흐름과 고점 대비 하락 구간을 확인합니다.
+          </div>
+        </div>
+        <div style={{ display: "inline-flex", padding: 2, border: `1px solid ${C.border}`, borderRadius: 6, background: C.surface }}>
+          {(["return", "price", "drawdown"] as ChartMode[]).map((nextMode) => {
+            const active = nextMode === mode;
+            return (
+              <button
+                key={nextMode}
+                type="button"
+                onClick={() => setMode(nextMode)}
+                style={{
+                  border: 0,
+                  borderRadius: 4,
+                  padding: "5px 9px",
+                  background: active ? C.primary : "transparent",
+                  color: active ? C.surface : C.inkSecondary,
+                  fontSize: 11.5,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                {chartModeLabel(nextMode)}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <div className="risk-selected-grid" style={{ display: "grid", gridTemplateColumns: "1fr 250px", gap: 14, padding: 14 }}>
+        <div>
+          {isLoading ? (
+            <div style={{ ...MONO, height: 300, display: "flex", alignItems: "center", justifyContent: "center", color: C.inkSecondary }}>
+              가격 이력 로딩 중...
+            </div>
+          ) : (
+            <EtfRiskLineChart data={series} mode={mode} />
+          )}
+        </div>
+        <div style={{ display: "grid", alignContent: "start", gap: 8 }}>
+          {[
+            ["현재비중", pct(item.current_weight)],
+            ["목표비중", item.target_weight !== null ? pct(item.target_weight) : "N/A"],
+            ["이탈폭", pctP(item.weight_drift)],
+            ["개별 MDD", pct(item.individual_mdd)],
+            ["현재낙폭", pct(item.current_drawdown)],
+            ["20일 변동성", pct(item.vol_20d)],
+            ["위험기여도", item.risk_contribution_pct !== null ? pct(item.risk_contribution_pct) : "N/A"],
+          ].map(([label, value]) => (
+            <div key={label} style={{ display: "flex", justifyContent: "space-between", gap: 12, borderBottom: `1px solid ${C.border}`, paddingBottom: 7 }}>
+              <span style={{ fontSize: 11.5, color: C.inkSecondary }}>{label}</span>
+              <span style={{ ...MONO, fontSize: 12, fontWeight: 700, color: C.ink }}>{value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function RiskPage() {
   const actualNavQuery = useActualNav();
@@ -337,7 +609,13 @@ export default function RiskPage() {
   const health = rp?.data_health;
   const healthS = health ? healthStage(health.status) : { color: C.inkSecondary, bg: C.surfaceMuted };
 
-  const etfItems = etfRiskQuery.data ?? [];
+  const etfItems = useMemo(() => etfRiskQuery.data ?? [], [etfRiskQuery.data]);
+  const [selectedCode, setSelectedCode] = useState<string | null>(null);
+  const selectedEtf = useMemo(() => {
+    if (etfItems.length === 0) return null;
+    return etfItems.find((item) => item.code === selectedCode) ?? etfItems[0];
+  }, [etfItems, selectedCode]);
+  const etfPricesQuery = useEtfPrices(selectedEtf?.code);
 
   // MDD 체류 since date 계산 (actualNavQuery에서 trough 직전 최고점 찾기)
   const mddSinceDate = useMemo(() => {
@@ -360,6 +638,19 @@ export default function RiskPage() {
 
   return (
     <div style={{ maxWidth: 1320, margin: "0 auto", display: "flex", flexDirection: "column", gap: 20 }}>
+      <style jsx>{`
+        .risk-help:hover .risk-help-popover,
+        .risk-help:focus .risk-help-popover {
+          opacity: 1 !important;
+          transform: translateY(0) !important;
+        }
+        @media (max-width: 900px) {
+          .risk-summary-grid,
+          .risk-selected-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
       {/* 헤더 */}
       <h1
         style={{
@@ -374,13 +665,14 @@ export default function RiskPage() {
       </h1>
 
       {/* 섹션 1 — 리스크 요약 카드 4개 */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+      <div className="risk-summary-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
         {/* MDD 카드 */}
         <SummaryCard
           title="MDD"
           badge={<Badge label={mddS.label} color={mddS.color} bg={mddS.bg} />}
           value={<span style={{ color: C.danger }}>{pct(mdd)}</span>}
           accentColor={mddS.color}
+          help="실제 운용 수익률 곡선에서 계산한 고점 대비 최대 하락률입니다. 값이 낮을수록 손실 구간이 깊었다는 뜻입니다."
         >
           {mddDuration !== null && mddDuration > 0 && (
             <div style={{ ...MONO, fontSize: 11, color: C.inkSecondary }}>
@@ -402,6 +694,7 @@ export default function RiskPage() {
           }
           value={hhi !== null ? hhi.toFixed(3) : "—"}
           accentColor={hhiS.color}
+          help="현재 보유 ETF 비중의 집중도입니다. 값이 높을수록 일부 ETF에 포트폴리오가 몰려 있어 개별 ETF 변동의 영향이 커집니다."
         >
           {hhi !== null && (
             <div>
@@ -436,6 +729,7 @@ export default function RiskPage() {
           value={pct(vol)}
           sub="전체 운용기간 기준"
           accentColor={volS.color}
+          help="실제 운용 기간의 일간 수익률 변동을 연율로 환산한 값입니다. 운용 기간이 짧으면 장기 위험 추정치로 해석하지 않습니다."
         />
 
         {/* 데이터 헬스 카드 */}
@@ -459,11 +753,14 @@ export default function RiskPage() {
               : undefined
           }
           accentColor={healthS.color}
+          help="가격 데이터의 최신성을 점검합니다. 기준일이 오래되면 화면의 리스크 수치도 최신 시장 상태와 다를 수 있습니다."
         />
       </div>
 
       {/* 리밸런싱 경고 배너 */}
       {etfItems.length > 0 && <RebalancingBanner items={etfItems} />}
+
+      <RiskContributionBars items={etfItems} />
 
       {/* 섹션 2 — ETF별 리스크 테이블 */}
       <div style={PANEL}>
@@ -489,9 +786,19 @@ export default function RiskPage() {
             로딩 중...
           </div>
         ) : (
-          <EtfRiskTable items={etfItems} />
+          <EtfRiskTable
+            items={etfItems}
+            selectedCode={selectedEtf?.code ?? null}
+            onSelect={(item) => setSelectedCode(item.code)}
+          />
         )}
       </div>
+
+      <SelectedEtfPanel
+        item={selectedEtf}
+        prices={etfPricesQuery.data ?? []}
+        isLoading={etfPricesQuery.isLoading}
+      />
     </div>
   );
 }

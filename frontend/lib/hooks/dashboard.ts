@@ -319,6 +319,11 @@ export type EtfRiskItem = {
   risk_contribution_pct: number | null;
 };
 
+export type EtfPricePoint = {
+  date: string;
+  close: number;
+};
+
 export function useRiskPortfolio() {
   return useQuery({
     queryKey: ["risk-portfolio"],
@@ -330,5 +335,13 @@ export function useEtfRiskAnalysis() {
   return useQuery({
     queryKey: ["etf-risk-analysis"],
     queryFn: () => get<EtfRiskItem[]>("/api/risk/etf-analysis"),
+  });
+}
+
+export function useEtfPrices(code: string | null | undefined) {
+  return useQuery({
+    queryKey: ["etf-prices", code],
+    queryFn: () => get<EtfPricePoint[]>(`/api/etf-prices/${encodeURIComponent(code ?? "")}`),
+    enabled: !!code,
   });
 }
