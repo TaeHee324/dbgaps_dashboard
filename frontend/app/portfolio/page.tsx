@@ -30,8 +30,8 @@ function getPeriodCutoff(period: PeriodKey, lastDate: string): string | null {
   return d.toISOString().slice(0, 10);
 }
 
-function fmt(value: number, type: "pct" | "dec") {
-  if (!Number.isFinite(value)) return "-";
+function fmt(value: number | null | undefined, type: "pct" | "dec") {
+  if (value === null || value === undefined || !Number.isFinite(value)) return "—";
   return type === "pct" ? `${(value * 100).toFixed(1)}%` : value.toFixed(2);
 }
 

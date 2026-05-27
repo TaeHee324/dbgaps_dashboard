@@ -7,16 +7,17 @@ import { NavChart } from "@/components/charts/NavChart";
 import { PieChart } from "@/components/charts/PieChart";
 import { DailyHeatmap } from "@/components/ui/DailyHeatmap";
 import { HoldingsTable } from "@/components/ui/HoldingsTable";
-import { KpiStrip } from "@/components/ui/KpiStrip";
+import { ActualOpsKpiStrip } from "@/components/ui/ActualOpsKpiStrip";
+import { StrategyKpiStrip, type StrategyPeriod } from "@/components/ui/StrategyKpiStrip";
 import { RuleBadge } from "@/components/ui/RuleBadge";
 import { StatusBar } from "@/components/ui/StatusBar";
 import { TurnoverRow } from "@/components/ui/TurnoverRow";
 import {
   useActualNav,
+  useBacktestNav,
   useDataDate,
   useLiveHoldings,
   useLiveRules,
-  usePortfolioSummary,
   useTradeLog,
   useTurnover,
   type ActualNavPoint,
@@ -25,6 +26,7 @@ import {
   type IndividualRule,
   type TradeLogEntry,
 } from "@/lib/hooks/dashboard";
+import { computeActualOpsMetrics, computeStrategyMetrics } from "@/lib/utils/metrics";
 
 const PANEL_STYLE: React.CSSProperties = {
   background: "#FFFFFF",
@@ -206,10 +208,12 @@ function AssetStatusCard({ holdings }: { holdings: LiveHolding[] | undefined }) 
   );
 }
 
+const PERIOD_DAYS: Record<StrategyPeriod, number> = { "1Y": 252, "6M": 126, "3M": 63 };
+
 export default function HomePage() {
   const dataDateQuery = useDataDate();
-  const summaryQuery = usePortfolioSummary();
   const actualNavQuery = useActualNav();
+  const backtestNavQuery = useBacktestNav();
   const tradeLogQuery = useTradeLog();
   const turnoverQuery = useTurnover();
   const liveRulesQuery = useLiveRules();
@@ -218,6 +222,7 @@ export default function HomePage() {
 
   const [refreshing, setRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState<string | null>(null);
+  const [strategyPeriod, setStrategyPeriod] = useState<StrategyPeriod>("1Y");
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -250,6 +255,21 @@ export default function HomePage() {
     }, 3000);
   }
 
+  const actualOpsMetrics = useMemo(
+    () => computeActualOpsMetrics(actualNavQuery.data ?? []),
+    [actualNavQuery.data],
+  );
+
+  const strategyPoints = useMemo(() => {
+    const pts = backtestNavQuery.data ?? [];
+    return pts.slice(-PERIOD_DAYS[strategyPeriod]);
+  }, [backtestNavQuery.data, strategyPeriod]);
+
+  const strategyMetrics = useMemo(
+    () => computeStrategyMetrics(strategyPoints),
+    [strategyPoints],
+  );
+
   const navData = useMemo(() => toNavSeries(actualNavQuery.data), [actualNavQuery.data]);
   const drawdownData = useMemo(() => toDrawdownSeries(actualNavQuery.data), [actualNavQuery.data]);
   const tradeMarkers = useMemo(
@@ -261,6 +281,12 @@ export default function HomePage() {
     const points = actualNavQuery.data;
     if (!points || points.length === 0) return undefined;
     return `${points[0].date} ~ ${points[points.length - 1].date}`;
+  }, [actualNavQuery.data]);
+
+  const actualNavSince = useMemo(() => {
+    const points = actualNavQuery.data;
+    if (!points || points.length === 0) return undefined;
+    return points[0].date;
   }, [actualNavQuery.data]);
 
   return (
@@ -307,8 +333,8 @@ export default function HomePage() {
         <StatusBar date={dataDateQuery.data?.date ?? ""} />
       </div>
 
-      {/* 1. KPI 카드 */}
-      {summaryQuery.isLoading ? (
+      {/* 1. KPI — 실제 운용 성과 */}
+      {actualNavQuery.isLoading ? (
         <div
           style={{
             ...PANEL_STYLE,
@@ -321,7 +347,28 @@ export default function HomePage() {
           로딩 중...
         </div>
       ) : (
-        <KpiStrip summary={summaryQuery.data ?? null} />
+        <ActualOpsKpiStrip metrics={actualOpsMetrics} since={actualNavSince} />
+      )}
+
+      {/* 1-B. KPI — 전략 특성 (백테스트) */}
+      {backtestNavQuery.isLoading ? (
+        <div
+          style={{
+            ...PANEL_STYLE,
+            padding: "12px 14px",
+            fontSize: 12,
+            color: "#8595A6",
+            fontFamily: "JetBrains Mono, monospace",
+          }}
+        >
+          로딩 중...
+        </div>
+      ) : (
+        <StrategyKpiStrip
+          metrics={strategyMetrics}
+          period={strategyPeriod}
+          onPeriodChange={setStrategyPeriod}
+        />
       )}
 
       {/* 2. 총 자산 현황 카드 */}

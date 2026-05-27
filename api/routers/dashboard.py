@@ -491,7 +491,7 @@ def actual_nav():
         return []
 
     # 가격 pivot: date × code
-    price_pivot = prices_df.pivot_table(index="date", columns="code", values="close", aggfunc="last")
+    price_pivot = prices_df.pivot_table(index="date", columns="code", values="close", aggfunc="last").ffill()
 
     holdings: dict[str, float] = {}   # code -> quantity
     cost_basis: dict[str, float] = {} # code -> total cost
@@ -500,7 +500,7 @@ def actual_nav():
 
     trade_idx = 0
     nav_list: list[dict] = []
-    prev_value: float | None = None
+    prev_total_value: float | None = None
 
     for dt in all_dates:
         # 해당 날짜의 거래 반영
@@ -539,22 +539,22 @@ def actual_nav():
             continue
 
         cash = INITIAL_CAPITAL - cumulative_buy_cost + cumulative_sell_proceeds
+        total_value = portfolio_value + cash
 
         daily_return = 0.0
-        if prev_value is not None and prev_value > 0:
-            daily_return = (portfolio_value - prev_value) / prev_value
+        if prev_total_value is not None and prev_total_value > 0:
+            daily_return = (total_value - prev_total_value) / prev_total_value
 
-        total_value = portfolio_value  # 현금 제외 포트폴리오 가치
         cumulative_return = (total_value - INITIAL_CAPITAL) / INITIAL_CAPITAL if INITIAL_CAPITAL > 0 else 0.0
 
         nav_list.append({
             "date": dt,
-            "portfolio_value": portfolio_value,
+            "portfolio_value": total_value,
             "daily_return": daily_return,
             "cumulative_return": cumulative_return,
             "cash": cash,
         })
-        prev_value = portfolio_value
+        prev_total_value = total_value
 
     if not nav_list:
         return []

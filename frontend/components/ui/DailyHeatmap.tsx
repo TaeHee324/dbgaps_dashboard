@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useBacktestNav, type NavPoint } from "@/lib/hooks/dashboard";
+import { useActualNav, type ActualNavPoint } from "@/lib/hooks/dashboard";
 
 const PANEL_STYLE: React.CSSProperties = {
   background: "#FFFFFF",
@@ -252,9 +252,9 @@ function CalendarGrid({
 }
 
 export function DailyHeatmap() {
-  const navQuery = useBacktestNav();
+  const navQuery = useActualNav();
 
-  const navPoints: NavPoint[] = navQuery.data ?? [];
+  const navPoints: ActualNavPoint[] = navQuery.data ?? [];
 
   // 고유 YYYY-MM 목록 (오름차순)
   const months = useMemo(() => {

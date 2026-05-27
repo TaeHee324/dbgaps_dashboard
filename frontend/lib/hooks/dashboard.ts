@@ -7,12 +7,12 @@ export type PortfolioSummary = {
   cumulative_return: number;
   cagr: number;
   mdd: number;
-  alpha: number;
-  beta: number;
+  alpha: number | null;
+  beta: number | null;
   annual_volatility: number;
   win_rate: number;
-  sharpe: number;
-  calmar: number;
+  sharpe: number | null;
+  calmar: number | null;
   sortino?: number | null;
   information_ratio?: number | null;
   mdd_duration?: number | null;
