@@ -1,5 +1,12 @@
 [
   {
+    "hash": "78d42b4d",
+    "date": "2026-05-28",
+    "subject": "하네스 수정",
+    "body": "",
+    "type": "update"
+  },
+  {
     "hash": "6c93b0fe",
     "date": "2026-05-28",
     "subject": "Unify dashboard info tooltips",
@@ -339,13 +346,6 @@
     "hash": "af355392",
     "date": "2026-05-24",
     "subject": "make railway toml",
-    "body": "",
-    "type": "update"
-  },
-  {
-    "hash": "fe79a6eb",
-    "date": "2026-05-24",
-    "subject": "streammlit eliminate",
     "body": "",
     "type": "update"
   }
