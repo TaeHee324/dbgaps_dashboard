@@ -1,5 +1,12 @@
 [
   {
+    "hash": "2d005944",
+    "date": "2026-05-28",
+    "subject": "feat: comparison 탭 산점도 2컬럼 배치 및 E-3 HTTP 메서드 불일치 수정",
+    "body": "- H-1: comparison 탭 NAV 섹션 내부에 grid-cols-2 추가, scatter를 NAV 차트 오른쪽 열로 이동\n- H-2a: lib/api.ts에 patch<T>() 함수 추가 (기존에 없어 E-3 항상 실패)\n- H-2b: useUpdateActiveHolding을 post() → patch()로 교체\n- H-2c: handleSubmit에서 savedTrade.weight_after 기반 비중 업데이트 조건 확장\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "feat"
+  },
+  {
     "hash": "1c6fa3a8",
     "date": "2026-05-28",
     "subject": "docs: 3차 수정 계획서 및 QA 참고 이미지 추가",
@@ -341,12 +348,5 @@
     "subject": "feat: 운용보고서 카드 UI, 매매일지 DB 마이그레이션, 비중 퍼센티지 표시",
     "body": "운용보고서:\n- output/ 예시 보고서 3개 추가 (2026년 06~08월)\n- GET /api/reports (목록), GET /api/report/{filename} (단건) 엔드포인트 추가\n- report/page.tsx: 카드 그리드(목록) ↔ 상세 뷰 2-state UI로 재작성\n\n매매일지:\n- trade_log 테이블 PostgreSQL 마이그레이션 (db.py init_trade_log_table 추가)\n- trades.py: JSON 파일 기반 → DB CRUD 전환, PUT/DELETE 엔드포인트 신규 추가\n- 전략 체크박스 6개 (워런 버핏 데모), 수정/삭제 기능, ETF 자동완성\n- 매도 시 보유 ETF 드롭다운, 비중 입력 0~100% 단위\n\n비중 퍼센티지:\n- portfolio/page.tsx: 비중 입력 0~100% 단위로 변경 (API 전송 시 ÷100)\n- 불러오기 시 ×100 변환, 합계 표시 \"X% / 100%\"\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
     "type": "feat"
-  },
-  {
-    "hash": "18283d0d",
-    "date": "2026-05-25",
-    "subject": "폴더 정리",
-    "body": "",
-    "type": "update"
   }
 ]
