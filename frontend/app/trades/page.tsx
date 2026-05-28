@@ -217,18 +217,26 @@ export default function TradesPage() {
       weight_before: form.weight_before / 100,
       weight_after: form.weight_after / 100,
     };
+    let savedTrade: TradeLogEntry;
     if (editId !== null) {
-      await updateTrade.mutateAsync({ id: editId, data: payload });
+      savedTrade = await updateTrade.mutateAsync({ id: editId, data: payload });
     } else {
-      await addTrade.mutateAsync(payload);
+      savedTrade = await addTrade.mutateAsync(payload);
     }
 
+    const weightToApply =
+      calcTargetWeight > 0
+        ? calcTargetWeight / 100
+        : savedTrade.weight_after > 0
+        ? savedTrade.weight_after
+        : null;
+
     // active 포트폴리오 비중 자동 업데이트 (silent fail)
-    if (calcTargetWeight > 0 && form.etf_code) {
+    if (weightToApply !== null && form.etf_code) {
       try {
         await updateActiveHolding.mutateAsync({
           code: form.etf_code,
-          weight: calcTargetWeight / 100,
+          weight: weightToApply,
         });
       } catch (err) {
         console.error("[E-3] active 포트폴리오 비중 업데이트 실패:", err);

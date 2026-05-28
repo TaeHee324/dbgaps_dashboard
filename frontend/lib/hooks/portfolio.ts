@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { del, get, post } from "@/lib/api";
+import { del, get, patch, post } from "@/lib/api";
 import type {
   MonthlyReturn,
   NavPoint,
@@ -112,7 +112,7 @@ export function useUpdateActiveHolding() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ code, weight }: { code: string; weight: number }) =>
-      post(`/api/portfolios/active/holdings`, { code, weight }),
+      patch<{ updated: string; weight: number }>(`/api/portfolios/active/holdings`, { code, weight }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["portfolios"] });
       queryClient.invalidateQueries({ queryKey: ["portfolio-list"] });

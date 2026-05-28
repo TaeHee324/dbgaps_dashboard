@@ -624,32 +624,41 @@ export default function ComparisonPage() {
           </div>
         </div>
 
-        {/* 포트폴리오 선택 체크박스 */}
-        {summaryData.length > 0 && (
-          <div className="flex flex-wrap gap-3">
-            {summaryData.map((s) => (
-              <label
-                key={s.portfolio_name}
-                className="flex cursor-pointer items-center gap-1.5 text-sm"
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedPortfolios.has(s.portfolio_name)}
-                  onChange={() => togglePortfolio(s.portfolio_name)}
-                  className="accent-primary"
-                />
-                <span className="text-ink">{s.portfolio_name}</span>
-              </label>
-            ))}
+        <div className="grid grid-cols-2 gap-6">
+          <div className="space-y-2">
+            {/* 포트폴리오 선택 체크박스 */}
+            {summaryData.length > 0 && (
+              <div className="flex flex-wrap gap-3">
+                {summaryData.map((s) => (
+                  <label
+                    key={s.portfolio_name}
+                    className="flex cursor-pointer items-center gap-1.5 text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedPortfolios.has(s.portfolio_name)}
+                      onChange={() => togglePortfolio(s.portfolio_name)}
+                      className="accent-primary"
+                    />
+                    <span className="text-ink">{s.portfolio_name}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+
+            {/* C6: y축 여백 1% */}
+            <ComparisonChart series={filteredChartSeries} yPadding={0.01} />
+
+            <p className="text-xs text-inkMuted">
+              * 포트폴리오별 데이터 시작일이 다를 수 있습니다. 비교 시 기간 차이에 유의하세요.
+            </p>
           </div>
-        )}
 
-        {/* C6: y축 여백 1% */}
-        <ComparisonChart series={filteredChartSeries} yPadding={0.01} />
-
-        <p className="text-xs text-inkMuted">
-          * 포트폴리오별 데이터 시작일이 다를 수 있습니다. 비교 시 기간 차이에 유의하세요.
-        </p>
+          <PortfolioScatterChart
+            data={summaryData}
+            activePortfolioName={activePortfolioName}
+          />
+        </div>
       </section>
 
       {/* 비교 지표 테이블 */}
@@ -840,11 +849,6 @@ export default function ComparisonPage() {
         )}
       </section>
 
-      {/* 포트폴리오 위험-수익 분포 산점도 */}
-      <PortfolioScatterChart
-        data={summaryData}
-        activePortfolioName={activePortfolioName}
-      />
     </div>
   );
 }

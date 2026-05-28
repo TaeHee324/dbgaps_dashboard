@@ -22,6 +22,17 @@ export async function post<T>(path: string, body: unknown): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+export async function patch<T>(path: string, body: unknown): Promise<T> {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  const res = await fetch(`${API_BASE_URL}${normalizedPath}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`PATCH ${normalizedPath} failed: ${res.status}`);
+  return res.json() as Promise<T>;
+}
+
 export async function del(path: string): Promise<void> {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
   const res = await fetch(`${API_BASE_URL}${normalizedPath}`, { method: "DELETE" });
