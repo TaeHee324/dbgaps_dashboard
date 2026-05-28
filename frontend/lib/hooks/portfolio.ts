@@ -115,6 +115,7 @@ export function useUpdateActiveHolding() {
       post(`/api/portfolios/active/holdings`, { code, weight }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["portfolios"] });
+      queryClient.invalidateQueries({ queryKey: ["portfolio-list"] });
       queryClient.invalidateQueries({ queryKey: ["risk-portfolio"] });
       queryClient.invalidateQueries({ queryKey: ["etf-risk-analysis"] });
     },

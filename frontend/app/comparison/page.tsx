@@ -14,6 +14,225 @@ import {
 } from "@/lib/hooks/dashboard";
 import { useDeletePortfolio, usePortfolioList } from "@/lib/hooks/portfolio";
 
+// ─── Portfolio Scatter Chart ─────────────────────────────────────────────────
+const METRIC_OPTIONS = [
+  { key: "annual_volatility", label: "연간변동성" },
+  { key: "cagr", label: "CAGR" },
+  { key: "mdd", label: "MDD (절댓값)" },
+  { key: "sharpe", label: "샤프" },
+  { key: "calmar", label: "칼마" },
+  { key: "sortino", label: "소르티노" },
+  { key: "win_rate", label: "월별승률" },
+] as const;
+
+type MetricKey = (typeof METRIC_OPTIONS)[number]["key"];
+
+function getMetricValue(item: ComparisonSummaryItem, key: MetricKey): number | null {
+  const raw = item[key as keyof ComparisonSummaryItem];
+  if (raw === null || raw === undefined || typeof raw !== "number" || !Number.isFinite(raw)) return null;
+  return key === "mdd" ? Math.abs(raw) : raw;
+}
+
+function formatMetricValue(v: number, key: MetricKey): string {
+  if (key === "sharpe" || key === "calmar" || key === "sortino") return v.toFixed(2);
+  return `${(v * 100).toFixed(1)}%`;
+}
+
+function PortfolioScatterChart({
+  data,
+  activePortfolioName,
+}: {
+  data: ComparisonSummaryItem[];
+  activePortfolioName: string | null;
+}) {
+  const [xKey, setXKey] = useState<MetricKey>("annual_volatility");
+  const [yKey, setYKey] = useState<MetricKey>("cagr");
+
+  const points = useMemo(() => {
+    return data
+      .map((item) => {
+        const x = getMetricValue(item, xKey);
+        const y = getMetricValue(item, yKey);
+        if (x === null || y === null) return null;
+        return { item, x, y };
+      })
+      .filter((p): p is { item: ComparisonSummaryItem; x: number; y: number } => p !== null);
+  }, [data, xKey, yKey]);
+
+  // SVG layout constants
+  const W = 400, H = 300;
+  const top = 20, right = 20, bottom = 40, left = 50;
+  const plotW = W - left - right;
+  const plotH = H - top - bottom;
+
+  const { xMin, xMax, yMin, yMax } = useMemo(() => {
+    if (points.length === 0) return { xMin: 0, xMax: 1, yMin: 0, yMax: 1 };
+    const xs = points.map((p) => p.x);
+    const ys = points.map((p) => p.y);
+    const xMinV = Math.min(...xs);
+    const xMaxV = Math.max(...xs);
+    const yMinV = Math.min(...ys);
+    const yMaxV = Math.max(...ys);
+    const xPad = (xMaxV - xMinV) * 0.15 || 0.05;
+    const yPad = (yMaxV - yMinV) * 0.15 || 0.05;
+    return {
+      xMin: xMinV - xPad,
+      xMax: xMaxV + xPad,
+      yMin: yMinV - yPad,
+      yMax: yMaxV + yPad,
+    };
+  }, [points]);
+
+  const toSvgX = (v: number) => left + ((v - xMin) / (xMax - xMin)) * plotW;
+  const toSvgY = (v: number) => top + plotH - ((v - yMin) / (yMax - yMin)) * plotH;
+
+  const xLabel = METRIC_OPTIONS.find((o) => o.key === xKey)?.label ?? xKey;
+  const yLabel = METRIC_OPTIONS.find((o) => o.key === yKey)?.label ?? yKey;
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-lg p-4 mt-6">
+      {/* 헤더 */}
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+        <span className="text-sm font-semibold text-slate-800">포트폴리오 위험-수익 분포</span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-slate-500">X</span>
+          <select
+            value={xKey}
+            onChange={(e) => setXKey(e.target.value as MetricKey)}
+            className="text-xs border border-slate-200 rounded px-2 py-1 bg-white"
+          >
+            {METRIC_OPTIONS.map((o) => (
+              <option key={o.key} value={o.key}>{o.label}</option>
+            ))}
+          </select>
+          <span className="text-xs text-slate-500">Y</span>
+          <select
+            value={yKey}
+            onChange={(e) => setYKey(e.target.value as MetricKey)}
+            className="text-xs border border-slate-200 rounded px-2 py-1 bg-white"
+          >
+            {METRIC_OPTIONS.map((o) => (
+              <option key={o.key} value={o.key}>{o.label}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* 차트 */}
+      {data.length === 0 ? (
+        <p className="text-xs text-slate-500 text-center py-10">
+          백테스트 데이터가 없습니다. run_engine.py를 실행해 주세요.
+        </p>
+      ) : (
+        <div style={{ width: "100%", aspectRatio: "4/3" }}>
+          <svg
+            viewBox={`0 0 ${W} ${H}`}
+            style={{ width: "100%", height: "100%" }}
+            aria-label="포트폴리오 위험-수익 산점도"
+          >
+            {/* 격자선 */}
+            {[0, 0.25, 0.5, 0.75, 1].map((t) => {
+              const gy = top + t * plotH;
+              const gx = left + t * plotW;
+              const yVal = yMax - t * (yMax - yMin);
+              const xVal = xMin + t * (xMax - xMin);
+              return (
+                <g key={t}>
+                  <line x1={left} y1={gy} x2={left + plotW} y2={gy} stroke="#E2E8F0" strokeWidth={0.5} />
+                  <text
+                    x={left - 4}
+                    y={gy + 4}
+                    textAnchor="end"
+                    fontSize={9}
+                    fill="#64748B"
+                    fontFamily="JetBrains Mono, monospace"
+                  >
+                    {formatMetricValue(yVal, yKey)}
+                  </text>
+                  <line x1={gx} y1={top} x2={gx} y2={top + plotH} stroke="#E2E8F0" strokeWidth={0.5} />
+                  {t > 0 && t < 1 && (
+                    <text
+                      x={gx}
+                      y={top + plotH + 14}
+                      textAnchor="middle"
+                      fontSize={9}
+                      fill="#64748B"
+                      fontFamily="JetBrains Mono, monospace"
+                    >
+                      {formatMetricValue(xVal, xKey)}
+                    </text>
+                  )}
+                </g>
+              );
+            })}
+
+            {/* 축 레이블 */}
+            <text
+              x={left + plotW / 2}
+              y={H - 4}
+              textAnchor="middle"
+              fontSize={10}
+              fill="#64748B"
+              fontFamily="JetBrains Mono, monospace"
+            >
+              {xLabel}
+            </text>
+            <text
+              x={10}
+              y={top + plotH / 2}
+              textAnchor="middle"
+              fontSize={10}
+              fill="#64748B"
+              fontFamily="JetBrains Mono, monospace"
+              transform={`rotate(-90, 10, ${top + plotH / 2})`}
+            >
+              {yLabel}
+            </text>
+
+            {/* 데이터 점 */}
+            {points.map(({ item, x, y }, idx) => {
+              const isActive = item.portfolio_name === activePortfolioName;
+              const cx = toSvgX(x);
+              const cy = toSvgY(y);
+              const shortName =
+                item.portfolio_name.length > 6
+                  ? item.portfolio_name.slice(0, 6) + "…"
+                  : item.portfolio_name;
+              const labelDy = idx % 2 === 0 ? -9 : 13;
+              return (
+                <g key={item.portfolio_name}>
+                  <circle
+                    cx={cx}
+                    cy={cy}
+                    r={isActive ? 5 : 4}
+                    fill={isActive ? "#4F46E5" : "#94A3B8"}
+                    stroke={isActive ? "#3730A3" : "none"}
+                    strokeWidth={isActive ? 2 : 0}
+                  >
+                    <title>{`${item.portfolio_name}\n${xLabel}: ${formatMetricValue(x, xKey)}\n${yLabel}: ${formatMetricValue(y, yKey)}`}</title>
+                  </circle>
+                  <text
+                    x={cx}
+                    y={cy}
+                    dy={labelDy}
+                    textAnchor="middle"
+                    fontSize={9}
+                    fill={isActive ? "#4F46E5" : "#64748B"}
+                    fontWeight={isActive ? 700 : 400}
+                    fontFamily="JetBrains Mono, monospace"
+                  >
+                    {shortName}
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── 기간 필터 ───────────────────────────────────────────────────────────────
 type PeriodKey = "1M" | "3M" | "6M" | "1Y" | "전체";
 type ChartMode = "nav" | "drawdown";
@@ -295,6 +514,11 @@ export default function ComparisonPage() {
     () => Object.fromEntries(
       (portfolioList ?? []).map((p) => [p.name, p.group_name])
     ),
+    [portfolioList],
+  );
+
+  const activePortfolioName = useMemo(
+    () => (portfolioList ?? []).find((p) => p.is_active)?.name ?? null,
     [portfolioList],
   );
 
@@ -615,6 +839,12 @@ export default function ComparisonPage() {
           </p>
         )}
       </section>
+
+      {/* 포트폴리오 위험-수익 분포 산점도 */}
+      <PortfolioScatterChart
+        data={summaryData}
+        activePortfolioName={activePortfolioName}
+      />
     </div>
   );
 }

@@ -230,12 +230,13 @@ export default function TradesPage() {
           code: form.etf_code,
           weight: calcTargetWeight / 100,
         });
-      } catch {
-        // 포트폴리오 업데이트 실패는 거래 저장에 영향 주지 않음
+      } catch (err) {
+        console.error("[E-3] active 포트폴리오 비중 업데이트 실패:", err);
       }
     }
 
     setForm(makeDefaultForm());
+    setCalcTargetWeight(0);
     setEditId(null);
     userEditedPrice.current = false;
     await queryClient.invalidateQueries({ queryKey: ["trade-log"] });

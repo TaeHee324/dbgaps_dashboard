@@ -6,12 +6,9 @@ import {
   useRiskPortfolio,
   useEtfRiskAnalysis,
   useEtfPrices,
-  useComparisonSummary,
   type EtfRiskItem,
   type EtfPricePoint,
-  type ComparisonSummaryItem,
 } from "@/lib/hooks/dashboard";
-import { usePortfolioList } from "@/lib/hooks/portfolio";
 import { computeActualOpsMetrics } from "@/lib/utils/metrics";
 import { EtfRiskLineChart } from "@/components/charts/EtfRiskLineChart";
 import { InfoTooltip } from "@/components/ui/InfoTooltip";
@@ -534,266 +531,11 @@ function SelectedEtfPanel({
   );
 }
 
-// ─── Portfolio Scatter Chart ─────────────────────────────────────────────────
-const METRIC_OPTIONS = [
-  { key: "annual_volatility", label: "연간변동성" },
-  { key: "cagr", label: "CAGR" },
-  { key: "mdd", label: "MDD (절댓값)" },
-  { key: "sharpe", label: "샤프" },
-  { key: "calmar", label: "칼마" },
-  { key: "sortino", label: "소르티노" },
-  { key: "win_rate", label: "월별승률" },
-] as const;
-
-type MetricKey = (typeof METRIC_OPTIONS)[number]["key"];
-
-function getMetricValue(item: ComparisonSummaryItem, key: MetricKey): number | null {
-  const raw = item[key as keyof ComparisonSummaryItem];
-  if (raw === null || raw === undefined || typeof raw !== "number" || !Number.isFinite(raw)) return null;
-  return key === "mdd" ? Math.abs(raw) : raw;
-}
-
-function formatMetricValue(v: number, key: MetricKey): string {
-  if (key === "sharpe" || key === "calmar" || key === "sortino") return v.toFixed(2);
-  return `${(v * 100).toFixed(1)}%`;
-}
-
-function PortfolioScatterChart({
-  data,
-  activePortfolioName,
-}: {
-  data: ComparisonSummaryItem[];
-  activePortfolioName: string | null;
-}) {
-  const [xKey, setXKey] = useState<MetricKey>("annual_volatility");
-  const [yKey, setYKey] = useState<MetricKey>("cagr");
-
-  const points = useMemo(() => {
-    return data
-      .map((item) => {
-        const x = getMetricValue(item, xKey);
-        const y = getMetricValue(item, yKey);
-        if (x === null || y === null) return null;
-        return { item, x, y };
-      })
-      .filter((p): p is { item: ComparisonSummaryItem; x: number; y: number } => p !== null);
-  }, [data, xKey, yKey]);
-
-  // SVG layout constants
-  const W = 400, H = 300;
-  const top = 20, right = 20, bottom = 40, left = 50;
-  const plotW = W - left - right;
-  const plotH = H - top - bottom;
-
-  const { xMin, xMax, yMin, yMax } = useMemo(() => {
-    if (points.length === 0) return { xMin: 0, xMax: 1, yMin: 0, yMax: 1 };
-    const xs = points.map((p) => p.x);
-    const ys = points.map((p) => p.y);
-    const xMin = Math.min(...xs);
-    const xMax = Math.max(...xs);
-    const yMin = Math.min(...ys);
-    const yMax = Math.max(...ys);
-    const xPad = (xMax - xMin) * 0.15 || 0.05;
-    const yPad = (yMax - yMin) * 0.15 || 0.05;
-    return {
-      xMin: xMin - xPad,
-      xMax: xMax + xPad,
-      yMin: yMin - yPad,
-      yMax: yMax + yPad,
-    };
-  }, [points]);
-
-  const toSvgX = (v: number) => left + ((v - xMin) / (xMax - xMin)) * plotW;
-  const toSvgY = (v: number) => top + plotH - ((v - yMin) / (yMax - yMin)) * plotH;
-
-  const xLabel = METRIC_OPTIONS.find((o) => o.key === xKey)?.label ?? xKey;
-  const yLabel = METRIC_OPTIONS.find((o) => o.key === yKey)?.label ?? yKey;
-
-  const SELECT_STYLE: React.CSSProperties = {
-    fontSize: 11,
-    border: `1px solid ${C.border}`,
-    borderRadius: 4,
-    padding: "2px 6px",
-    color: C.ink,
-    background: C.surface,
-    cursor: "pointer",
-  };
-
-  return (
-    <div
-      style={{
-        ...PANEL,
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      {/* 헤더 */}
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 8,
-          padding: "10px 14px",
-          borderBottom: `1px solid ${C.border}`,
-          background: C.surfaceMuted,
-        }}
-      >
-        <span style={{ fontSize: 12.5, fontWeight: 700, color: C.ink }}>포트폴리오 비교 산점도</span>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ fontSize: 11, color: C.inkSecondary }}>X</span>
-          <select
-            value={xKey}
-            onChange={(e) => setXKey(e.target.value as MetricKey)}
-            style={SELECT_STYLE}
-          >
-            {METRIC_OPTIONS.map((o) => (
-              <option key={o.key} value={o.key}>{o.label}</option>
-            ))}
-          </select>
-          <span style={{ fontSize: 11, color: C.inkSecondary }}>Y</span>
-          <select
-            value={yKey}
-            onChange={(e) => setYKey(e.target.value as MetricKey)}
-            style={SELECT_STYLE}
-          >
-            {METRIC_OPTIONS.map((o) => (
-              <option key={o.key} value={o.key}>{o.label}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* 차트 */}
-      <div style={{ padding: "12px 14px", flex: 1 }}>
-        {data.length === 0 ? (
-          <div
-            style={{
-              ...MONO,
-              fontSize: 12,
-              color: C.inkSecondary,
-              textAlign: "center",
-              padding: "40px 0",
-            }}
-          >
-            백테스트 데이터가 없습니다
-          </div>
-        ) : (
-          <div style={{ width: "100%", aspectRatio: "4/3" }}>
-            <svg
-              viewBox={`0 0 ${W} ${H}`}
-              style={{ width: "100%", height: "100%" }}
-              aria-label="포트폴리오 산점도"
-            >
-              {/* 격자선 */}
-              {[0, 0.25, 0.5, 0.75, 1].map((t) => {
-                const y = top + t * plotH;
-                const x = left + t * plotW;
-                const yVal = yMax - t * (yMax - yMin);
-                const xVal = xMin + t * (xMax - xMin);
-                return (
-                  <g key={t}>
-                    <line x1={left} y1={y} x2={left + plotW} y2={y} stroke={C.border} strokeWidth={0.5} />
-                    <text
-                      x={left - 4}
-                      y={y + 4}
-                      textAnchor="end"
-                      fontSize={9}
-                      fill={C.inkSecondary}
-                      fontFamily="JetBrains Mono, monospace"
-                    >
-                      {formatMetricValue(yVal, yKey)}
-                    </text>
-                    <line x1={x} y1={top} x2={x} y2={top + plotH} stroke={C.border} strokeWidth={0.5} />
-                    {t > 0 && t < 1 && (
-                      <text
-                        x={x}
-                        y={top + plotH + 14}
-                        textAnchor="middle"
-                        fontSize={9}
-                        fill={C.inkSecondary}
-                        fontFamily="JetBrains Mono, monospace"
-                      >
-                        {formatMetricValue(xVal, xKey)}
-                      </text>
-                    )}
-                  </g>
-                );
-              })}
-
-              {/* 축 레이블 */}
-              <text
-                x={left + plotW / 2}
-                y={H - 4}
-                textAnchor="middle"
-                fontSize={10}
-                fill={C.inkSecondary}
-                fontFamily="JetBrains Mono, monospace"
-              >
-                {xLabel}
-              </text>
-              <text
-                x={10}
-                y={top + plotH / 2}
-                textAnchor="middle"
-                fontSize={10}
-                fill={C.inkSecondary}
-                fontFamily="JetBrains Mono, monospace"
-                transform={`rotate(-90, 10, ${top + plotH / 2})`}
-              >
-                {yLabel}
-              </text>
-
-              {/* 데이터 점 */}
-              {points.map(({ item, x, y }) => {
-                const isActive = item.portfolio_name === activePortfolioName;
-                const cx = toSvgX(x);
-                const cy = toSvgY(y);
-                const shortName = item.portfolio_name.length > 8
-                  ? item.portfolio_name.slice(0, 8) + "…"
-                  : item.portfolio_name;
-                return (
-                  <g key={item.portfolio_name}>
-                    <circle
-                      cx={cx}
-                      cy={cy}
-                      r={6}
-                      fill={isActive ? "#4F46E5" : "#94A3B8"}
-                      stroke={isActive ? "#3730A3" : "none"}
-                      strokeWidth={isActive ? 2 : 0}
-                    >
-                      <title>{`${item.portfolio_name}\n${xLabel}: ${formatMetricValue(x, xKey)}\n${yLabel}: ${formatMetricValue(y, yKey)}`}</title>
-                    </circle>
-                    <text
-                      x={cx}
-                      y={cy - 9}
-                      textAnchor="middle"
-                      fontSize={9}
-                      fill={isActive ? "#4F46E5" : C.inkSecondary}
-                      fontWeight={isActive ? 700 : 400}
-                      fontFamily="JetBrains Mono, monospace"
-                    >
-                      {shortName}
-                    </text>
-                  </g>
-                );
-              })}
-            </svg>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function RiskPage() {
   const actualNavQuery = useActualNav();
   const riskPortfolioQuery = useRiskPortfolio();
   const etfRiskQuery = useEtfRiskAnalysis();
-  const comparisonSummaryQuery = useComparisonSummary();
-  const portfolioListQuery = usePortfolioList();
 
   const actualOpsMetrics = useMemo(
     () => computeActualOpsMetrics(actualNavQuery.data ?? []),
@@ -820,16 +562,6 @@ export default function RiskPage() {
     return etfItems.find((item) => item.code === selectedCode) ?? etfItems[0];
   }, [etfItems, selectedCode]);
   const etfPricesQuery = useEtfPrices(selectedEtf?.code);
-
-  const activePortfolioName = useMemo(() => {
-    const list = portfolioListQuery.data ?? [];
-    return list.find((p) => p.is_active)?.name ?? null;
-  }, [portfolioListQuery.data]);
-
-  const comparisonSummaryData = useMemo(
-    () => comparisonSummaryQuery.data ?? [],
-    [comparisonSummaryQuery.data]
-  );
 
   // MDD 체류 since date 계산 (actualNavQuery에서 trough 직전 최고점 찾기)
   const mddSinceDate = useMemo(() => {
@@ -1004,17 +736,11 @@ export default function RiskPage() {
         )}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
-        <SelectedEtfPanel
-          item={selectedEtf}
-          prices={etfPricesQuery.data ?? []}
-          isLoading={etfPricesQuery.isLoading}
-        />
-        <PortfolioScatterChart
-          data={comparisonSummaryData}
-          activePortfolioName={activePortfolioName}
-        />
-      </div>
+      <SelectedEtfPanel
+        item={selectedEtf}
+        prices={etfPricesQuery.data ?? []}
+        isLoading={etfPricesQuery.isLoading}
+      />
     </div>
   );
 }
