@@ -1,5 +1,12 @@
 [
   {
+    "hash": "abf4a426",
+    "date": "2026-05-28",
+    "subject": "feat: 매매일지 비중 자동계산, 리스크 탭 DB 전환, 포트폴리오 active 지정, 비교탭 운용 지표",
+    "body": "- A-1/A-2: 매매일지 숫자 필드 천단위 콤마, 비중 입력 제거, 날짜 기준 종가 auto-fill, NAV 초기값 자동 세팅\n- A-3: trades.py POST/PUT에서 weight_before/after 서버 자동 계산 (_calc_weights 헬퍼)\n- A-4: scripts/recalc_trade_weights.py — 기존 레코드 비중 일괄 재계산 스크립트 신규 추가\n- B-1: risk.py _get_target_weights()를 active 포트폴리오 holdings 기반으로 교체\n- B-2: portfolios.py에 GET /active + POST /{name}/activate 엔드포인트 추가, schemas.py is_active 필드 추가\n- B-3: portfolio 페이지에 운용 중 지정 버튼 / 운용 중 배지, useActivatePortfolio 훅 추가\n- C-1: comparison 페이지 현재 운용 행을 useActualNav 기반 실제 지표로 계산, 기간 필터 연동\n- D-1: risk.py 가격 데이터 소스를 data/prices_daily.csv → db.load_prices_from_db()로 교체 (3곳)\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "feat"
+  },
+  {
     "hash": "78d42b4d",
     "date": "2026-05-28",
     "subject": "하네스 수정",
@@ -341,12 +348,5 @@
     "subject": "fix: remove duplicate npm ci from frontend Railway build command",
     "body": "nixpacks automatically runs npm ci in the install phase (step 6/10).\nThe explicit 'npm ci && npm run build' in buildCommand triggered a second\nnpm ci that caused EBUSY: resource busy on /app/node_modules/.cache.\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
     "type": "fix"
-  },
-  {
-    "hash": "af355392",
-    "date": "2026-05-24",
-    "subject": "make railway toml",
-    "body": "",
-    "type": "update"
   }
 ]
