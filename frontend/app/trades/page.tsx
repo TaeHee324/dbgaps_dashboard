@@ -2,8 +2,8 @@
 
 import { useState, Fragment, useMemo, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useTradeLog, usePortfolioEtfs, useLiveHoldings, type TradeLogEntry } from "@/lib/hooks/dashboard";
-import { useEtfList, useEtfPrices } from "@/lib/hooks/portfolio";
+import { useTradeLog, usePortfolioEtfs, useLiveHoldings, useActualNav, type TradeLogEntry } from "@/lib/hooks/dashboard";
+import { useEtfList, useEtfPrices, useUpdateActiveHolding } from "@/lib/hooks/portfolio";
 import { useAddTrade, useUpdateTrade, useDeleteTrade, type AddTradeRequest } from "@/lib/hooks/trades";
 
 const STRATEGY_OPTIONS = [
@@ -58,6 +58,7 @@ export default function TradesPage() {
   const addTrade = useAddTrade();
   const updateTrade = useUpdateTrade();
   const deleteTrade = useDeleteTrade();
+  const updateActiveHolding = useUpdateActiveHolding();
 
   const [form, setForm] = useState<AddTradeRequest>(makeDefaultForm);
   const [editId, setEditId] = useState<number | null>(null);
@@ -68,6 +69,7 @@ export default function TradesPage() {
   const userEditedPrice = useRef(false);
 
   const { data: etfPrices = [] } = useEtfPrices(form.etf_code);
+  const { data: actualNav = [] } = useActualNav();
 
   // 총자산 기본값: live holdings market_value 합산
   const liveNavTotal = useMemo(() => {
@@ -75,11 +77,20 @@ export default function TradesPage() {
     return liveHoldings.reduce((acc, h) => acc + h.market_value, 0);
   }, [liveHoldings]);
 
+  // 거래 날짜 기준 NAV (ffill 방식)
+  const navOnDate = useMemo(() => {
+    if (!actualNav.length || !form.date) return liveNavTotal;
+    const candidates = actualNav.filter((p) => p.date <= form.date);
+    if (!candidates.length) return liveNavTotal;
+    return candidates[candidates.length - 1].portfolio_value;
+  }, [actualNav, form.date, liveNavTotal]);
+
+  // form.date 변경 시 calcTotalAssets를 navOnDate로 리셋
   useEffect(() => {
-    if (liveNavTotal > 0 && calcTotalAssets === null) {
-      setCalcTotalAssets(liveNavTotal);
+    if (navOnDate > 0) {
+      setCalcTotalAssets(navOnDate);
     }
-  }, [liveNavTotal, calcTotalAssets]);
+  }, [navOnDate]);
 
   // form.date 이하 가장 가까운 종가 (ffill 방식)
   const priceOnDate = useMemo(() => {
@@ -96,12 +107,30 @@ export default function TradesPage() {
     }
   }, [priceOnDate]);
 
-  const latestPrice = etfPrices.length > 0 ? etfPrices[etfPrices.length - 1].close : 0;
   const effectiveTotalAssets = calcTotalAssets ?? 0;
-  const calcNeededQty =
-    latestPrice > 0 && effectiveTotalAssets > 0 && calcTargetWeight > 0
-      ? Math.floor((effectiveTotalAssets * (calcTargetWeight / 100)) / latestPrice)
-      : null;
+
+  // 현재 선택한 ETF의 보유 수량
+  const currentHoldingQty = useMemo(() => {
+    const h = liveHoldings.find((h) => h.code === form.etf_code);
+    return h?.quantity ?? 0;
+  }, [liveHoldings, form.etf_code]);
+
+  // 역산 계산기: 목표비중 달성을 위한 필요 수량 (현재 보유량 차분 반영)
+  const calcNeededQty = useMemo(() => {
+    if (priceOnDate <= 0 || effectiveTotalAssets <= 0 || calcTargetWeight <= 0) return null;
+    const targetValue = effectiveTotalAssets * (calcTargetWeight / 100);
+    const currentValue = currentHoldingQty * priceOnDate;
+    const diff = targetValue - currentValue;
+
+    if (form.action === "매수" && diff > 0) {
+      return Math.floor(diff / priceOnDate);
+    } else if (form.action === "매도" && diff < 0) {
+      return Math.floor(-diff / priceOnDate);
+    } else if (form.action === "리밸런싱") {
+      return Math.abs(diff) > priceOnDate ? Math.round(Math.abs(diff) / priceOnDate) : 0;
+    }
+    return 0;
+  }, [priceOnDate, effectiveTotalAssets, calcTargetWeight, currentHoldingQty, form.action]);
 
   const sorted = [...tradeLog].sort((a, b) => b.date.localeCompare(a.date));
 
@@ -193,6 +222,19 @@ export default function TradesPage() {
     } else {
       await addTrade.mutateAsync(payload);
     }
+
+    // active 포트폴리오 비중 자동 업데이트 (silent fail)
+    if (calcTargetWeight > 0 && form.etf_code) {
+      try {
+        await updateActiveHolding.mutateAsync({
+          code: form.etf_code,
+          weight: calcTargetWeight / 100,
+        });
+      } catch {
+        // 포트폴리오 업데이트 실패는 거래 저장에 영향 주지 않음
+      }
+    }
+
     setForm(makeDefaultForm());
     setEditId(null);
     userEditedPrice.current = false;
@@ -325,7 +367,7 @@ export default function TradesPage() {
             )}
           </div>
 
-          {latestPrice > 0 && (
+          {priceOnDate > 0 && (
             <div className="rounded border border-border bg-surfaceMuted p-3 space-y-2">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold text-inkSecondary">역산 계산기 — 목표 비중 → 필요 수량</p>
@@ -368,11 +410,15 @@ export default function TradesPage() {
                 <div className="flex flex-col gap-1">
                   <label className="text-xs text-inkSecondary">필요 수량 (주)</label>
                   <div className="rounded border border-border bg-background px-2 py-1.5 text-sm font-semibold text-ink">
-                    {calcNeededQty !== null ? calcNeededQty.toLocaleString("ko-KR") : "—"}
+                    {calcNeededQty === null
+                      ? "—"
+                      : calcNeededQty === 0
+                      ? "필요 없음"
+                      : calcNeededQty.toLocaleString("ko-KR")}
                   </div>
-                  {calcNeededQty !== null && latestPrice > 0 && (
+                  {calcNeededQty !== null && calcNeededQty > 0 && priceOnDate > 0 && (
                     <p className="text-xs text-inkMuted">
-                      현재가 {latestPrice.toLocaleString("ko-KR")}원 기준
+                      {form.date} 종가 {priceOnDate.toLocaleString("ko-KR")}원 기준
                     </p>
                   )}
                 </div>

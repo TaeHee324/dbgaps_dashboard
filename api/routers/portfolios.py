@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -94,6 +95,41 @@ def get_active_portfolio():
     if row is None:
         raise HTTPException(status_code=404, detail="운용 중 포트폴리오가 없습니다.")
     return {"name": row["name"], "holdings": row["holdings"]}
+
+
+@router.patch("/portfolios/active/holdings", status_code=200)
+def update_active_holding(payload: schemas.UpdateActiveHoldingRequest):
+    """active 포트폴리오의 특정 ETF 목표 비중을 업데이트. 없으면 추가."""
+    with db.get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT name, holdings FROM portfolios WHERE is_active = TRUE LIMIT 1"
+            )
+            row = cur.fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="운용 중 포트폴리오가 없습니다.")
+
+        holdings = row["holdings"]
+        if isinstance(holdings, str):
+            holdings = json.loads(holdings)
+
+        code = _normalize_code(payload.code)
+        updated = False
+        for h in holdings:
+            if str(h.get("code", "")).zfill(6) == code:
+                h["weight"] = payload.weight
+                updated = True
+                break
+        if not updated:
+            holdings.append({"code": code, "weight": payload.weight})
+
+        with conn.cursor() as cur2:
+            cur2.execute(
+                "UPDATE portfolios SET holdings = %s::jsonb WHERE name = %s",
+                (json.dumps(holdings), row["name"]),
+            )
+        conn.commit()
+    return {"updated": code, "weight": payload.weight}
 
 
 @router.post("/portfolios/{name}/activate", status_code=200)

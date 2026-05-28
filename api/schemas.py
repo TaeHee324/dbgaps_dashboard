@@ -274,3 +274,8 @@ class EtfRiskItem(BaseModel):
     current_drawdown: float
     vol_20d: float | None = None
     risk_contribution_pct: float | None = None
+
+
+class UpdateActiveHoldingRequest(BaseModel):
+    code: str
+    weight: float
