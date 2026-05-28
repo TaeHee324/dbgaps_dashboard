@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, Fragment } from "react";
+import { useState, Fragment, useMemo, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useTradeLog, usePortfolioEtfs, type TradeLogEntry } from "@/lib/hooks/dashboard";
+import { useTradeLog, usePortfolioEtfs, useLiveHoldings, type TradeLogEntry } from "@/lib/hooks/dashboard";
 import { useEtfList, useEtfPrices } from "@/lib/hooks/portfolio";
 import { useAddTrade, useUpdateTrade, useDeleteTrade, type AddTradeRequest } from "@/lib/hooks/trades";
 
@@ -19,6 +19,17 @@ const ACTION_OPTIONS = ["매수", "매도", "리밸런싱"] as const;
 
 function formatWeight(v: number): string {
   return (v * 100).toFixed(2) + "%";
+}
+
+function formatComma(n: number | null | undefined): string {
+  if (n === null || n === undefined) return "";
+  return n.toLocaleString("ko-KR");
+}
+
+function parseComma(s: string): number | null {
+  const cleaned = s.replace(/,/g, "");
+  const n = parseFloat(cleaned);
+  return isNaN(n) ? null : n;
 }
 
 function makeDefaultForm(): AddTradeRequest {
@@ -43,6 +54,7 @@ export default function TradesPage() {
   const { data: tradeLog = [] } = useTradeLog();
   const { data: etfList = [] } = useEtfList();
   const { data: portfolioEtfs = [] } = usePortfolioEtfs();
+  const { data: liveHoldings = [] } = useLiveHoldings();
   const addTrade = useAddTrade();
   const updateTrade = useUpdateTrade();
   const deleteTrade = useDeleteTrade();
@@ -50,14 +62,45 @@ export default function TradesPage() {
   const [form, setForm] = useState<AddTradeRequest>(makeDefaultForm);
   const [editId, setEditId] = useState<number | null>(null);
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
-  const [calcTotalAssets, setCalcTotalAssets] = useState<number>(0);
+  const [calcTotalAssets, setCalcTotalAssets] = useState<number | null>(null);
   const [calcTargetWeight, setCalcTargetWeight] = useState<number>(0);
+  // 사용자가 단가를 수동 수정했는지 추적
+  const userEditedPrice = useRef(false);
 
   const { data: etfPrices = [] } = useEtfPrices(form.etf_code);
+
+  // 총자산 기본값: live holdings market_value 합산
+  const liveNavTotal = useMemo(() => {
+    if (!liveHoldings.length) return 0;
+    return liveHoldings.reduce((acc, h) => acc + h.market_value, 0);
+  }, [liveHoldings]);
+
+  useEffect(() => {
+    if (liveNavTotal > 0 && calcTotalAssets === null) {
+      setCalcTotalAssets(liveNavTotal);
+    }
+  }, [liveNavTotal, calcTotalAssets]);
+
+  // form.date 이하 가장 가까운 종가 (ffill 방식)
+  const priceOnDate = useMemo(() => {
+    if (!etfPrices.length || !form.date) return 0;
+    const candidates = etfPrices.filter((p) => p.date <= form.date);
+    if (!candidates.length) return 0;
+    return candidates[candidates.length - 1].close;
+  }, [etfPrices, form.date]);
+
+  // ETF 선택 또는 날짜 변경 시 단가 자동 세팅 (사용자 수동 입력 시 덮어쓰지 않음)
+  useEffect(() => {
+    if (priceOnDate > 0 && !userEditedPrice.current) {
+      setForm((prev) => ({ ...prev, price: priceOnDate }));
+    }
+  }, [priceOnDate]);
+
   const latestPrice = etfPrices.length > 0 ? etfPrices[etfPrices.length - 1].close : 0;
+  const effectiveTotalAssets = calcTotalAssets ?? 0;
   const calcNeededQty =
-    latestPrice > 0 && calcTotalAssets > 0 && calcTargetWeight > 0
-      ? Math.floor((calcTotalAssets * (calcTargetWeight / 100)) / latestPrice)
+    latestPrice > 0 && effectiveTotalAssets > 0 && calcTargetWeight > 0
+      ? Math.floor((effectiveTotalAssets * (calcTargetWeight / 100)) / latestPrice)
       : null;
 
   const sorted = [...tradeLog].sort((a, b) => b.date.localeCompare(a.date));
@@ -105,6 +148,8 @@ export default function TradesPage() {
 
   function handleEditClick(row: TradeLogEntry) {
     setEditId(row.id);
+    // 수정 시 기존 단가가 있으면 수동 입력으로 간주해 auto-fill 방지
+    userEditedPrice.current = row.price != null;
     setForm({
       date: row.date,
       action: row.action,
@@ -124,6 +169,7 @@ export default function TradesPage() {
 
   function handleEtfCodeChange(code: string) {
     const match = etfList.find((e) => e.code === code);
+    userEditedPrice.current = false; // ETF 변경 시 auto-fill 허용
     setForm((prev) => ({
       ...prev,
       etf_code: code,
@@ -149,6 +195,7 @@ export default function TradesPage() {
     }
     setForm(makeDefaultForm());
     setEditId(null);
+    userEditedPrice.current = false;
     await queryClient.invalidateQueries({ queryKey: ["trade-log"] });
     await queryClient.invalidateQueries({ queryKey: ["live-holdings"] });
     await queryClient.invalidateQueries({ queryKey: ["current-holdings"] });
@@ -174,7 +221,7 @@ export default function TradesPage() {
         {editId !== null && (
           <button
             type="button"
-            onClick={() => { setEditId(null); setForm(makeDefaultForm()); }}
+            onClick={() => { setEditId(null); setForm(makeDefaultForm()); userEditedPrice.current = false; }}
             className="mb-3 text-xs text-inkSecondary hover:underline"
           >
             ✕ 수정 취소
@@ -278,46 +325,30 @@ export default function TradesPage() {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-inkSecondary">비중 이전 (%)</label>
-              <input
-                type="number"
-                min={0}
-                max={100}
-                step={1}
-                value={form.weight_before}
-                onChange={(e) => handleChange("weight_before", parseFloat(e.target.value) || 0)}
-                className="rounded border border-border bg-background px-2 py-1.5 text-sm text-ink"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-inkSecondary">비중 이후 (%)</label>
-              <input
-                type="number"
-                min={0}
-                max={100}
-                step={1}
-                value={form.weight_after}
-                onChange={(e) => handleChange("weight_after", parseFloat(e.target.value) || 0)}
-                className="rounded border border-border bg-background px-2 py-1.5 text-sm text-ink"
-              />
-            </div>
-          </div>
-
           {latestPrice > 0 && (
             <div className="rounded border border-border bg-surfaceMuted p-3 space-y-2">
-              <p className="text-xs font-semibold text-inkSecondary">역산 계산기 — 목표 비중 → 필요 수량</p>
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-inkSecondary">역산 계산기 — 목표 비중 → 필요 수량</p>
+                {priceOnDate > 0 && (
+                  <p className="text-xs text-inkSecondary">
+                    기준가: {priceOnDate.toLocaleString("ko-KR")}원 ({form.date} 종가)
+                  </p>
+                )}
+              </div>
               <div className="grid grid-cols-3 gap-3">
                 <div className="flex flex-col gap-1">
                   <label className="text-xs text-inkSecondary">총자산 (원)</label>
                   <input
-                    type="number"
-                    min={0}
-                    step={1000000}
-                    value={calcTotalAssets || ""}
-                    onChange={(e) => setCalcTotalAssets(parseFloat(e.target.value) || 0)}
-                    placeholder="100000000"
+                    type="text"
+                    inputMode="numeric"
+                    value={formatComma(calcTotalAssets)}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/,/g, "");
+                      if (/^\d*$/.test(raw)) {
+                        setCalcTotalAssets(raw === "" ? null : parseFloat(raw));
+                      }
+                    }}
+                    placeholder="100,000,000"
                     className="rounded border border-border bg-background px-2 py-1.5 text-sm text-ink"
                   />
                 </div>
@@ -353,12 +384,14 @@ export default function TradesPage() {
             <div className="flex flex-col gap-1">
               <label className="text-xs text-inkSecondary">{form.action === "매도" ? "매도단가(원)" : "매수단가(원)"}</label>
               <input
-                type="number"
-                min={0}
-                step={1}
-                value={form.price ?? ""}
+                type="text"
+                inputMode="numeric"
+                value={formatComma(form.price)}
                 onChange={(e) => {
-                  const p = parseFloat(e.target.value) || null;
+                  const raw = e.target.value.replace(/,/g, "");
+                  if (!/^\d*$/.test(raw)) return;
+                  userEditedPrice.current = true;
+                  const p = raw === "" ? null : parseFloat(raw);
                   const q = form.quantity ?? null;
                   setForm((prev) => ({
                     ...prev,
@@ -366,7 +399,7 @@ export default function TradesPage() {
                     amount: p && q ? Math.round(p * q) : null,
                   }));
                 }}
-                placeholder="50000"
+                placeholder="50,000"
                 className="rounded border border-border bg-background px-2 py-1.5 text-sm text-ink"
               />
             </div>
@@ -392,12 +425,9 @@ export default function TradesPage() {
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-xs text-inkSecondary">거래금액 (원)</label>
-              <input
-                type="number"
-                value={form.amount ?? ""}
-                readOnly
-                className="rounded border border-border bg-background px-2 py-1.5 text-sm text-inkSecondary"
-              />
+              <div className="rounded border border-border bg-background px-2 py-1.5 text-sm text-inkSecondary">
+                {form.amount != null ? formatComma(Math.round(form.amount)) : "—"}
+              </div>
             </div>
           </div>
 

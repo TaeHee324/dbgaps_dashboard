@@ -81,13 +81,11 @@ def _get_fifo_holdings() -> tuple[list[dict], float]:
                     h["quantity"] = 0.0
                     h["cost_basis"] = 0.0
 
-    # prices_daily.csv 최신 종가
+    # DB 최신 종가
     prices_latest: dict[str, float] = {}
     try:
-        prices_df = _read_csv(DATA_DIR / "prices_daily.csv", dtype={"code": "string"})
-        if not prices_df.empty and {"code", "date", "close"}.issubset(prices_df.columns):
-            prices_df["code"] = prices_df["code"].map(_normalize_code)
-            prices_df["date"] = pd.to_datetime(prices_df["date"], errors="coerce")
+        prices_df = db.load_prices_from_db()
+        if not prices_df.empty:
             idx = prices_df.groupby("code")["date"].idxmax()
             latest_prices = prices_df.loc[idx].set_index("code")
             for c, row in latest_prices.iterrows():
@@ -133,17 +131,22 @@ def _get_fifo_holdings() -> tuple[list[dict], float]:
 
 
 def _get_target_weights() -> dict[str, float]:
-    """trade_log에서 ETF별 최신 weight_after 반환 (소수)."""
+    """active 포트폴리오의 holdings에서 ETF별 목표 비중 반환."""
     try:
         with db.get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "SELECT DISTINCT ON (etf_code) etf_code, weight_after "
-                    "FROM trade_log "
-                    "ORDER BY etf_code, date DESC, id DESC"
+                    "SELECT holdings FROM portfolios WHERE is_active = TRUE LIMIT 1"
                 )
-                rows = cur.fetchall()
-        return {str(r["etf_code"]): float(r["weight_after"]) for r in rows}
+                row = cur.fetchone()
+        if row is None:
+            return {}
+        holdings = row["holdings"]
+        if isinstance(holdings, str):
+            import json
+            holdings = json.loads(holdings)
+        # holdings = [{"code": "069500", "weight": 0.20}, ...]
+        return {str(h["code"]): float(h["weight"]) for h in holdings}
     except Exception:
         return {}
 
@@ -165,9 +168,8 @@ def risk_portfolio():
     business_days_stale = 0
     health_status = "오류"
     try:
-        prices_df = _read_csv(DATA_DIR / "prices_daily.csv", dtype={"code": "string"})
-        if not prices_df.empty and "date" in prices_df.columns:
-            prices_df["date"] = pd.to_datetime(prices_df["date"], errors="coerce")
+        prices_df = db.load_prices_from_db()
+        if not prices_df.empty:
             latest_ts = prices_df["date"].max()
             latest_price_date = latest_ts.strftime("%Y-%m-%d")
             today = pd.Timestamp.today().normalize()
@@ -203,11 +205,9 @@ def etf_analysis():
     # 가격 이력 pivot
     price_pivot: pd.DataFrame = pd.DataFrame()
     try:
-        prices_df = _read_csv(DATA_DIR / "prices_daily.csv", dtype={"code": "string"})
-        if not prices_df.empty and {"code", "date", "close"}.issubset(prices_df.columns):
-            prices_df["code"] = prices_df["code"].map(_normalize_code)
+        prices_df = db.load_prices_from_db()
+        if not prices_df.empty:
             prices_df = prices_df[prices_df["code"].isin(held_codes)]
-            prices_df["date"] = pd.to_datetime(prices_df["date"], errors="coerce")
             price_pivot = prices_df.pivot_table(
                 index="date", columns="code", values="close", aggfunc="last"
             ).ffill()

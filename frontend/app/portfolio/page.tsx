@@ -7,6 +7,7 @@ import { RuleBadge } from "@/components/ui/RuleBadge";
 import { get } from "@/lib/api";
 import { PortfolioHolding } from "@/lib/hooks/dashboard";
 import {
+  useActivatePortfolio,
   useBacktest,
   useDeletePortfolio,
   useEtfList,
@@ -69,6 +70,7 @@ export default function PortfolioPage() {
   const backtestMutation = useBacktest();
   const upsertMutation = useUpsertPortfolio();
   const deleteMutation = useDeletePortfolio();
+  const activateMutation = useActivatePortfolio();
 
   // ETF 필터 옵션
   const riskOptions = useMemo(
@@ -300,6 +302,33 @@ export default function PortfolioPage() {
           {/* 섹션 2: 포트폴리오 구성 */}
           <section className="space-y-3">
             <h2 className="text-sm font-semibold text-ink">포트폴리오 구성</h2>
+
+            {/* 포트폴리오 목록 — 운용 중 지정 */}
+            {portfolioList.length > 0 && (
+              <div className="space-y-1">
+                {portfolioList.map((p) => (
+                  <div
+                    key={p.name}
+                    className="flex items-center justify-between rounded-md border border-border bg-surface px-3 py-1.5"
+                  >
+                    <span className="text-sm text-ink truncate">{p.name}</span>
+                    {p.is_active ? (
+                      <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded bg-emerald-100 text-emerald-700 border border-emerald-200 shrink-0">
+                        운용 중
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => activateMutation.mutate(p.name)}
+                        disabled={activateMutation.isPending}
+                        className="text-xs px-2 py-0.5 rounded border border-indigo-200 text-indigo-600 hover:bg-indigo-50 disabled:opacity-50 shrink-0"
+                      >
+                        운용 중 지정
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* 불러오기 */}
             {portfolioList.length > 0 && (

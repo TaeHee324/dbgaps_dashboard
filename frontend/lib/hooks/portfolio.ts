@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { del, get, post } from "@/lib/api";
 import type {
   MonthlyReturn,
@@ -24,6 +24,7 @@ export type EtfPricePoint = {
 export type Portfolio = {
   name: string;
   group_name?: string | null;
+  is_active?: boolean;
 };
 
 export type PortfolioHolding = {
@@ -93,5 +94,16 @@ export function useUpsertPortfolio() {
 export function useDeletePortfolio() {
   return useMutation({
     mutationFn: (name: string) => del(`/api/portfolios/${name}`),
+  });
+}
+
+export function useActivatePortfolio() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) => post(`/api/portfolios/${encodeURIComponent(name)}/activate`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["portfolios"] });
+      queryClient.invalidateQueries({ queryKey: ["portfolio-list"] });
+    },
   });
 }

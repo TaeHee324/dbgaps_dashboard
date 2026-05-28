@@ -75,11 +75,42 @@ def list_portfolios():
         return []
     try:
         return [
-            {"name": item["name"], "group_name": item.get("group_name")}
+            {"name": item["name"], "group_name": item.get("group_name"), "is_active": bool(item.get("is_active", False))}
             for item in db.list_portfolios()
         ]
     except Exception:
         return []
+
+
+@router.get("/portfolios/active", response_model=schemas.PortfolioDetail)
+def get_active_portfolio():
+    """현재 active 포트폴리오 반환."""
+    with db.get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT name, holdings, is_active FROM portfolios WHERE is_active = TRUE LIMIT 1"
+            )
+            row = cur.fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="운용 중 포트폴리오가 없습니다.")
+    return {"name": row["name"], "holdings": row["holdings"]}
+
+
+@router.post("/portfolios/{name}/activate", status_code=200)
+def activate_portfolio(name: str):
+    """지정한 포트폴리오를 운용 중(active)으로 설정. 기존 active는 해제."""
+    with db.get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE portfolios SET is_active = FALSE")
+            cur.execute(
+                "UPDATE portfolios SET is_active = TRUE WHERE name = %s RETURNING name",
+                (name,)
+            )
+            row = cur.fetchone()
+        conn.commit()
+    if row is None:
+        raise HTTPException(status_code=404, detail="포트폴리오를 찾을 수 없습니다.")
+    return {"activated": name}
 
 
 @router.get("/portfolios/{name}", response_model=list[schemas.PortfolioHolding])

@@ -134,11 +134,17 @@ class ReportResponse(BaseModel):
 class Portfolio(BaseModel):
     name: str
     group_name: str | None = None
+    is_active: bool = False
 
 
 class PortfolioHolding(BaseModel):
     code: str
     weight: float
+
+
+class PortfolioDetail(BaseModel):
+    name: str
+    holdings: list[PortfolioHolding]
 
 
 class PortfolioUpsertRequest(BaseModel):

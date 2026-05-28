@@ -4,12 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ComparisonChart } from "@/components/charts/ComparisonChart";
 import {
+  useActualNav,
   useComparisonNav,
   useComparisonSummary,
   useLiveHoldings,
+  type ActualNavPoint,
   type ComparisonNavPoint,
   type ComparisonSummaryItem,
-  type LiveHolding,
 } from "@/lib/hooks/dashboard";
 import { useDeletePortfolio, usePortfolioList } from "@/lib/hooks/portfolio";
 
@@ -102,16 +103,6 @@ type SortDir = "asc" | "desc";
 // ─── 현재 운용 행 타입 ────────────────────────────────────────────────────────
 const LIVE_PORTFOLIO_NAME = "현재 운용";
 
-function buildLiveRow(holdings: LiveHolding[]): ComparisonSummaryItem {
-  return {
-    portfolio_name: LIVE_PORTFOLIO_NAME,
-    cagr: 0,
-    mdd: 0,
-    sharpe: 0,
-    calmar: 0,
-  };
-}
-
 // ─── C3: 그룹핑 헬퍼 ─────────────────────────────────────────────────────────
 function groupPortfolios(
   items: ComparisonSummaryItem[],
@@ -140,6 +131,7 @@ export default function ComparisonPage() {
   const { data: navData } = useComparisonNav();
   const { data: summaryData = [] } = useComparisonSummary();
   const { data: liveHoldings = [] } = useLiveHoldings();
+  const { data: actualNav = [] } = useActualNav();
   const deleteMutation = useDeletePortfolio();
 
   // 전체 선택 초기화
@@ -153,6 +145,44 @@ export default function ComparisonPage() {
   }, [summaryData]);
 
   const cutoffDate = getCutoffDate(period);
+
+  // C1: 현재 운용 — actual nav 기간 필터 및 메트릭 계산
+  const filteredActualNav = useMemo<ActualNavPoint[]>(() => {
+    if (!cutoffDate) return actualNav;
+    return actualNav.filter((p) => p.date >= cutoffDate);
+  }, [actualNav, cutoffDate]);
+
+  const liveMetrics = useMemo(
+    () => computeMetrics(filteredActualNav as ComparisonNavPoint[]),
+    [filteredActualNav],
+  );
+
+  const liveExtraMetrics = useMemo(() => {
+    if (filteredActualNav.length < 2) return { sortino: null, vol: null, winRate: null };
+    const returns = filteredActualNav
+      .map((p) => p.daily_return)
+      .filter((r) => Number.isFinite(r));
+    if (!returns.length) return { sortino: null, vol: null, winRate: null };
+    const mean = returns.reduce((s, r) => s + r, 0) / returns.length;
+    const downReturns = returns.filter((r) => r < 0);
+    const downStd =
+      downReturns.length > 1
+        ? Math.sqrt(
+            downReturns.reduce((s, r) => s + r * r, 0) / downReturns.length,
+          ) * Math.sqrt(252)
+        : null;
+    const sortino = downStd && downStd > 0 ? (mean * 252) / downStd : null;
+    const variance = returns.reduce((s, r) => s + (r - mean) ** 2, 0) / returns.length;
+    const vol = Math.sqrt(variance * 252);
+    const wins = returns.filter((r) => r > 0).length;
+    const winRate = returns.length > 0 ? wins / returns.length : null;
+    return { sortino, vol, winRate };
+  }, [filteredActualNav]);
+
+  const liveStartDate = useMemo(
+    () => (actualNav.length > 0 ? actualNav[0].date : null),
+    [actualNav],
+  );
 
   // 기간 필터된 nav 포인트
   const filteredNavPoints = useMemo<Record<string, ComparisonNavPoint[]>>(() => {
@@ -258,9 +288,6 @@ export default function ComparisonPage() {
       return next;
     });
   }
-
-  // 현재 운용 row (C1)
-  const liveRow = useMemo(() => buildLiveRow(liveHoldings), [liveHoldings]);
 
   const { data: portfolioList } = usePortfolioList();
 
@@ -471,14 +498,30 @@ export default function ComparisonPage() {
                         현재 운용
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right font-numeric tabular-nums text-inkMuted">—</td>
-                    <td className="px-4 py-3 text-right font-numeric tabular-nums text-inkMuted">—</td>
-                    <td className="px-4 py-3 text-right font-numeric tabular-nums text-inkMuted">—</td>
-                    <td className="px-4 py-3 text-right font-numeric tabular-nums text-inkMuted">—</td>
-                    <td className="px-4 py-3 text-right font-numeric tabular-nums text-inkMuted">—</td>
-                    <td className="px-4 py-3 text-right font-numeric tabular-nums text-inkMuted">—</td>
-                    <td className="px-4 py-3 text-right font-numeric tabular-nums text-inkMuted">—</td>
-                    <td className="px-4 py-3 text-right font-numeric tabular-nums text-xs text-inkSecondary">—</td>
+                    <td className="px-4 py-3 text-right font-numeric tabular-nums text-ink">
+                      {fmtPct(liveMetrics.cagr)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-numeric tabular-nums text-ink">
+                      {fmtPct(liveMetrics.mdd)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-numeric tabular-nums text-ink">
+                      {fmtDec(liveMetrics.sharpe)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-numeric tabular-nums text-ink">
+                      {fmtDec(liveMetrics.calmar)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-numeric tabular-nums text-ink">
+                      {fmtDec(liveExtraMetrics.sortino)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-numeric tabular-nums text-ink">
+                      {fmtPct(liveExtraMetrics.vol)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-numeric tabular-nums text-ink">
+                      {fmtPct(liveExtraMetrics.winRate)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-numeric tabular-nums text-xs text-inkSecondary">
+                      {liveStartDate ?? "—"}
+                    </td>
                     <td className="px-4 py-3 text-right" />
                   </tr>
                 )}
