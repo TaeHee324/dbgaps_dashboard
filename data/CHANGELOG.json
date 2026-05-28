@@ -1,5 +1,12 @@
 [
   {
+    "hash": "1c6fa3a8",
+    "date": "2026-05-28",
+    "subject": "docs: 3차 수정 계획서 및 QA 참고 이미지 추가",
+    "body": "Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "docs"
+  },
+  {
     "hash": "4923f8dd",
     "date": "2026-05-28",
     "subject": "fix: scatter 차트 comparison 탭으로 이동, E-3 디버깅 강화, calcTargetWeight 리셋",
@@ -341,12 +348,5 @@
     "subject": "폴더 정리",
     "body": "",
     "type": "update"
-  },
-  {
-    "hash": "6f6cb9d4",
-    "date": "2026-05-24",
-    "subject": "chore: remove legacy files and update PROJECT_STATUS",
-    "body": "Removed:\n- MIGRATION_PLAN.md, ROADMAP.md: migration complete, superseded by git history\n- error.png, reference_repositories.md: dev artifacts with no ongoing value\n- frontend/README.md: create-next-app boilerplate, unrelated to this project\n- frontend/public/{file,globe,next,vercel,window}.svg: Next.js boilerplate assets\n\nUpdated PROJECT_STATUS.md to reflect current FastAPI + Next.js architecture,\nRailway 2-service deployment, API contract, and 7-page frontend route structure.\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
-    "type": "chore"
   }
 ]
