@@ -1,5 +1,12 @@
 [
   {
+    "hash": "4923f8dd",
+    "date": "2026-05-28",
+    "subject": "fix: scatter 차트 comparison 탭으로 이동, E-3 디버깅 강화, calcTargetWeight 리셋",
+    "body": "- G-1: risk 탭 PortfolioScatterChart 제거, SelectedEtfPanel 단독 복구\n- G-2: comparison 탭 비교 지표 테이블 아래 scatter 추가 (점 r=4, 레이블 교대배치, 6자 잘림)\n- G-3: E-3 silent fail → console.error 변경, 거래 저장 후 calcTargetWeight 리셋, queryKey [\"portfolio-list\"] 추가\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "fix"
+  },
+  {
     "hash": "d44c0a62",
     "date": "2026-05-28",
     "subject": "feat: 역산 계산기 차분 공식 수정, 당시 NAV 연동, active 포트폴리오 비중 자동 업데이트, 리스크 탭 scatter 차트",
@@ -341,12 +348,5 @@
     "subject": "chore: remove legacy files and update PROJECT_STATUS",
     "body": "Removed:\n- MIGRATION_PLAN.md, ROADMAP.md: migration complete, superseded by git history\n- error.png, reference_repositories.md: dev artifacts with no ongoing value\n- frontend/README.md: create-next-app boilerplate, unrelated to this project\n- frontend/public/{file,globe,next,vercel,window}.svg: Next.js boilerplate assets\n\nUpdated PROJECT_STATUS.md to reflect current FastAPI + Next.js architecture,\nRailway 2-service deployment, API contract, and 7-page frontend route structure.\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
     "type": "chore"
-  },
-  {
-    "hash": "4a1d2f2b",
-    "date": "2026-05-24",
-    "subject": "fix: set engines.node >=20 for tailwindcss/oxide native binding",
-    "body": "@tailwindcss/oxide@4.3.0 requires Node >= 20 for its native Rust binding.\nnixpacks reads the engines.node field to select the correct Node version,\npreventing the 'Cannot find native binding' error on Railway (was using Node 18).\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
-    "type": "fix"
   }
 ]
