@@ -159,7 +159,7 @@ function PortfolioScatterChart({
   }, [data, xKey, yKey, period, computedMetricsMap, selectedPortfolios]);
 
   // SVG layout constants
-  const W = 400, H = 340;
+  const W = 400, H = 324;
   const top = 20, right = 20, bottom = 40, left = 50;
   const plotW = W - left - right;
   const plotH = H - top - bottom;
@@ -223,7 +223,7 @@ function PortfolioScatterChart({
           백테스트 데이터가 없습니다. run_engine.py를 실행해 주세요.
         </p>
       ) : (
-        <div style={{ width: "100%", height: 340 }}>
+        <div style={{ width: "100%", height: 324 }}>
           <svg
             viewBox={`0 0 ${W} ${H}`}
             style={{ width: "100%", height: "100%" }}
@@ -655,14 +655,7 @@ export default function ComparisonPage() {
         </div>
 
         <div className="grid grid-cols-2 gap-6 items-start">
-          <div className="space-y-2">
-            {/* C6: y축 여백 1%, height=340 */}
-            <ComparisonChart series={filteredChartSeries} yPadding={0.01} height={340} />
-
-            <p className="text-xs text-inkMuted">
-              * 포트폴리오별 데이터 시작일이 다를 수 있습니다. 비교 시 기간 차이에 유의하세요.
-            </p>
-          </div>
+          <ComparisonChart series={filteredChartSeries} yPadding={0.01} height={400} />
 
           <PortfolioScatterChart
             data={summaryData}
@@ -672,6 +665,9 @@ export default function ComparisonPage() {
             selectedPortfolios={selectedPortfolios}
           />
         </div>
+        <p className="text-xs text-inkMuted">
+          * 포트폴리오별 데이터 시작일이 다를 수 있습니다. 비교 시 기간 차이에 유의하세요.
+        </p>
       </section>
 
       {/* 비교 지표 테이블 */}
