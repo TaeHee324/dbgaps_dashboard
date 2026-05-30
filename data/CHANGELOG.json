@@ -1,5 +1,12 @@
 [
   {
+    "hash": "96638e09",
+    "date": "2026-05-31",
+    "subject": "feat: 매매일지 전략 체크리스트 개편 + 문서 버전 표기 제거",
+    "body": "- trade_log에 strategy_notes JSONB 컬럼 추가, note 컬럼 제거\n- 전략 체크리스트를 '투자 전략' / '리스크 관리' 2열로 분리\n  - 투자 전략 항목: 체크 시 판단 근거 textarea 노출\n  - 리스크 관리 항목: 미체크 시 미준수 이유 textarea 노출\n- 이력 확장 행에 체크 항목별 코멘트 및 미준수 이유 표시\n- docs/strategy 파일 제목에서 v5 버전 표기 제거\n- risk/page.tsx 슬러그 참조 리스크관리전략_v5 → 리스크관리전략 업데이트\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "feat"
+  },
+  {
     "hash": "e678ce52",
     "date": "2026-05-31",
     "subject": "fix: NAV 비교 차트 모서리 둥글게 처리 (rounded-lg overflow-hidden)",
@@ -341,12 +348,5 @@
     "subject": "fix: portfolio-summary API에 새 지표 컬럼 반환 누락 수정",
     "body": "sortino·information_ratio·mdd_duration·win_rate_monthly·var_95·tail_ratio가\nCSV에는 있었으나 API 엔드포인트가 기존 9개 컬럼만 반환하도록 하드코딩되어\nKpiStrip에 값이 표시되지 않던 문제 수정\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
     "type": "fix"
-  },
-  {
-    "hash": "34633d9f",
-    "date": "2026-05-25",
-    "subject": "chore: output CSV 갱신 (portfolio_summary 새 지표 컬럼 반영)",
-    "body": "- portfolio_summary.csv: sortino·information_ratio·mdd_duration·win_rate_monthly·var_95·tail_ratio 컬럼 포함\n- backtest_nav.csv·current_holdings.csv·rule_*.csv: 최신 엔진 실행 결과 반영\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
-    "type": "chore"
   }
 ]
