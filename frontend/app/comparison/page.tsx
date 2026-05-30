@@ -22,45 +22,144 @@ const METRIC_OPTIONS = [
   { key: "sharpe", label: "샤프" },
   { key: "calmar", label: "칼마" },
   { key: "sortino", label: "소르티노" },
-  { key: "win_rate", label: "월별승률" },
+  { key: "win_rate", label: "승률" },
 ] as const;
 
 type MetricKey = (typeof METRIC_OPTIONS)[number]["key"];
-
-function getMetricValue(item: ComparisonSummaryItem, key: MetricKey): number | null {
-  const raw = item[key as keyof ComparisonSummaryItem];
-  if (raw === null || raw === undefined || typeof raw !== "number" || !Number.isFinite(raw)) return null;
-  return key === "mdd" ? Math.abs(raw) : raw;
-}
 
 function formatMetricValue(v: number, key: MetricKey): string {
   if (key === "sharpe" || key === "calmar" || key === "sortino") return v.toFixed(2);
   return `${(v * 100).toFixed(1)}%`;
 }
 
+// ─── C4: 프론트엔드 메트릭 계산 ─────────────────────────────────────────────
+type ComputedMetrics = {
+  cagr: number | null;
+  mdd: number | null;
+  sharpe: number | null;
+  calmar: number | null;
+  sortino: number | null;
+  annual_volatility: number | null;
+  win_rate: number | null;
+};
+
+function computeMetrics(points: ComparisonNavPoint[]): ComputedMetrics {
+  const nullResult: ComputedMetrics = {
+    cagr: null,
+    mdd: null,
+    sharpe: null,
+    calmar: null,
+    sortino: null,
+    annual_volatility: null,
+    win_rate: null,
+  };
+  if (points.length < 2) return nullResult;
+
+  const values = points.map((p) => p.portfolio_value);
+  const first = values[0];
+  const last = values[values.length - 1];
+
+  const startDate = new Date(points[0].date);
+  const endDate = new Date(points[points.length - 1].date);
+  const days = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+
+  if (days <= 0 || first <= 0) return nullResult;
+
+  // CAGR
+  const cagr = Math.pow(last / first, 365 / days) - 1;
+
+  // MDD
+  let peak = values[0];
+  let mddRaw = 0;
+  for (const v of values) {
+    if (v > peak) peak = v;
+    const dd = 1 - v / peak;
+    if (dd > mddRaw) mddRaw = dd;
+  }
+
+  // Daily returns from portfolio_value
+  const dailyReturns: number[] = [];
+  for (let i = 1; i < values.length; i++) {
+    if (values[i - 1] > 0) {
+      dailyReturns.push((values[i] - values[i - 1]) / values[i - 1]);
+    }
+  }
+
+  let sharpe: number | null = null;
+  let annual_volatility: number | null = null;
+  let sortino: number | null = null;
+  let win_rate: number | null = null;
+
+  if (dailyReturns.length > 1) {
+    const mean = dailyReturns.reduce((s, r) => s + r, 0) / dailyReturns.length;
+    const variance =
+      dailyReturns.reduce((s, r) => s + Math.pow(r - mean, 2), 0) / dailyReturns.length;
+    const std = Math.sqrt(variance);
+    sharpe = std > 0 ? (mean / std) * Math.sqrt(252) : null;
+    annual_volatility = Math.sqrt(variance * 252);
+
+    const downReturns = dailyReturns.filter((r) => r < 0);
+    if (downReturns.length > 1) {
+      const downStd =
+        Math.sqrt(downReturns.reduce((s, r) => s + r * r, 0) / downReturns.length) *
+        Math.sqrt(252);
+      sortino = downStd > 0 ? (mean * 252) / downStd : null;
+    }
+
+    const wins = dailyReturns.filter((r) => r > 0).length;
+    win_rate = dailyReturns.length > 0 ? wins / dailyReturns.length : null;
+  }
+
+  const calmar = mddRaw > 0 ? cagr / mddRaw : null;
+
+  return { cagr, mdd: -mddRaw, sharpe, calmar, sortino, annual_volatility, win_rate };
+}
+
 function PortfolioScatterChart({
   data,
+  computedMetricsMap,
+  period,
   activePortfolioName,
+  selectedPortfolios,
 }: {
   data: ComparisonSummaryItem[];
+  computedMetricsMap: Record<string, ComputedMetrics>;
+  period: PeriodKey;
   activePortfolioName: string | null;
+  selectedPortfolios: Set<string>;
 }) {
   const [xKey, setXKey] = useState<MetricKey>("annual_volatility");
   const [yKey, setYKey] = useState<MetricKey>("cagr");
 
+  function getScatterValue(item: ComparisonSummaryItem, key: MetricKey): number | null {
+    if (period === "전체") {
+      const raw = item[key as keyof ComparisonSummaryItem];
+      if (raw === null || raw === undefined || typeof raw !== "number" || !Number.isFinite(raw))
+        return null;
+      return key === "mdd" ? Math.abs(raw as number) : (raw as number);
+    }
+    const m = computedMetricsMap[item.portfolio_name];
+    if (!m) return null;
+    const v = m[key as keyof ComputedMetrics];
+    if (v === null || v === undefined || !Number.isFinite(v)) return null;
+    return key === "mdd" ? Math.abs(v) : v;
+  }
+
   const points = useMemo(() => {
     return data
+      .filter((item) => selectedPortfolios.has(item.portfolio_name))
       .map((item) => {
-        const x = getMetricValue(item, xKey);
-        const y = getMetricValue(item, yKey);
+        const x = getScatterValue(item, xKey);
+        const y = getScatterValue(item, yKey);
         if (x === null || y === null) return null;
         return { item, x, y };
       })
       .filter((p): p is { item: ComparisonSummaryItem; x: number; y: number } => p !== null);
-  }, [data, xKey, yKey]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, xKey, yKey, period, computedMetricsMap, selectedPortfolios]);
 
   // SVG layout constants
-  const W = 400, H = 300;
+  const W = 400, H = 340;
   const top = 20, right = 20, bottom = 40, left = 50;
   const plotW = W - left - right;
   const plotH = H - top - bottom;
@@ -90,7 +189,7 @@ function PortfolioScatterChart({
   const yLabel = METRIC_OPTIONS.find((o) => o.key === yKey)?.label ?? yKey;
 
   return (
-    <div className="bg-white border border-slate-200 rounded-lg p-4 mt-6">
+    <div className="bg-white border border-slate-200 rounded-lg p-4">
       {/* 헤더 */}
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
         <span className="text-sm font-semibold text-slate-800">포트폴리오 위험-수익 분포</span>
@@ -124,7 +223,7 @@ function PortfolioScatterChart({
           백테스트 데이터가 없습니다. run_engine.py를 실행해 주세요.
         </p>
       ) : (
-        <div style={{ width: "100%", aspectRatio: "4/3" }}>
+        <div style={{ width: "100%", height: 340 }}>
           <svg
             viewBox={`0 0 ${W} ${H}`}
             style={{ width: "100%", height: "100%" }}
@@ -260,67 +359,9 @@ function fmtDec(v: number | null | undefined) {
   return v.toFixed(2);
 }
 
-// ─── C4: 프론트엔드 메트릭 계산 ─────────────────────────────────────────────
-type ComputedMetrics = {
-  cagr: number | null;
-  mdd: number | null;
-  sharpe: number | null;
-  calmar: number | null;
-};
-
-function computeMetrics(points: ComparisonNavPoint[]): ComputedMetrics {
-  if (points.length < 2) return { cagr: null, mdd: null, sharpe: null, calmar: null };
-
-  const values = points.map((p) => p.portfolio_value);
-  const first = values[0];
-  const last = values[values.length - 1];
-
-  const startDate = new Date(points[0].date);
-  const endDate = new Date(points[points.length - 1].date);
-  const days = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
-
-  if (days <= 0 || first <= 0) return { cagr: null, mdd: null, sharpe: null, calmar: null };
-
-  // CAGR
-  const cagr = Math.pow(last / first, 365 / days) - 1;
-
-  // MDD
-  let peak = values[0];
-  let mdd = 0;
-  for (const v of values) {
-    if (v > peak) peak = v;
-    const dd = 1 - v / peak;
-    if (dd > mdd) mdd = dd;
-  }
-
-  // Daily returns
-  const dailyReturns: number[] = [];
-  for (let i = 1; i < values.length; i++) {
-    if (values[i - 1] > 0) {
-      dailyReturns.push((values[i] - values[i - 1]) / values[i - 1]);
-    }
-  }
-
-  let sharpe: number | null = null;
-  if (dailyReturns.length > 1) {
-    const mean = dailyReturns.reduce((s, r) => s + r, 0) / dailyReturns.length;
-    const variance =
-      dailyReturns.reduce((s, r) => s + Math.pow(r - mean, 2), 0) / dailyReturns.length;
-    const std = Math.sqrt(variance);
-    sharpe = std > 0 ? (mean / std) * Math.sqrt(252) : null;
-  }
-
-  const calmar = mdd > 0 ? cagr / mdd : null;
-
-  return { cagr, mdd: -mdd, sharpe, calmar };
-}
-
 // ─── C5: 정렬 ────────────────────────────────────────────────────────────────
 type SortKey = "cagr" | "mdd" | "sharpe" | "calmar";
 type SortDir = "asc" | "desc";
-
-// ─── 현재 운용 행 타입 ────────────────────────────────────────────────────────
-const LIVE_PORTFOLIO_NAME = "현재 운용";
 
 // ─── C3: 그룹핑 헬퍼 ─────────────────────────────────────────────────────────
 function groupPortfolios(
@@ -357,7 +398,6 @@ export default function ComparisonPage() {
   useEffect(() => {
     if (summaryData.length > 0 && selectedPortfolios.size === 0) {
       const names = new Set(summaryData.map((s) => s.portfolio_name));
-      names.add(LIVE_PORTFOLIO_NAME);
       setSelectedPortfolios(names);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -375,28 +415,6 @@ export default function ComparisonPage() {
     () => computeMetrics(filteredActualNav as ComparisonNavPoint[]),
     [filteredActualNav],
   );
-
-  const liveExtraMetrics = useMemo(() => {
-    if (filteredActualNav.length < 2) return { sortino: null, vol: null, winRate: null };
-    const returns = filteredActualNav
-      .map((p) => p.daily_return)
-      .filter((r) => Number.isFinite(r));
-    if (!returns.length) return { sortino: null, vol: null, winRate: null };
-    const mean = returns.reduce((s, r) => s + r, 0) / returns.length;
-    const downReturns = returns.filter((r) => r < 0);
-    const downStd =
-      downReturns.length > 1
-        ? Math.sqrt(
-            downReturns.reduce((s, r) => s + r * r, 0) / downReturns.length,
-          ) * Math.sqrt(252)
-        : null;
-    const sortino = downStd && downStd > 0 ? (mean * 252) / downStd : null;
-    const variance = returns.reduce((s, r) => s + (r - mean) ** 2, 0) / returns.length;
-    const vol = Math.sqrt(variance * 252);
-    const wins = returns.filter((r) => r > 0).length;
-    const winRate = returns.length > 0 ? wins / returns.length : null;
-    return { sortino, vol, winRate };
-  }, [filteredActualNav]);
 
   const liveStartDate = useMemo(
     () => (actualNav.length > 0 ? actualNav[0].date : null),
@@ -423,16 +441,31 @@ export default function ComparisonPage() {
     return result;
   }, [filteredNavPoints]);
 
-  // 차트 시리즈
+  // Step 2: 차트 시리즈 재정규화 (기간 필터 시 원점 0 시작)
   const chartSeries = useMemo(() => {
     return Object.fromEntries(
       Object.entries(filteredNavPoints).map(([name, points]) => {
-        const values = points.map((p) => {
-          if (chartMode === "drawdown") {
-            return { time: p.date, value: p.drawdown != null ? p.drawdown * 100 : 0 };
+        if (points.length === 0) return [name, []];
+        if (chartMode === "drawdown") {
+          // 기간 내 portfolio_value로 고점 직접 계산
+          let peak = points[0].portfolio_value;
+          const ddMap = new Map<string, number>();
+          for (const pt of points) {
+            if (pt.portfolio_value > peak) peak = pt.portfolio_value;
+            ddMap.set(pt.date, peak > 0 ? ((peak - pt.portfolio_value) / peak) * 100 : 0);
           }
-          return { time: p.date, value: p.cumulative_return * 100 };
-        });
+          const values = points.map((p) => ({
+            time: p.date,
+            value: -(ddMap.get(p.date) ?? 0),
+          }));
+          return [name, values];
+        }
+        // NAV 모드: 기간 첫 포인트 기준으로 재정규화
+        const base = points[0].portfolio_value ?? 1;
+        const values = points.map((p) => ({
+          time: p.date,
+          value: (p.portfolio_value / base - 1) * 100,
+        }));
         return [name, values];
       }),
     );
@@ -511,9 +544,8 @@ export default function ComparisonPage() {
   const { data: portfolioList } = usePortfolioList();
 
   const groupMap = useMemo(
-    () => Object.fromEntries(
-      (portfolioList ?? []).map((p) => [p.name, p.group_name])
-    ),
+    () =>
+      Object.fromEntries((portfolioList ?? []).map((p) => [p.name, p.group_name])),
     [portfolioList],
   );
 
@@ -545,13 +577,11 @@ export default function ComparisonPage() {
     [sortedSummary, groupMap],
   );
 
-  // 필터된 summary (선택된 것만) — 그룹에 관계없이 표시 여부는 그룹 접기로 제어
   const allGroups = Array.from(groupedItems.keys());
 
   // 테이블 행: 현재 운용 + 나머지
   function getMetric(name: string, key: SortKey): number | null {
     if (period === "전체") {
-      // 전체 기간이면 원래 summary 데이터 사용
       const item = summaryData.find((s) => s.portfolio_name === name);
       if (!item) return null;
       if (key === "cagr") return item.cagr;
@@ -563,14 +593,14 @@ export default function ComparisonPage() {
     return computedMetricsMap[name]?.[key] ?? null;
   }
 
+  // Step 4: getExtraMetric — 기간 필터 시에도 계산값 사용
   function getExtraMetric(name: string, key: "sortino" | "annual_volatility" | "win_rate") {
-    // 필터 기간이 전체일 때만 백엔드 데이터 사용, 아니면 "—"
     if (period === "전체") {
       const item = summaryData.find((s) => s.portfolio_name === name);
       if (!item) return null;
       return item[key] ?? null;
     }
-    return null;
+    return computedMetricsMap[name]?.[key] ?? null;
   }
 
   const colSpan = 10; // 포트폴리오 + CAGR + MDD + 샤프 + 칼마 + 소르티노 + 연간변동성 + 승률 + 시작 + 삭제
@@ -624,30 +654,10 @@ export default function ComparisonPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-2 gap-6 items-start">
           <div className="space-y-2">
-            {/* 포트폴리오 선택 체크박스 */}
-            {summaryData.length > 0 && (
-              <div className="flex flex-wrap gap-3">
-                {summaryData.map((s) => (
-                  <label
-                    key={s.portfolio_name}
-                    className="flex cursor-pointer items-center gap-1.5 text-sm"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedPortfolios.has(s.portfolio_name)}
-                      onChange={() => togglePortfolio(s.portfolio_name)}
-                      className="accent-primary"
-                    />
-                    <span className="text-ink">{s.portfolio_name}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-
-            {/* C6: y축 여백 1% */}
-            <ComparisonChart series={filteredChartSeries} yPadding={0.01} />
+            {/* C6: y축 여백 1%, height=340 */}
+            <ComparisonChart series={filteredChartSeries} yPadding={0.01} height={340} />
 
             <p className="text-xs text-inkMuted">
               * 포트폴리오별 데이터 시작일이 다를 수 있습니다. 비교 시 기간 차이에 유의하세요.
@@ -656,14 +666,38 @@ export default function ComparisonPage() {
 
           <PortfolioScatterChart
             data={summaryData}
+            computedMetricsMap={computedMetricsMap}
+            period={period}
             activePortfolioName={activePortfolioName}
+            selectedPortfolios={selectedPortfolios}
           />
         </div>
       </section>
 
       {/* 비교 지표 테이블 */}
       <section className="space-y-2">
-        <h2 className="text-sm font-semibold text-ink">비교 지표</h2>
+        {/* Step 5: 체크박스를 비교 지표 헤더 옆으로 이동 */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <h2 className="text-sm font-semibold text-ink">비교 지표</h2>
+          {summaryData.length > 0 && (
+            <div className="flex flex-wrap gap-3">
+              {summaryData.map((s) => (
+                <label
+                  key={s.portfolio_name}
+                  className="flex cursor-pointer items-center gap-1.5 text-xs"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedPortfolios.has(s.portfolio_name)}
+                    onChange={() => togglePortfolio(s.portfolio_name)}
+                    className="accent-primary"
+                  />
+                  <span className="text-ink">{s.portfolio_name}</span>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
 
         {deleteError && (
           <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{deleteError}</p>
@@ -744,13 +778,13 @@ export default function ComparisonPage() {
                       {fmtDec(liveMetrics.calmar)}
                     </td>
                     <td className="px-4 py-3 text-right font-numeric tabular-nums text-ink">
-                      {fmtDec(liveExtraMetrics.sortino)}
+                      {fmtDec(liveMetrics.sortino)}
                     </td>
                     <td className="px-4 py-3 text-right font-numeric tabular-nums text-ink">
-                      {fmtPct(liveExtraMetrics.vol)}
+                      {fmtPct(liveMetrics.annual_volatility)}
                     </td>
                     <td className="px-4 py-3 text-right font-numeric tabular-nums text-ink">
-                      {fmtPct(liveExtraMetrics.winRate)}
+                      {fmtPct(liveMetrics.win_rate)}
                     </td>
                     <td className="px-4 py-3 text-right font-numeric tabular-nums text-xs text-inkSecondary">
                       {liveStartDate ?? "—"}
@@ -777,54 +811,54 @@ export default function ComparisonPage() {
                         </span>
                       </td>
                     </tr>,
-                    // 그룹 내 아이템 행
+                    // 그룹 내 아이템 행 — 모두 표시, 체크 안된 행은 dim 처리
                     ...(!collapsed
-                      ? items
-                          .filter((item) => selectedPortfolios.has(item.portfolio_name))
-                          .map((item) => (
-                            <tr
-                              key={item.portfolio_name}
-                              className="border-b border-border last:border-0 hover:bg-surfaceMuted"
-                            >
-                              <td className="px-4 py-3 font-medium text-ink">
-                                {item.portfolio_name}
-                              </td>
-                              <td className="px-4 py-3 text-right font-numeric tabular-nums text-ink">
-                                {fmtPct(getMetric(item.portfolio_name, "cagr"))}
-                              </td>
-                              <td className="px-4 py-3 text-right font-numeric tabular-nums text-ink">
-                                {fmtPct(getMetric(item.portfolio_name, "mdd"))}
-                              </td>
-                              <td className="px-4 py-3 text-right font-numeric tabular-nums text-ink">
-                                {fmtDec(getMetric(item.portfolio_name, "sharpe"))}
-                              </td>
-                              <td className="px-4 py-3 text-right font-numeric tabular-nums text-ink">
-                                {fmtDec(getMetric(item.portfolio_name, "calmar"))}
-                              </td>
-                              <td className="px-4 py-3 text-right font-numeric tabular-nums text-ink">
-                                {fmtDec(getExtraMetric(item.portfolio_name, "sortino"))}
-                              </td>
-                              <td className="px-4 py-3 text-right font-numeric tabular-nums text-ink">
-                                {fmtPct(getExtraMetric(item.portfolio_name, "annual_volatility"))}
-                              </td>
-                              <td className="px-4 py-3 text-right font-numeric tabular-nums text-ink">
-                                {fmtPct(getExtraMetric(item.portfolio_name, "win_rate"))}
-                              </td>
-                              <td className="px-4 py-3 text-right font-numeric tabular-nums text-xs text-inkSecondary">
-                                {startDates[item.portfolio_name] ?? "—"}
-                              </td>
-                              <td className="px-4 py-3 text-right">
-                                <button
-                                  onClick={() => handleDelete(item.portfolio_name)}
-                                  disabled={deleteMutation.isPending}
-                                  className="rounded px-2 py-0.5 text-xs text-red-500 hover:bg-red-50 hover:text-red-700 disabled:opacity-40"
-                                  title={`"${item.portfolio_name}" 삭제`}
-                                >
-                                  삭제
-                                </button>
-                              </td>
-                            </tr>
-                          ))
+                      ? items.map((item) => (
+                          <tr
+                            key={item.portfolio_name}
+                            className={`border-b border-border last:border-0 hover:bg-surfaceMuted transition-opacity ${
+                              !selectedPortfolios.has(item.portfolio_name) ? "opacity-40" : ""
+                            }`}
+                          >
+                            <td className="px-4 py-3 font-medium text-ink">
+                              {item.portfolio_name}
+                            </td>
+                            <td className="px-4 py-3 text-right font-numeric tabular-nums text-ink">
+                              {fmtPct(getMetric(item.portfolio_name, "cagr"))}
+                            </td>
+                            <td className="px-4 py-3 text-right font-numeric tabular-nums text-ink">
+                              {fmtPct(getMetric(item.portfolio_name, "mdd"))}
+                            </td>
+                            <td className="px-4 py-3 text-right font-numeric tabular-nums text-ink">
+                              {fmtDec(getMetric(item.portfolio_name, "sharpe"))}
+                            </td>
+                            <td className="px-4 py-3 text-right font-numeric tabular-nums text-ink">
+                              {fmtDec(getMetric(item.portfolio_name, "calmar"))}
+                            </td>
+                            <td className="px-4 py-3 text-right font-numeric tabular-nums text-ink">
+                              {fmtDec(getExtraMetric(item.portfolio_name, "sortino"))}
+                            </td>
+                            <td className="px-4 py-3 text-right font-numeric tabular-nums text-ink">
+                              {fmtPct(getExtraMetric(item.portfolio_name, "annual_volatility"))}
+                            </td>
+                            <td className="px-4 py-3 text-right font-numeric tabular-nums text-ink">
+                              {fmtPct(getExtraMetric(item.portfolio_name, "win_rate"))}
+                            </td>
+                            <td className="px-4 py-3 text-right font-numeric tabular-nums text-xs text-inkSecondary">
+                              {startDates[item.portfolio_name] ?? "—"}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <button
+                                onClick={() => handleDelete(item.portfolio_name)}
+                                disabled={deleteMutation.isPending}
+                                className="rounded px-2 py-0.5 text-xs text-red-500 hover:bg-red-50 hover:text-red-700 disabled:opacity-40"
+                                title={`"${item.portfolio_name}" 삭제`}
+                              >
+                                삭제
+                              </button>
+                            </td>
+                          </tr>
+                        ))
                       : []),
                   ];
                 })}
@@ -841,14 +875,13 @@ export default function ComparisonPage() {
           </div>
         )}
 
+        {/* Step 7: 주석 텍스트 수정 */}
         {period !== "전체" && (
           <p className="text-xs text-inkMuted">
-            * {period} 기간 CAGR/MDD/샤프/칼마는 선택 기간 데이터로 프론트엔드 재계산값입니다.
-            소르티노·연간변동성·승률은 전체 기간 기준입니다.
+            * {period} 기간 모든 지표는 선택 기간 데이터로 프론트엔드 재계산값입니다.
           </p>
         )}
       </section>
-
     </div>
   );
 }
