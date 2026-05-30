@@ -1,5 +1,12 @@
 [
   {
+    "hash": "972a5604",
+    "date": "2026-05-31",
+    "subject": "feat: 전략 문서 렌더링 — 운용보고서 탭 전략 섹션, 리스크 탭 전략 원칙 서브탭, Mermaid 지원",
+    "body": "- docs/strategy/에 투자철학_v5.md, 리스크관리전략_v5.md 추가\n- API: /api/strategy-docs, /api/strategy-doc/{slug} 엔드포인트 추가\n  (YAML frontmatter 자동 제거, Obsidian ![[]] → /docs-images/ 변환)\n- MermaidChart 컴포넌트: mermaid v11 동적 import로 SSR-safe 렌더링\n- MarkdownDoc 컴포넌트: ReactMarkdown + Mermaid + 이미지 통합 렌더러\n- /report 페이지: 좌측 사이드바에 전략 문서 / 월별 운용 보고서 2섹션 분리\n- /risk 페이지: 리스크 현황 / 전략 원칙 탭 바 추가\n- output/report_202605.md 삭제 (5월 미운용)\n- frontend/public/docs-images/ 이미지 파일 추가\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "feat"
+  },
+  {
     "hash": "2d005944",
     "date": "2026-05-28",
     "subject": "feat: comparison 탭 산점도 2컬럼 배치 및 E-3 HTTP 메서드 불일치 수정",
@@ -340,13 +347,6 @@
     "date": "2026-05-25",
     "subject": "feat: Claude.ai 승인 디자인 전면 적용 (Pretendard·JetBrains Mono, 새 토큰, KPI 스트립, 히트맵)",
     "body": "- tailwind.config.ts: 색상 토큰 전면 갱신 (차분한 인디고 #3F2EE0, 짙은 ink #0B1B2C,\n  초록/빨강 수익 컬러), 폰트를 Pretendard Variable + JetBrains Mono로 교체\n- globals.css: CSS 변수 업데이트, 바디 기본 폰트 13px Pretendard 적용\n- layout.tsx: CDN 폰트 링크 추가, 브랜드 마크(D 뱃지) + 사이드바 스타일 리뉴얼\n- KpiStrip.tsx: 7개 지표 연결형 패널 스트립으로 재설계, variant prop 제거\n- StatusBar.tsx: LIVE 녹색 점 + 날짜 필 배지로 교체\n- HoldingsTable.tsx: 비중 바 차트 내장, 수익 색상 국제 표준(초록=이익, 빨강=손실) 적용\n- MonthlyHeatmap.tsx: 신규 — 월별 수익률 히트맵 컴포넌트 (실제 API 데이터)\n- page.tsx: 패널 헤더 패턴 도입, 2열 그리드, 히트맵 섹션 추가\n- design-prototype/kpi-demo.tsx: Claude.ai Artifact 프로토타이핑용 데모 파일 추가\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
-    "type": "feat"
-  },
-  {
-    "hash": "cda9d7fb",
-    "date": "2026-05-25",
-    "subject": "feat: 운용보고서 카드 UI, 매매일지 DB 마이그레이션, 비중 퍼센티지 표시",
-    "body": "운용보고서:\n- output/ 예시 보고서 3개 추가 (2026년 06~08월)\n- GET /api/reports (목록), GET /api/report/{filename} (단건) 엔드포인트 추가\n- report/page.tsx: 카드 그리드(목록) ↔ 상세 뷰 2-state UI로 재작성\n\n매매일지:\n- trade_log 테이블 PostgreSQL 마이그레이션 (db.py init_trade_log_table 추가)\n- trades.py: JSON 파일 기반 → DB CRUD 전환, PUT/DELETE 엔드포인트 신규 추가\n- 전략 체크박스 6개 (워런 버핏 데모), 수정/삭제 기능, ETF 자동완성\n- 매도 시 보유 ETF 드롭다운, 비중 입력 0~100% 단위\n\n비중 퍼센티지:\n- portfolio/page.tsx: 비중 입력 0~100% 단위로 변경 (API 전송 시 ÷100)\n- 불러오기 시 ×100 변환, 합계 표시 \"X% / 100%\"\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
     "type": "feat"
   }
 ]
