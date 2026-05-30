@@ -114,12 +114,12 @@ export function ComparisonChart({ series, yPadding = 0.01, height = 320 }: Compa
     return (
       <div
         style={{ height }}
-        className="flex items-center justify-center rounded-md border border-border bg-surface text-sm text-inkMuted"
+        className="flex items-center justify-center rounded-lg border border-border bg-surface text-sm text-inkMuted"
       >
         데이터 없음
       </div>
     );
   }
 
-  return <div ref={containerRef} style={{ height }} className="w-full" />;
+  return <div ref={containerRef} style={{ height }} className="w-full rounded-lg overflow-hidden" />;
 }
