@@ -136,8 +136,8 @@ export type TradeLogEntry = {
   weight_before: number;
   weight_after: number;
   reason: string;
-  note: string;
   strategy_checklist: string[];
+  strategy_notes?: Record<string, string>;
   quantity?: number | null;
   price?: number | null;
   amount?: number | null;

@@ -181,8 +181,8 @@ class TradeLogEntry(BaseModel):
     weight_before: float
     weight_after: float
     reason: str
-    note: str
     strategy_checklist: list[str]
+    strategy_notes: dict[str, str] = {}
     quantity: float | None = None
     price: float | None = None
     amount: float | None = None
@@ -196,8 +196,8 @@ class AddTradeRequest(BaseModel):
     weight_before: float
     weight_after: float
     reason: str
-    note: str
     strategy_checklist: list[str] = []
+    strategy_notes: dict[str, str] = {}
     quantity: float | None = None
     price: float | None = None
     amount: float | None = None
@@ -211,7 +211,6 @@ class AddTradeResponse(BaseModel):
     weight_before: float
     weight_after: float
     reason: str
-    note: str
     strategy_checklist: list[str] = []
 
 
@@ -223,8 +222,8 @@ class UpdateTradeRequest(BaseModel):
     weight_before: float
     weight_after: float
     reason: str
-    note: str
     strategy_checklist: list[str] = []
+    strategy_notes: dict[str, str] = {}
     quantity: float | None = None
     price: float | None = None
     amount: float | None = None

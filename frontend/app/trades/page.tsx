@@ -6,13 +6,20 @@ import { useTradeLog, usePortfolioEtfs, useLiveHoldings, useActualNav, type Trad
 import { useEtfList, useEtfPrices, useUpdateActiveHolding } from "@/lib/hooks/portfolio";
 import { useAddTrade, useUpdateTrade, useDeleteTrade, type AddTradeRequest } from "@/lib/hooks/trades";
 
-const STRATEGY_OPTIONS = [
-  "이해 가능한 사업 (투자원칙 범위 내)",
-  "장기 보유 관점 (최소 5년 이상)",
-  "강력한 경쟁 우위 (모트 존재)",
-  "합리적인 가격 매수",
-  "감정이 아닌 데이터 기반 결정",
-  "분산 투자 원칙 준수",
+const INVESTMENT_OPTIONS = [
+  "현재 가격을 움직이는 KPI를 확인했다",
+  "KPI 방향성(강화·유지·약화)을 판단했다",
+  "펀더멘탈(EPS) 전환 경로가 관찰 가능하다",
+  "센티먼트가 투자 방향에 우호적이다",
+  "이 ETF가 투자 아이디어를 효율적으로 구현한다",
+] as const;
+
+const RISK_OPTIONS = [
+  "개별 ETF 비중 20% 이내 확인",
+  "위험자산 비중 70% 이내 확인",
+  "단일 ETF 위험기여도 45% 이하",
+  "목표비중 이탈폭 ±5%p 이내",
+  "분할매수·분할매도 원칙 준수",
 ] as const;
 
 const ACTION_OPTIONS = ["매수", "매도", "리밸런싱"] as const;
@@ -41,8 +48,8 @@ function makeDefaultForm(): AddTradeRequest {
     weight_before: 0,
     weight_after: 0,
     reason: "",
-    note: "",
     strategy_checklist: [],
+    strategy_notes: {},
     quantity: null,
     price: null,
     amount: null,
@@ -187,8 +194,8 @@ export default function TradesPage() {
       weight_before: row.weight_before * 100,
       weight_after: row.weight_after * 100,
       reason: row.reason,
-      note: row.note,
       strategy_checklist: row.strategy_checklist ?? [],
+      strategy_notes: row.strategy_notes ?? {},
       quantity: row.quantity ?? null,
       price: row.price ?? null,
       amount: row.amount ?? null,
@@ -498,36 +505,97 @@ export default function TradesPage() {
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-xs text-inkSecondary">메모</label>
-            <textarea
-              value={form.note}
-              onChange={(e) => handleChange("note", e.target.value)}
-              rows={3}
-              className="rounded border border-border bg-background px-2 py-1.5 text-sm text-ink"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
             <label className="text-xs text-inkSecondary">전략 체크리스트</label>
-            <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
-              {STRATEGY_OPTIONS.map((opt) => (
-                <label key={opt} className="flex items-center gap-2 text-xs text-ink cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={form.strategy_checklist.includes(opt)}
-                    onChange={(e) => {
-                      setForm((prev) => ({
-                        ...prev,
-                        strategy_checklist: e.target.checked
-                          ? [...prev.strategy_checklist, opt]
-                          : prev.strategy_checklist.filter((s) => s !== opt),
-                      }));
-                    }}
-                    className="accent-indigo-700"
-                  />
-                  {opt}
-                </label>
-              ))}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {/* 투자 전략 열 */}
+              <div className="rounded border border-border bg-surface p-3 space-y-2">
+                <p className="text-xs font-semibold text-inkSecondary">투자 전략</p>
+                {INVESTMENT_OPTIONS.map((opt) => {
+                  const isChecked = form.strategy_checklist.includes(opt);
+                  return (
+                    <div key={opt} className="space-y-1">
+                      <label className="flex items-center gap-2 text-xs text-ink cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            setForm((prev) => ({
+                              ...prev,
+                              strategy_checklist: e.target.checked
+                                ? [...prev.strategy_checklist, opt]
+                                : prev.strategy_checklist.filter((s) => s !== opt),
+                              strategy_notes: e.target.checked
+                                ? prev.strategy_notes ?? {}
+                                : { ...prev.strategy_notes, [opt]: "" },
+                            }));
+                          }}
+                          className="accent-indigo-700 shrink-0"
+                        />
+                        {opt}
+                      </label>
+                      {isChecked && (
+                        <textarea
+                          rows={2}
+                          placeholder="판단 근거를 간략히 기록하세요"
+                          value={(form.strategy_notes ?? {})[opt] ?? ""}
+                          onChange={(e) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              strategy_notes: { ...(prev.strategy_notes ?? {}), [opt]: e.target.value },
+                            }))
+                          }
+                          className="w-full rounded border border-border bg-background px-2 py-1 text-xs text-ink resize-none"
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* 리스크 관리 열 */}
+              <div className="rounded border border-border bg-surface p-3 space-y-2">
+                <p className="text-xs font-semibold text-inkSecondary">리스크 관리</p>
+                {RISK_OPTIONS.map((opt) => {
+                  const isChecked = form.strategy_checklist.includes(opt);
+                  return (
+                    <div key={opt} className="space-y-1">
+                      <label className="flex items-center gap-2 text-xs text-ink cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            setForm((prev) => ({
+                              ...prev,
+                              strategy_checklist: e.target.checked
+                                ? [...prev.strategy_checklist, opt]
+                                : prev.strategy_checklist.filter((s) => s !== opt),
+                              strategy_notes: e.target.checked
+                                ? { ...(prev.strategy_notes ?? {}), [opt]: "" }
+                                : prev.strategy_notes ?? {},
+                            }));
+                          }}
+                          className="accent-indigo-700 shrink-0"
+                        />
+                        {opt}
+                      </label>
+                      {!isChecked && (
+                        <textarea
+                          rows={2}
+                          placeholder="미준수 이유를 입력하세요"
+                          value={(form.strategy_notes ?? {})[opt] ?? ""}
+                          onChange={(e) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              strategy_notes: { ...(prev.strategy_notes ?? {}), [opt]: e.target.value },
+                            }))
+                          }
+                          className="w-full rounded border border-border bg-background px-2 py-1 text-xs text-ink resize-none"
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
@@ -619,10 +687,42 @@ export default function TradesPage() {
                       <tr className="border-t border-border bg-surfaceMuted">
                         <td colSpan={11} className="px-3 py-2 text-xs text-inkSecondary space-y-1">
                           <div>이유: {row.reason && row.reason.trim() !== "" ? row.reason : "이유 없음"}</div>
-                          {row.note && <div>메모: {row.note}</div>}
                           {row.strategy_checklist && row.strategy_checklist.length > 0 && (
-                            <div>전략: {row.strategy_checklist.join(", ")}</div>
+                            <div className="mt-1 space-y-0.5">
+                              <span className="font-medium">체크 항목:</span>
+                              {row.strategy_checklist.map((item) => {
+                                const note = (row.strategy_notes ?? {})[item];
+                                return (
+                                  <div key={item} className="pl-2">
+                                    ✓ {item}
+                                    {note && note.trim() !== "" && (
+                                      <span className="ml-1 text-inkMuted">— {note}</span>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
                           )}
+                          {(() => {
+                            const allOpts = [...INVESTMENT_OPTIONS, ...RISK_OPTIONS];
+                            const uncheckedWithNotes = allOpts.filter(
+                              (opt) =>
+                                !row.strategy_checklist?.includes(opt) &&
+                                (row.strategy_notes ?? {})[opt] &&
+                                ((row.strategy_notes ?? {})[opt] ?? "").trim() !== ""
+                            );
+                            if (uncheckedWithNotes.length === 0) return null;
+                            return (
+                              <div className="mt-1 space-y-0.5">
+                                <span className="font-medium">미준수 이유:</span>
+                                {uncheckedWithNotes.map((opt) => (
+                                  <div key={opt} className="pl-2">
+                                    ✗ {opt} — {(row.strategy_notes ?? {})[opt]}
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          })()}
                         </td>
                       </tr>
                     )}

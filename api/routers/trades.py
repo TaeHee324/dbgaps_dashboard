@@ -126,7 +126,7 @@ def trade_log():
         with conn.cursor() as cur:
             cur.execute(
                 "SELECT id, date::text, action, etf_code, etf_name, "
-                "weight_before, weight_after, reason, note, strategy_checklist, "
+                "weight_before, weight_after, reason, strategy_checklist, strategy_notes, "
                 "quantity, price, amount "
                 "FROM trade_log ORDER BY date DESC, id DESC"
             )
@@ -145,8 +145,8 @@ def trade_log():
             "weight_before": float(row["weight_before"]),
             "weight_after": float(row["weight_after"]),
             "reason": row["reason"],
-            "note": row["note"],
             "strategy_checklist": checklist if isinstance(checklist, list) else [],
+            "strategy_notes": (json.loads(row["strategy_notes"]) if isinstance(row["strategy_notes"], str) else row["strategy_notes"]) or {},
             "quantity": float(row["quantity"]) if row["quantity"] is not None else None,
             "price": float(row["price"]) if row["price"] is not None else None,
             "amount": float(row["amount"]) if row["amount"] is not None else None,
@@ -171,10 +171,10 @@ def add_trade(payload: schemas.AddTradeRequest):
                 """
                 INSERT INTO trade_log
                   (date, action, etf_code, etf_name, weight_before, weight_after,
-                   reason, note, strategy_checklist, quantity, price, amount)
+                   reason, strategy_checklist, strategy_notes, quantity, price, amount)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id, date::text, action, etf_code, etf_name,
-                          weight_before, weight_after, reason, note, strategy_checklist,
+                          weight_before, weight_after, reason, strategy_checklist, strategy_notes,
                           quantity, price, amount
                 """,
                 (
@@ -185,8 +185,8 @@ def add_trade(payload: schemas.AddTradeRequest):
                     weight_before,
                     weight_after,
                     payload.reason,
-                    payload.note,
                     json.dumps(payload.strategy_checklist, ensure_ascii=False),
+                    json.dumps(payload.strategy_notes, ensure_ascii=False),
                     payload.quantity,
                     payload.price,
                     payload.amount,
@@ -206,8 +206,8 @@ def add_trade(payload: schemas.AddTradeRequest):
         "weight_before": float(row["weight_before"]),
         "weight_after": float(row["weight_after"]),
         "reason": row["reason"],
-        "note": row["note"],
         "strategy_checklist": checklist if isinstance(checklist, list) else [],
+        "strategy_notes": (json.loads(row["strategy_notes"]) if isinstance(row["strategy_notes"], str) else row["strategy_notes"]) or {},
         "quantity": float(row["quantity"]) if row["quantity"] is not None else None,
         "price": float(row["price"]) if row["price"] is not None else None,
         "amount": float(row["amount"]) if row["amount"] is not None else None,
@@ -233,11 +233,11 @@ def update_trade(trade_id: int, payload: schemas.UpdateTradeRequest):
                 UPDATE trade_log
                 SET date = %s, action = %s, etf_code = %s, etf_name = %s,
                     weight_before = %s, weight_after = %s, reason = %s,
-                    note = %s, strategy_checklist = %s,
+                    strategy_checklist = %s, strategy_notes = %s,
                     quantity = %s, price = %s, amount = %s
                 WHERE id = %s
                 RETURNING id, date::text, action, etf_code, etf_name,
-                          weight_before, weight_after, reason, note, strategy_checklist,
+                          weight_before, weight_after, reason, strategy_checklist, strategy_notes,
                           quantity, price, amount
                 """,
                 (
@@ -248,8 +248,8 @@ def update_trade(trade_id: int, payload: schemas.UpdateTradeRequest):
                     weight_before,
                     weight_after,
                     payload.reason,
-                    payload.note,
                     json.dumps(payload.strategy_checklist, ensure_ascii=False),
+                    json.dumps(payload.strategy_notes, ensure_ascii=False),
                     payload.quantity,
                     payload.price,
                     payload.amount,
@@ -272,8 +272,8 @@ def update_trade(trade_id: int, payload: schemas.UpdateTradeRequest):
         "weight_before": float(row["weight_before"]),
         "weight_after": float(row["weight_after"]),
         "reason": row["reason"],
-        "note": row["note"],
         "strategy_checklist": checklist if isinstance(checklist, list) else [],
+        "strategy_notes": (json.loads(row["strategy_notes"]) if isinstance(row["strategy_notes"], str) else row["strategy_notes"]) or {},
         "quantity": float(row["quantity"]) if row["quantity"] is not None else None,
         "price": float(row["price"]) if row["price"] is not None else None,
         "amount": float(row["amount"]) if row["amount"] is not None else None,

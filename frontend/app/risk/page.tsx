@@ -538,7 +538,7 @@ type RiskTab = "dashboard" | "strategy";
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function RiskPage() {
   const [activeTab, setActiveTab] = useState<RiskTab>("dashboard");
-  const { data: strategyDoc } = useDoc("strategy", "리스크관리전략_v5");
+  const { data: strategyDoc } = useDoc("strategy", "리스크관리전략");
 
   const actualNavQuery = useActualNav();
   const riskPortfolioQuery = useRiskPortfolio();
