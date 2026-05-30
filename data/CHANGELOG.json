@@ -1,5 +1,12 @@
 [
   {
+    "hash": "c1721855",
+    "date": "2026-05-31",
+    "subject": "fix: 비교 탭 NAV 차트·산점도 높이 통일 (400px)",
+    "body": "Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "fix"
+  },
+  {
     "hash": "53be8985",
     "date": "2026-05-31",
     "subject": "feat: 포트폴리오 비교 탭 기간 필터 전면 연동 및 UX 개선",
@@ -341,12 +348,5 @@
     "subject": "feat: LiveHolding 통합, 지표 확장, UI 개선 (ETF담기·비교탭·보고서·새탭)",
     "body": "- 운용현황: trade_log DB 기반 LiveHolding으로 완전 교체 (run_engine.py 의존 제거)\n  - _calc_live_holdings()에 prices_daily.csv 현재가·etf_master.csv 구분 lookup 추가\n  - 시가평가금액·평가손익·수익률·비중 실시간 계산\n  - LiveHolding 스키마 13필드로 확장 (Holding과 동일)\n  - trades 매도 드롭다운도 portfolioEtfs(live 기반)로 통일\n\n- 지표 확장: Sortino·Information Ratio·MDD기간·월별승률·VaR 95%·Tail Ratio\n  - src/metrics.py: information_ratio(), var_historic(), tail_ratio() 신규\n  - MetricsSummary·portfolio_summary.csv·PortfolioSummary 스키마 확장\n  - KpiStrip에 4개 타일 추가 (소르티노·MDD기간·월별승률·VaR 95%)\n  - PieChart.tsx 신규 (SVG 기반 보유비중 파이차트)\n\n- ETF 포트폴리오: 차트 패널 하단 비중 입력 + 담기 버튼으로 클릭 한 번 추가\n- 홈 탭: 운용전략·월별히트맵 각각 full-width 패널로 분리\n- 운용보고서: 카드 그리드 → 좌측 스택탭 + 우측 콘텐츠 패널 레이아웃\n- 포트폴리오 비교: 체크박스 필터·NAV/Drawdown 토글·Sortino·Vol·승률 컬럼 추가\n- 신규 탭: 리서치·대회룰 (준비 중 플레이스홀더)\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
     "type": "feat"
-  },
-  {
-    "hash": "b8894aef",
-    "date": "2026-05-25",
-    "subject": "test: add report image asset",
-    "body": "테스트: Markdown 보고서 이미지 렌더링 확인용 PNG를 추가합니다.",
-    "type": "test"
   }
 ]
