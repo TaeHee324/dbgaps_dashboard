@@ -1,5 +1,12 @@
 [
   {
+    "hash": "334dc989",
+    "date": "2026-05-31",
+    "subject": "refactor: docs 자동 스캔 패턴 도입 + 이미지 URL 인코딩 + 5월 보고서 필터",
+    "body": "- docs/{category}/ 폴더 자동 스캔 (파일 추가 시 코드 수정 불필요)\n- 하드코딩 _STRATEGY_DOCS 제거, frontmatter title/date 자동 파싱\n- 엔드포인트 /api/strategy-doc* → /api/docs/{category}/{slug}\n- 이미지 URL 인코딩: urllib.parse.quote로 파일명 스페이스 처리\n- report_list(): 202605 이전 보고서 API 응답에서 제외\n- 훅: useStrategyDocs/useStrategyDoc → useDocs/useDoc(category, slug)\n- CLAUDE.md에 docs/{category}/ 패턴 및 파일 추가 방법 문서화\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "refactor"
+  },
+  {
     "hash": "a2171572",
     "date": "2026-05-31",
     "subject": "하네스 병경",
@@ -341,12 +348,5 @@
     "subject": "test: update monthly report markdown",
     "body": "테스트: 주간 수익률 테이블과 이미지 렌더링 테스트 Markdown을 추가합니다.",
     "type": "test"
-  },
-  {
-    "hash": "c5b09152",
-    "date": "2026-05-25",
-    "subject": "feat: 매매일지 개선, ETF 필터, 업데이트 로그, 운용보고서 마크다운, 포트폴리오 비교 자동갱신",
-    "body": "- 매매일지: trade_log에 quantity/price/amount 컬럼 추가, 수량·단가 입력 폼, 역산 계산기(목표 비중→필요 수량), 리밸런싱 시 운용 포트폴리오 ETF 드롭다운\n- 운용현황: trade_log DB 기반 실시간 보유종목 계산(/api/live-holdings, /api/portfolio-etfs)\n- ETF 포트폴리오: 위험구분·자산구분 2단계 Pill 필터 UI (API 데이터 반환 시 자동 활성화)\n- 운용보고서: remark-gfm + rehype-raw + Tailwind Typography 적용, 이미지 경로 자동 변환\n- 포트폴리오 비교: 저장 시 comparison CSV 자동 갱신, 데이터 시작일 컬럼 추가\n- 업데이트 로그: /changelog 탭 신규, CHANGELOG.json + 생성 스크립트, /api/update-log 엔드포인트\n- API: /api/etf-list에 risk_type·asset_class 포함, /api/report-image 이미지 서빙\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
-    "type": "feat"
   }
 ]
