@@ -1,5 +1,12 @@
 [
   {
+    "hash": "53be8985",
+    "date": "2026-05-31",
+    "subject": "feat: 포트폴리오 비교 탭 기간 필터 전면 연동 및 UX 개선",
+    "body": "- NAV/Drawdown 차트: 기간 필터 시 첫 포인트 기준 재정규화 (원점 0 시작)\n- 산점도: 기간 필터 및 포트폴리오 선택 필터 모두 연동\n- 비교 지표 테이블: 소르티노·연간변동성·승률 기간 필터 시 계산값 표시\n- computeMetrics() 7개 지표로 확장 (sortino, annual_volatility, win_rate 추가)\n- 체크박스를 차트 위에서 비교 지표 섹션 헤더로 이동\n- 선택 해제 시 테이블 행 숨김 → opacity-40 dim 처리로 변경\n- ComparisonChart height prop 추가, 양쪽 차트 340px 높이 동기화\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "feat"
+  },
+  {
     "hash": "334dc989",
     "date": "2026-05-31",
     "subject": "refactor: docs 자동 스캔 패턴 도입 + 이미지 URL 인코딩 + 5월 보고서 필터",
@@ -340,13 +347,6 @@
     "date": "2026-05-25",
     "subject": "test: add report image asset",
     "body": "테스트: Markdown 보고서 이미지 렌더링 확인용 PNG를 추가합니다.",
-    "type": "test"
-  },
-  {
-    "hash": "8fba4a88",
-    "date": "2026-05-25",
-    "subject": "test: update monthly report markdown",
-    "body": "테스트: 주간 수익률 테이블과 이미지 렌더링 테스트 Markdown을 추가합니다.",
     "type": "test"
   }
 ]
