@@ -1,5 +1,12 @@
 [
   {
+    "hash": "a2171572",
+    "date": "2026-05-31",
+    "subject": "하네스 병경",
+    "body": "",
+    "type": "update"
+  },
+  {
     "hash": "972a5604",
     "date": "2026-05-31",
     "subject": "feat: 전략 문서 렌더링 — 운용보고서 탭 전략 섹션, 리스크 탭 전략 원칙 서브탭, Mermaid 지원",
@@ -340,13 +347,6 @@
     "date": "2026-05-25",
     "subject": "feat: 매매일지 개선, ETF 필터, 업데이트 로그, 운용보고서 마크다운, 포트폴리오 비교 자동갱신",
     "body": "- 매매일지: trade_log에 quantity/price/amount 컬럼 추가, 수량·단가 입력 폼, 역산 계산기(목표 비중→필요 수량), 리밸런싱 시 운용 포트폴리오 ETF 드롭다운\n- 운용현황: trade_log DB 기반 실시간 보유종목 계산(/api/live-holdings, /api/portfolio-etfs)\n- ETF 포트폴리오: 위험구분·자산구분 2단계 Pill 필터 UI (API 데이터 반환 시 자동 활성화)\n- 운용보고서: remark-gfm + rehype-raw + Tailwind Typography 적용, 이미지 경로 자동 변환\n- 포트폴리오 비교: 저장 시 comparison CSV 자동 갱신, 데이터 시작일 컬럼 추가\n- 업데이트 로그: /changelog 탭 신규, CHANGELOG.json + 생성 스크립트, /api/update-log 엔드포인트\n- API: /api/etf-list에 risk_type·asset_class 포함, /api/report-image 이미지 서빙\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
-    "type": "feat"
-  },
-  {
-    "hash": "e00184a8",
-    "date": "2026-05-25",
-    "subject": "feat: Claude.ai 승인 디자인 전면 적용 (Pretendard·JetBrains Mono, 새 토큰, KPI 스트립, 히트맵)",
-    "body": "- tailwind.config.ts: 색상 토큰 전면 갱신 (차분한 인디고 #3F2EE0, 짙은 ink #0B1B2C,\n  초록/빨강 수익 컬러), 폰트를 Pretendard Variable + JetBrains Mono로 교체\n- globals.css: CSS 변수 업데이트, 바디 기본 폰트 13px Pretendard 적용\n- layout.tsx: CDN 폰트 링크 추가, 브랜드 마크(D 뱃지) + 사이드바 스타일 리뉴얼\n- KpiStrip.tsx: 7개 지표 연결형 패널 스트립으로 재설계, variant prop 제거\n- StatusBar.tsx: LIVE 녹색 점 + 날짜 필 배지로 교체\n- HoldingsTable.tsx: 비중 바 차트 내장, 수익 색상 국제 표준(초록=이익, 빨강=손실) 적용\n- MonthlyHeatmap.tsx: 신규 — 월별 수익률 히트맵 컴포넌트 (실제 API 데이터)\n- page.tsx: 패널 헤더 패턴 도입, 2열 그리드, 히트맵 섹션 추가\n- design-prototype/kpi-demo.tsx: Claude.ai Artifact 프로토타이핑용 데모 파일 추가\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
     "type": "feat"
   }
 ]
