@@ -6,12 +6,14 @@ import {
   useRiskPortfolio,
   useEtfRiskAnalysis,
   useEtfPrices,
+  useStrategyDoc,
   type EtfRiskItem,
   type EtfPricePoint,
 } from "@/lib/hooks/dashboard";
 import { computeActualOpsMetrics } from "@/lib/utils/metrics";
 import { EtfRiskLineChart } from "@/components/charts/EtfRiskLineChart";
 import { InfoTooltip } from "@/components/ui/InfoTooltip";
+import { MarkdownDoc } from "@/components/ui/MarkdownDoc";
 
 // ─── Design tokens ───────────────────────────────────────────────────────────
 const C = {
@@ -531,8 +533,13 @@ function SelectedEtfPanel({
   );
 }
 
+type RiskTab = "dashboard" | "strategy";
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function RiskPage() {
+  const [activeTab, setActiveTab] = useState<RiskTab>("dashboard");
+  const { data: strategyDoc } = useStrategyDoc("risk-strategy");
+
   const actualNavQuery = useActualNav();
   const riskPortfolioQuery = useRiskPortfolio();
   const etfRiskQuery = useEtfRiskAnalysis();
@@ -592,18 +599,50 @@ export default function RiskPage() {
           }
         }
       `}</style>
-      {/* 헤더 */}
-      <h1
-        style={{
-          margin: 0,
-          fontSize: 20,
-          fontWeight: 700,
-          letterSpacing: "-0.01em",
-          color: C.ink,
-        }}
-      >
-        리스크 관리
-      </h1>
+      {/* 헤더 + 탭 */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, letterSpacing: "-0.01em", color: C.ink }}>
+          리스크 관리
+        </h1>
+        <div style={{ display: "inline-flex", padding: 2, border: `1px solid ${C.border}`, borderRadius: 6, background: C.surface, alignSelf: "flex-start" }}>
+          {([["dashboard", "리스크 현황"], ["strategy", "전략 원칙"]] as [RiskTab, string][]).map(([tab, label]) => {
+            const active = activeTab === tab;
+            return (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setActiveTab(tab)}
+                style={{
+                  border: 0,
+                  borderRadius: 4,
+                  padding: "5px 14px",
+                  background: active ? C.primary : "transparent",
+                  color: active ? C.surface : C.inkSecondary,
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 전략 원칙 탭 */}
+      {activeTab === "strategy" && (
+        <div style={{ ...PANEL, padding: "24px 28px" }}>
+          {strategyDoc ? (
+            <MarkdownDoc content={strategyDoc.content} />
+          ) : (
+            <p style={{ ...MONO, fontSize: 12, color: C.inkSecondary }}>불러오는 중...</p>
+          )}
+        </div>
+      )}
+
+      {/* 리스크 현황 탭 콘텐츠 */}
+      {activeTab === "dashboard" && (<>
 
       {/* 섹션 1 — 리스크 요약 카드 4개 */}
       <div className="risk-summary-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
@@ -741,6 +780,7 @@ export default function RiskPage() {
         prices={etfPricesQuery.data ?? []}
         isLoading={etfPricesQuery.isLoading}
       />
+      </>)}
     </div>
   );
 }

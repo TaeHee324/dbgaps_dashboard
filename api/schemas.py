@@ -279,3 +279,14 @@ class EtfRiskItem(BaseModel):
 class UpdateActiveHoldingRequest(BaseModel):
     code: str
     weight: float
+
+
+class StrategyDocItem(BaseModel):
+    slug: str
+    title: str
+
+
+class StrategyDocResponse(BaseModel):
+    slug: str
+    title: str
+    content: str

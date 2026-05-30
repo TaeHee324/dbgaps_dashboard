@@ -345,3 +345,29 @@ export function useEtfPrices(code: string | null | undefined) {
     enabled: !!code,
   });
 }
+
+export type StrategyDocItem = {
+  slug: string;
+  title: string;
+};
+
+export type StrategyDocResponse = {
+  slug: string;
+  title: string;
+  content: string;
+} | null;
+
+export function useStrategyDocs() {
+  return useQuery({
+    queryKey: ["strategy-docs"],
+    queryFn: () => get<StrategyDocItem[]>("/api/strategy-docs"),
+  });
+}
+
+export function useStrategyDoc(slug: string) {
+  return useQuery({
+    queryKey: ["strategy-doc", slug],
+    queryFn: () => get<StrategyDocResponse>(`/api/strategy-doc/${encodeURIComponent(slug)}`),
+    enabled: !!slug,
+  });
+}

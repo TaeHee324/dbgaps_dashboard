@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import subprocess
 import threading
 from datetime import datetime
@@ -16,6 +17,18 @@ from api import schemas
 ROOT = Path(__file__).resolve().parents[2]
 OUTPUT_DIR = ROOT / "output"
 DATA_DIR = ROOT / "data"
+STRATEGY_DIR = ROOT / "docs" / "strategy"
+
+_STRATEGY_DOCS = [
+    {"slug": "investment-philosophy", "title": "투자철학", "filename": "투자철학_v5.md"},
+    {"slug": "risk-strategy", "title": "리스크 관리 전략", "filename": "리스크관리전략_v5.md"},
+]
+
+
+def _process_strategy_content(text: str) -> str:
+    text = re.sub(r"^---\n.*?\n---\n*", "", text, count=1, flags=re.DOTALL)
+    text = re.sub(r"!\[\[([^\]]+)\]\]", r"![](/docs-images/\1)", text)
+    return text.strip()
 
 router = APIRouter(prefix="/api", tags=["dashboard"])
 
@@ -350,6 +363,26 @@ def report_by_filename(filename: str):
     except Exception:
         return None
     return {"content": content, "filename": safe_name}
+
+
+@router.get("/strategy-docs", response_model=list[schemas.StrategyDocItem])
+def strategy_docs():
+    return [{"slug": d["slug"], "title": d["title"]} for d in _STRATEGY_DOCS]
+
+
+@router.get("/strategy-doc/{slug}", response_model=schemas.StrategyDocResponse | None)
+def strategy_doc(slug: str):
+    entry = next((d for d in _STRATEGY_DOCS if d["slug"] == slug), None)
+    if not entry:
+        return None
+    path = STRATEGY_DIR / entry["filename"]
+    if not path.exists():
+        return None
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except Exception:
+        return None
+    return {"slug": slug, "title": entry["title"], "content": _process_strategy_content(raw)}
 
 
 def _calc_live_holdings() -> list[dict]:
