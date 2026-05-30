@@ -1,5 +1,12 @@
 [
   {
+    "hash": "e678ce52",
+    "date": "2026-05-31",
+    "subject": "fix: NAV 비교 차트 모서리 둥글게 처리 (rounded-lg overflow-hidden)",
+    "body": "Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "fix"
+  },
+  {
     "hash": "c1721855",
     "date": "2026-05-31",
     "subject": "fix: 비교 탭 NAV 차트·산점도 높이 통일 (400px)",
@@ -341,12 +348,5 @@
     "subject": "chore: output CSV 갱신 (portfolio_summary 새 지표 컬럼 반영)",
     "body": "- portfolio_summary.csv: sortino·information_ratio·mdd_duration·win_rate_monthly·var_95·tail_ratio 컬럼 포함\n- backtest_nav.csv·current_holdings.csv·rule_*.csv: 최신 엔진 실행 결과 반영\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
     "type": "chore"
-  },
-  {
-    "hash": "c047d924",
-    "date": "2026-05-25",
-    "subject": "feat: LiveHolding 통합, 지표 확장, UI 개선 (ETF담기·비교탭·보고서·새탭)",
-    "body": "- 운용현황: trade_log DB 기반 LiveHolding으로 완전 교체 (run_engine.py 의존 제거)\n  - _calc_live_holdings()에 prices_daily.csv 현재가·etf_master.csv 구분 lookup 추가\n  - 시가평가금액·평가손익·수익률·비중 실시간 계산\n  - LiveHolding 스키마 13필드로 확장 (Holding과 동일)\n  - trades 매도 드롭다운도 portfolioEtfs(live 기반)로 통일\n\n- 지표 확장: Sortino·Information Ratio·MDD기간·월별승률·VaR 95%·Tail Ratio\n  - src/metrics.py: information_ratio(), var_historic(), tail_ratio() 신규\n  - MetricsSummary·portfolio_summary.csv·PortfolioSummary 스키마 확장\n  - KpiStrip에 4개 타일 추가 (소르티노·MDD기간·월별승률·VaR 95%)\n  - PieChart.tsx 신규 (SVG 기반 보유비중 파이차트)\n\n- ETF 포트폴리오: 차트 패널 하단 비중 입력 + 담기 버튼으로 클릭 한 번 추가\n- 홈 탭: 운용전략·월별히트맵 각각 full-width 패널로 분리\n- 운용보고서: 카드 그리드 → 좌측 스택탭 + 우측 콘텐츠 패널 레이아웃\n- 포트폴리오 비교: 체크박스 필터·NAV/Drawdown 토글·Sortino·Vol·승률 컬럼 추가\n- 신규 탭: 리서치·대회룰 (준비 중 플레이스홀더)\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
-    "type": "feat"
   }
 ]
