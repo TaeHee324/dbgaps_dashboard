@@ -6,7 +6,7 @@ import {
   useRiskPortfolio,
   useEtfRiskAnalysis,
   useEtfPrices,
-  useStrategyDoc,
+  useDoc,
   type EtfRiskItem,
   type EtfPricePoint,
 } from "@/lib/hooks/dashboard";
@@ -538,7 +538,7 @@ type RiskTab = "dashboard" | "strategy";
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function RiskPage() {
   const [activeTab, setActiveTab] = useState<RiskTab>("dashboard");
-  const { data: strategyDoc } = useStrategyDoc("risk-strategy");
+  const { data: strategyDoc } = useDoc("strategy", "리스크관리전략_v5");
 
   const actualNavQuery = useActualNav();
   const riskPortfolioQuery = useRiskPortfolio();

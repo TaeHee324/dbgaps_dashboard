@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import subprocess
 import threading
+import urllib.parse
 from datetime import datetime
 from pathlib import Path
 
@@ -17,18 +18,54 @@ from api import schemas
 ROOT = Path(__file__).resolve().parents[2]
 OUTPUT_DIR = ROOT / "output"
 DATA_DIR = ROOT / "data"
-STRATEGY_DIR = ROOT / "docs" / "strategy"
-
-_STRATEGY_DOCS = [
-    {"slug": "investment-philosophy", "title": "투자철학", "filename": "투자철학_v5.md"},
-    {"slug": "risk-strategy", "title": "리스크 관리 전략", "filename": "리스크관리전략_v5.md"},
-]
+DOCS_BASE = ROOT / "docs"
 
 
-def _process_strategy_content(text: str) -> str:
-    text = re.sub(r"^---\n.*?\n---\n*", "", text, count=1, flags=re.DOTALL)
-    text = re.sub(r"!\[\[([^\]]+)\]\]", r"![](/docs-images/\1)", text)
-    return text.strip()
+def _parse_frontmatter(text: str) -> tuple[dict[str, str], str]:
+    """YAML frontmatter를 파싱해 (메타dict, 본문) 반환."""
+    m = re.match(r"^---\n(.*?)\n---\n*", text, re.DOTALL)
+    if not m:
+        return {}, text
+    body = text[m.end():]
+    fm: dict[str, str] = {}
+    for line in m.group(1).splitlines():
+        if ":" in line and not line.startswith((" ", "-")):
+            key, _, val = line.partition(":")
+            val = val.strip()
+            if val:
+                fm[key.strip()] = val
+    return fm, body
+
+
+def _process_doc_content(text: str) -> str:
+    """frontmatter 제거 + Obsidian 이미지 문법 → URL-encoded 표준 markdown 변환."""
+    _, body = _parse_frontmatter(text)
+
+    def _encode_img(m: re.Match) -> str:
+        return f"![](/docs-images/{urllib.parse.quote(m.group(1))})"
+
+    return re.sub(r"!\[\[([^\]]+)\]\]", _encode_img, body).strip()
+
+
+def _list_docs(category: str) -> list[dict]:
+    """docs/{category}/ 폴더를 스캔해 DocItem 목록 반환 (date 내림차순)."""
+    cat_dir = DOCS_BASE / Path(category).name  # path traversal 방지
+    if not cat_dir.exists():
+        return []
+    docs = []
+    for f in cat_dir.glob("*.md"):
+        try:
+            raw = f.read_text(encoding="utf-8")
+        except Exception:
+            continue
+        fm, _ = _parse_frontmatter(raw)
+        docs.append({
+            "slug": f.stem,
+            "title": fm.get("title") or f.stem,
+            "date": fm.get("date") or "",
+        })
+    docs.sort(key=lambda d: d["date"] or "0000-00-00", reverse=True)
+    return docs
 
 router = APIRouter(prefix="/api", tags=["dashboard"])
 
@@ -333,7 +370,11 @@ def report():
 def report_list():
     if not OUTPUT_DIR.exists():
         return []
-    files = sorted(OUTPUT_DIR.glob("report_*.md"), reverse=True)
+    # 202605 이전(운용 전) 보고서 제외
+    files = [
+        f for f in sorted(OUTPUT_DIR.glob("report_*.md"), reverse=True)
+        if f.stem.replace("report_", "") >= "202606"
+    ]
     result = []
     for f in files:
         # filename 예: report_202606.md → period: "2026년 06월", title: "DBGAPS 운용보고서 2026년 06월"
@@ -365,24 +406,27 @@ def report_by_filename(filename: str):
     return {"content": content, "filename": safe_name}
 
 
-@router.get("/strategy-docs", response_model=list[schemas.StrategyDocItem])
-def strategy_docs():
-    return [{"slug": d["slug"], "title": d["title"]} for d in _STRATEGY_DOCS]
+@router.get("/docs/{category}", response_model=list[schemas.DocItem])
+def docs_list(category: str):
+    return _list_docs(category)
 
 
-@router.get("/strategy-doc/{slug}", response_model=schemas.StrategyDocResponse | None)
-def strategy_doc(slug: str):
-    entry = next((d for d in _STRATEGY_DOCS if d["slug"] == slug), None)
-    if not entry:
-        return None
-    path = STRATEGY_DIR / entry["filename"]
+@router.get("/docs/{category}/{slug}", response_model=schemas.DocResponse | None)
+def docs_detail(category: str, slug: str):
+    cat_dir = DOCS_BASE / Path(category).name
+    path = cat_dir / f"{Path(slug).name}.md"  # path traversal 방지
     if not path.exists():
         return None
     try:
         raw = path.read_text(encoding="utf-8")
     except Exception:
         return None
-    return {"slug": slug, "title": entry["title"], "content": _process_strategy_content(raw)}
+    fm, _ = _parse_frontmatter(raw)
+    return {
+        "slug": slug,
+        "title": fm.get("title") or slug,
+        "content": _process_doc_content(raw),
+    }
 
 
 def _calc_live_holdings() -> list[dict]:

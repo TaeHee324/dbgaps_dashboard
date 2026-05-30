@@ -346,28 +346,33 @@ export function useEtfPrices(code: string | null | undefined) {
   });
 }
 
-export type StrategyDocItem = {
+export type DocItem = {
   slug: string;
   title: string;
+  date?: string;
 };
 
-export type StrategyDocResponse = {
+export type DocResponse = {
   slug: string;
   title: string;
   content: string;
 } | null;
 
-export function useStrategyDocs() {
+export function useDocs(category: string) {
   return useQuery({
-    queryKey: ["strategy-docs"],
-    queryFn: () => get<StrategyDocItem[]>("/api/strategy-docs"),
+    queryKey: ["docs", category],
+    queryFn: () => get<DocItem[]>(`/api/docs/${encodeURIComponent(category)}`),
+    enabled: !!category,
   });
 }
 
-export function useStrategyDoc(slug: string) {
+export function useDoc(category: string, slug: string) {
   return useQuery({
-    queryKey: ["strategy-doc", slug],
-    queryFn: () => get<StrategyDocResponse>(`/api/strategy-doc/${encodeURIComponent(slug)}`),
-    enabled: !!slug,
+    queryKey: ["doc", category, slug],
+    queryFn: () =>
+      get<DocResponse>(
+        `/api/docs/${encodeURIComponent(category)}/${encodeURIComponent(slug)}`
+      ),
+    enabled: !!category && !!slug,
   });
 }

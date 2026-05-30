@@ -281,12 +281,13 @@ class UpdateActiveHoldingRequest(BaseModel):
     weight: float
 
 
-class StrategyDocItem(BaseModel):
+class DocItem(BaseModel):
     slug: str
     title: str
+    date: str = ""
 
 
-class StrategyDocResponse(BaseModel):
+class DocResponse(BaseModel):
     slug: str
     title: str
     content: str

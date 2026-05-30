@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useReports, useReportDetail, useStrategyDocs, useStrategyDoc } from "@/lib/hooks/dashboard";
+import { useReports, useReportDetail, useDocs, useDoc } from "@/lib/hooks/dashboard";
 import { MarkdownDoc } from "@/components/ui/MarkdownDoc";
 
 type SelectedDoc =
@@ -12,7 +12,7 @@ export default function ReportPage() {
   const [selected, setSelected] = useState<SelectedDoc | null>(null);
 
   const { data: reports = [] } = useReports();
-  const { data: strategyDocs = [] } = useStrategyDocs();
+  const { data: strategyDocs = [] } = useDocs("strategy");
 
   // 초기 선택: 전략 문서 첫 번째
   useEffect(() => {
@@ -28,7 +28,7 @@ export default function ReportPage() {
   const strategySlug = selected?.type === "strategy" ? selected.slug : "";
 
   const { data: reportDetail } = useReportDetail(reportFilename);
-  const { data: strategyDetail } = useStrategyDoc(strategySlug);
+  const { data: strategyDetail } = useDoc("strategy", strategySlug);
 
   const activeContent: string | null =
     selected?.type === "strategy"

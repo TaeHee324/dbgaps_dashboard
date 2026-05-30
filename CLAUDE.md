@@ -354,6 +354,37 @@ UI 레이블도 "한도"(상한 뉘앙스) 대신 "최소"를 사용할 것.
 - `prices_daily`: ETF 일별 종가 (date DATE, code VARCHAR(6), close NUMERIC) — PRIMARY KEY (date, code)
   초기 데이터 투입: `python scripts/migrate_prices_to_db.py` (data/prices_daily.csv → DB, 1회성)
 
+## 전략/연구 문서 관리 (docs/{category}/)
+
+`docs/{category}/` 폴더의 `.md` 파일은 코드 수정 없이 자동으로 API에 노출된다.
+
+**파일 추가 방법:**
+1. `docs/{category}/새문서.md` 작성 (frontmatter에 `title`, `date` 필드 필수)
+2. `git commit + push` → Railway 재배포 후 자동 노출
+
+**현재 카테고리:**
+- `docs/strategy/` → `/api/docs/strategy` (보고서 탭 "전략 문서", 리스크 탭 "전략 원칙")
+
+**새 카테고리 추가 시:**
+- `docs/research/` 폴더 생성 후 MD 파일 추가 → `/api/docs/research` 자동 동작
+- 프론트엔드에서 `useDocs("research")` / `useDoc("research", slug)` 훅 사용
+
+**API:**
+- `GET /api/docs/{category}` → `DocItem[]` (date 내림차순, 없으면 name순)
+- `GET /api/docs/{category}/{slug}` → `DocResponse` (slug = 파일명 stem)
+
+**프론트엔드 훅 (`lib/hooks/dashboard.ts`):**
+- `useDocs(category)` → DocItem 목록
+- `useDoc(category, slug)` → DocResponse
+
+**자동 변환:**
+- Obsidian `![[파일명.png]]` → `![](/docs-images/파일명%20인코딩.png)`
+- 이미지 파일은 `frontend/public/docs-images/` 에 위치
+
+**MD 파일 수정 방법:**
+- `docs/strategy/투자철학_v5.md` 등 직접 편집 → commit + push → 즉시 반영
+- 리스크 탭이 참조하는 파일: `docs/strategy/리스크관리전략_v5.md` (slug 하드코딩: `risk/page.tsx`)
+
 ## Validation
 
 For Python code changes:
