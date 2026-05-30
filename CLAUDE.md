@@ -68,6 +68,7 @@ Key scripts:
 - `insert_demo_trade_log.py`: 데모 trade_log 삽입
 - `update_changelog.py`: 변경이력 자동 갱신
 - `migrate_prices_to_db.py`: data/prices_daily.csv → DB 1회성 마이그레이션
+- `recalc_trade_weights.py`: trade_log 전체 레코드의 weight_before/weight_after 일괄 재계산 (1회성; 실행 전 DB 백업 권장)
 
 Expected `src/` roles:
 
@@ -83,8 +84,8 @@ Expected `api/` roles:
 
 - `main.py`: FastAPI app, CORS middleware, router registration
 - `routers/dashboard.py`: output/ 및 data/ CSV 읽기 엔드포인트
-- `routers/portfolios.py`: PostgreSQL CRUD + POST /api/backtest (src/ import 허용 예외)
-- `routers/trades.py`: PostgreSQL DB `trade_log` 테이블 CRUD (`data/trade_log.json`은 존재하지 않음)
+- `routers/portfolios.py`: PostgreSQL CRUD + POST /api/backtest (src/ import 허용 예외); `GET /api/portfolios/active` (현재 운용중 포트폴리오), `POST /api/portfolios/{name}/activate` (운용중 지정), `PATCH /api/portfolios/active/holdings` (특정 ETF 목표 비중 단건 업데이트)
+- `routers/trades.py`: PostgreSQL DB `trade_log` 테이블 CRUD (`data/trade_log.json`은 존재하지 않음); `_calc_weights()`가 quantity·price 있을 때 DB prices_daily로 weight_before/after 자동 계산 (프론트 수동 입력값 무시)
 - `routers/risk.py`: HHI·데이터헬스·ETF별 MDD/변동성/위험기여도 (FIFO 인라인, DB+CSV 직접 읽기)
 - `schemas.py`: Pydantic 응답 모델
 
@@ -321,6 +322,24 @@ UI 레이블도 "한도"(상한 뉘앙스) 대신 "최소"를 사용할 것.
 `usePortfolioSummary()` 및 `computeMetricsFromNav()`는 운용현황 페이지에서 사용 금지 (레거시 제거됨).
 `computeStrategyMetrics()`에서 백테스트 nav의 `cumulative_return`·`drawdown` 필드를 그대로 쓰면 안 됨 — 전체 역사 고점 기준이므로 기간 필터 후 `portfolio_value`로 구간 내 직접 재계산해야 함 (metrics.ts 구현 참조).
 
+### SYNC-11: trade_log weight는 백엔드에서 자동 계산됨 (프론트 수동 입력 무시)
+
+`api/routers/trades.py`의 `_calc_weights()`는 quantity·price가 있을 때 DB에서 이전 거래 내역과 prices_daily를 조회해 weight_before/after를 자동 계산한다.
+프론트엔드에서 weight_before/weight_after를 payload에 담아도 백엔드가 덮어쓴다.
+수동 입력 UI가 있더라도 저장된 값은 서버 계산값이 우선 — UI 표시와 DB 값이 다를 수 있다.
+
+기존 거래 내역 일괄 재계산 필요 시: `python scripts/recalc_trade_weights.py` (1회성, 실행 전 DB 백업 필수).
+
+### SYNC-12: active 포트폴리오 목표 비중은 거래 저장 시 자동 업데이트됨
+
+`trades/page.tsx`의 `handleSubmit`은 거래 저장 완료 후 `PATCH /api/portfolios/active/holdings`를 호출해 해당 ETF의 목표 비중을 업데이트한다.
+- 역산 계산기에 값이 있으면 `calcTargetWeight / 100` 사용
+- 역산 계산기 미사용 시 백엔드 반환 `weight_after` 사용
+- `weight_after === 0`이면 PATCH 미호출 (의도적)
+- active 포트폴리오 없으면 404 → `console.error`만 출력 (거래 저장 롤백 없음)
+
+리스크 탭의 "목표 비중" 드리프트 계산은 이 값을 참조하므로 거래 후 즉시 반영된다.
+
 ## DB Schema Changes
 
 별도 마이그레이션 프레임워크 없음. 컬럼 추가·변경 시:
@@ -329,8 +348,9 @@ UI 레이블도 "한도"(상한 뉘앙스) 대신 "최소"를 사용할 것.
 3. 해당 라우터(`portfolios.py` 등) 쿼리 동시 수정
 
 현재 테이블 목록:
-- `portfolios`: 포트폴리오 정의 (name, holdings JSONB, is_protected, group_name)
-- `trade_log`: 매매 거래내역
+- `portfolios`: 포트폴리오 정의 (name, holdings JSONB, is_protected, group_name, is_active BOOLEAN)
+  — `is_active = TRUE`인 행이 현재 운용중 포트폴리오 (단 1행); 변경 시 기존 active를 FALSE로 먼저 업데이트
+- `trade_log`: 매매 거래내역 (date, action, etf_code, etf_name, weight_before, weight_after, reason, note, strategy_checklist, quantity, price, amount)
 - `prices_daily`: ETF 일별 종가 (date DATE, code VARCHAR(6), close NUMERIC) — PRIMARY KEY (date, code)
   초기 데이터 투입: `python scripts/migrate_prices_to_db.py` (data/prices_daily.csv → DB, 1회성)
 

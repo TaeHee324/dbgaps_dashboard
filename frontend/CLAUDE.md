@@ -24,7 +24,9 @@ npx tsc --noEmit # 타입 체크
 
 - 데이터 훅은 `lib/hooks/` 사용 (`dashboard.ts`, `portfolio.ts`, `trades.ts`)
 - 운용현황 페이지는 반드시 `useLiveHoldings()` 사용 (`useCurrentHoldings()` 레거시)
-- `fetch()` 직접 사용 금지 — `lib/api.ts`의 `get()`/`post()` 또는 `NEXT_PUBLIC_API_URL` 접두어 사용. 상대 URL `/api/...`은 Next.js 서버로 라우팅되어 FastAPI에 도달하지 못함.
+- `fetch()` 직접 사용 금지 — `lib/api.ts`의 `get()`/`post()`/`patch()`/`put()`/`del()` 사용. 상대 URL `/api/...`은 Next.js 서버로 라우팅되어 FastAPI에 도달하지 못함.
+- `portfolio.ts` 훅 목록: `usePortfolioList`, `useBacktest`, `useUpsertPortfolio`, `useDeletePortfolio`, `useActivatePortfolio` (운용중 지정), `useUpdateActiveHolding` (단건 목표 비중 PATCH)
+- `PortfolioScatterChart` — `comparison/page.tsx` 내 인라인 SVG 컴포넌트. `useComparisonSummary` + `usePortfolioList` 데이터 사용. x/y 지표 드롭다운 선택, active 포트폴리오 indigo 강조.
 
 ## KPI 계산 패턴
 
