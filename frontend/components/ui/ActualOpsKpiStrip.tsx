@@ -30,8 +30,19 @@ function fmtValue(value: number | null | undefined, format: KpiItem["format"], d
 
 function valueColor(key: KpiItem["key"], value: number | null | undefined): string {
   if (value === null || value === undefined || !Number.isFinite(value)) return "#46586B";
-  if (key === "mdd") return "#A4232B";
+  if (key === "mdd") {
+    const abs = Math.abs(value as number);
+    if (abs < 0.10) return "#0F5132";  // normal — green
+    if (abs < 0.20) return "#D97706";  // warning — amber
+    return "#A4232B";                  // danger — red
+  }
   if (key === "cumulative_return") return value >= 0 ? "#0F5132" : "#A4232B";
+  if (key === "annual_volatility") {
+    const v = value as number;
+    if (v < 0.25) return "#0B1B2C";  // normal — dark navy
+    if (v < 0.30) return "#D97706";  // warning — amber
+    return "#A4232B";                // alert — red
+  }
   return "#0B1B2C";
 }
 

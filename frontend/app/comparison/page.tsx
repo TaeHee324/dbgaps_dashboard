@@ -128,8 +128,8 @@ function PortfolioScatterChart({
   activePortfolioName: string | null;
   selectedPortfolios: Set<string>;
 }) {
-  const [xKey, setXKey] = useState<MetricKey>("annual_volatility");
-  const [yKey, setYKey] = useState<MetricKey>("cagr");
+  const [xKey, setXKey] = useState<MetricKey>("sharpe");
+  const [yKey, setYKey] = useState<MetricKey>("calmar");
 
   function getScatterValue(item: ComparisonSummaryItem, key: MetricKey): number | null {
     if (period === "전체") {

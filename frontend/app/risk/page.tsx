@@ -86,16 +86,15 @@ function chartData(prices: EtfPricePoint[], mode: ChartMode): { time: string; va
 function mddStage(mdd: number | null | undefined): { label: string; color: string; bg: string } {
   const a = mdd !== null && mdd !== undefined ? Math.abs(mdd) : 0;
   if (a < 0.10) return { label: "정상", color: C.success, bg: C.successBg };
-  if (a < 0.15) return { label: "경고", color: C.warning, bg: C.warningBg };
-  if (a < 0.20) return { label: "위험", color: C.orange, bg: C.orangeBg };
-  return { label: "재검토", color: C.danger, bg: C.dangerBg };
+  if (a < 0.20) return { label: "경고", color: C.warning, bg: C.warningBg };
+  return { label: "위험", color: C.danger, bg: C.dangerBg };
 }
 
 function volStage(vol: number | null | undefined): { label: string; color: string; bg: string } {
   const v = vol ?? 0;
-  if (v < 0.15) return { label: "안정", color: C.success, bg: C.successBg };
-  if (v < 0.25) return { label: "보통", color: C.warning, bg: C.warningBg };
-  return { label: "높음", color: C.danger, bg: C.dangerBg };
+  if (v < 0.25) return { label: "안정", color: C.success, bg: C.successBg };
+  if (v < 0.30) return { label: "주의", color: C.warning, bg: C.warningBg };
+  return { label: "경고", color: C.danger, bg: C.dangerBg };
 }
 
 function healthStage(status: string): { color: string; bg: string } {
@@ -194,55 +193,103 @@ function SummaryCard({
 
 // ─── Rebalancing Banner ───────────────────────────────────────────────────────
 function RebalancingBanner({ items }: { items: EtfRiskItem[] }) {
-  const drifters = items.filter(
-    (x) => x.target_weight !== null && x.weight_drift !== null && Math.abs(x.weight_drift!) >= 0.05
+  const qualified = items.filter(
+    (x) => x.target_weight !== null && x.weight_drift !== null
   );
-  if (drifters.length === 0) return null;
+  const rebalance = qualified.filter((x) => Math.abs(x.weight_drift!) >= 0.05);
+  const observe = qualified.filter(
+    (x) => Math.abs(x.weight_drift!) >= 0.03 && Math.abs(x.weight_drift!) < 0.05
+  );
+
+  if (rebalance.length === 0 && observe.length === 0) return null;
 
   return (
-    <div
-      style={{
-        background: "#FFFBEB",
-        border: `1px solid #FCD34D`,
-        borderRadius: 6,
-        padding: "12px 16px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 6,
-      }}
-    >
-      <div style={{ fontSize: 12.5, fontWeight: 700, color: "#92400E" }}>
-        ⚠ 리밸런싱 검토 필요
-      </div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-        {drifters.map((x) => {
-          const over = (x.weight_drift ?? 0) > 0;
-          return (
-            <span
-              key={x.code}
-              style={{ ...MONO, fontSize: 11.5, color: over ? C.danger : C.warning }}
-            >
-              {x.name} {pctP(x.weight_drift)} {over ? "↑" : "↓"}
-            </span>
-          );
-        })}
-      </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {rebalance.length > 0 && (
+        <div
+          style={{
+            background: "#FEF2F2",
+            border: `1px solid #FCA5A5`,
+            borderRadius: 6,
+            padding: "12px 16px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
+          }}
+        >
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: C.danger }}>
+            ⚠ 리밸런싱 후보
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {rebalance.map((x) => {
+              const over = (x.weight_drift ?? 0) > 0;
+              return (
+                <span
+                  key={x.code}
+                  style={{ ...MONO, fontSize: 11.5, color: C.danger }}
+                >
+                  {x.name} {pctP(x.weight_drift)} {over ? "↑" : "↓"}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      {observe.length > 0 && (
+        <div
+          style={{
+            background: "#FFFBEB",
+            border: `1px solid #FCD34D`,
+            borderRadius: 6,
+            padding: "12px 16px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
+          }}
+        >
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: "#92400E" }}>
+            관찰 대상
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {observe.map((x) => {
+              const over = (x.weight_drift ?? 0) > 0;
+              return (
+                <span
+                  key={x.code}
+                  style={{ ...MONO, fontSize: 11.5, color: C.warning }}
+                >
+                  {x.name} {pctP(x.weight_drift)} {over ? "↑" : "↓"}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // ─── ETF Risk Table ───────────────────────────────────────────────────────────
 function drawdownCellStyle(dd: number): React.CSSProperties {
-  if (dd < -0.15) return { background: C.dangerBg, color: C.danger };
+  if (dd < -0.20) return { background: C.dangerBg, color: C.danger };
   if (dd < -0.10) return { background: C.warningBg, color: C.warning };
   return { color: C.inkSecondary };
 }
 
 function driftCell(drift: number | null): { text: string; color: string } {
   if (drift === null || !Number.isFinite(drift)) return { text: "—", color: C.inkSecondary };
-  if (drift >= 0.05) return { text: `▲ ${pctP(drift)}`, color: C.danger };
-  if (drift <= -0.05) return { text: `▼ ${pctP(drift)}`, color: C.warning };
+  if (drift >= 0.05)  return { text: `▲ ${pctP(drift)}`, color: C.danger };
+  if (drift <= -0.05) return { text: `▼ ${pctP(drift)}`, color: C.danger };
+  if (Math.abs(drift) >= 0.03) return { text: pctP(drift), color: C.warning };
   return { text: pctP(drift), color: C.inkSecondary };
+}
+
+function rcStage(rc: number | null): "normal" | "watch" | "reduce" | "force" {
+  if (rc === null) return "normal";
+  if (rc > 0.55) return "force";
+  if (rc > 0.45) return "reduce";
+  if (rc > 0.35) return "watch";
+  return "normal";
 }
 
 function RiskContributionBars({ items }: { items: EtfRiskItem[] }) {
@@ -270,7 +317,9 @@ function RiskContributionBars({ items }: { items: EtfRiskItem[] }) {
       <div style={{ display: "grid", gap: 10, padding: "13px 14px" }}>
         {rows.map((item) => {
           const value = item.risk_contribution_pct ?? 0;
-          const over = item.current_weight > 0 && value > item.current_weight * 2;
+          const stage = rcStage(item.risk_contribution_pct);
+          const barColor = stage === "reduce" || stage === "force" ? C.danger : stage === "watch" ? C.warning : C.primary;
+          const textColor = stage === "reduce" || stage === "force" ? C.danger : stage === "watch" ? C.warning : C.inkSecondary;
           return (
             <div
               key={item.code}
@@ -288,11 +337,11 @@ function RiskContributionBars({ items }: { items: EtfRiskItem[] }) {
                     width: `${Math.min(value * 100, 100)}%`,
                     height: "100%",
                     borderRadius: 999,
-                    background: over ? C.warning : C.primary,
+                    background: barColor,
                   }}
                 />
               </div>
-              <div style={{ ...MONO, textAlign: "right", fontSize: 12, color: over ? C.warning : C.inkSecondary }}>
+              <div style={{ ...MONO, textAlign: "right", fontSize: 12, color: textColor }}>
                 {(value * 100).toFixed(1)}%
               </div>
             </div>
@@ -366,13 +415,11 @@ function EtfRiskTable({
         </thead>
         <tbody>
           {items.map((item) => {
-            const rowBg = item.current_drawdown < -0.15 ? "#FFF1F2" : "transparent";
+            const rowBg = item.current_drawdown < -0.20 ? "#FFF1F2" : "transparent";
             const dd = driftCell(item.weight_drift);
             const ddStyle = drawdownCellStyle(item.current_drawdown);
-            const rcOverweight =
-              item.risk_contribution_pct !== null &&
-              item.current_weight > 0 &&
-              item.risk_contribution_pct > item.current_weight * 2;
+            const rcLevel = rcStage(item.risk_contribution_pct);
+            const rcOverweight = rcLevel !== "normal";
 
             const selected = selectedCode === item.code;
 
@@ -416,10 +463,10 @@ function EtfRiskTable({
                 <td
                   style={{
                     ...TD_BASE,
-                    background: rcOverweight ? C.warningBg : undefined,
-                    color: rcOverweight ? C.warning : C.inkSecondary,
+                    background: rcLevel === "reduce" || rcLevel === "force" ? C.dangerBg : rcLevel === "watch" ? C.warningBg : undefined,
+                    color: rcLevel === "reduce" || rcLevel === "force" ? C.danger : rcLevel === "watch" ? C.warning : C.inkSecondary,
                   }}
-                  aria-label={rcOverweight ? "비중 대비 위험 집중" : undefined}
+                  aria-label={rcOverweight ? "위험기여도 집중" : undefined}
                 >
                   {item.risk_contribution_pct !== null
                     ? `${(item.risk_contribution_pct * 100).toFixed(1)}%${rcOverweight ? " !" : ""}`

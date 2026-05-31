@@ -75,6 +75,27 @@ export function EtfRiskLineChart({ data, mode }: EtfRiskLineChartProps) {
       });
 
       series.setData(data);
+
+      if (isDrawdown) {
+        const { LineStyle } = await import("lightweight-charts");
+        series.createPriceLine({
+          price: -10,
+          color: "#D97706",
+          lineWidth: 1,
+          lineStyle: LineStyle.Dashed,
+          axisLabelVisible: true,
+          title: "1차 점검",
+        });
+        series.createPriceLine({
+          price: -20,
+          color: "#DC2626",
+          lineWidth: 1,
+          lineStyle: LineStyle.Dashed,
+          axisLabelVisible: true,
+          title: "비중 축소",
+        });
+      }
+
       chart.timeScale().fitContent();
     }
 

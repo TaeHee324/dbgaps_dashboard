@@ -161,7 +161,7 @@ def risk_portfolio():
         hhi = sum(w ** 2 for w in weights)
     else:
         hhi = 0.0
-    hhi_label = "분산양호" if hhi < 0.10 else ("보통" if hhi < 0.18 else "집중경고")
+    hhi_label = "분산양호" if hhi < 0.18 else ("보통" if hhi < 0.25 else "집중경고")
 
     # 데이터 헬스
     latest_price_date = ""
