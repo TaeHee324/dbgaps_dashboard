@@ -1,5 +1,12 @@
 [
   {
+    "hash": "c19024e7",
+    "date": "2026-06-01",
+    "subject": "feat: 리스크 관리 전략 기준 대시보드 전면 동기화",
+    "body": "- HHI 레이블 기준 수정: 0.10/0.18 → 0.18/0.25 (api/routers/risk.py)\n- volStage() 임계값 수정: 0.15/0.25 → 0.25/0.30, 레이블 안정/주의/경고\n- mddStage() 4단계 → 3단계: -0.15 중간 구간 제거, -0.10/-0.20 기준 통일\n- drawdownCellStyle() + 행 배경 danger 임계값 -0.15 → -0.20\n- driftCell() 2단계 → 3단계: ±3%p 관찰 대상 구간 추가\n- RebalancingBanner 2섹션 분리: 관찰 대상(±3%p) / 리밸런싱 후보(±5%p)\n- 위험기여도 기준 상대값(비중×2) → 절대값 35%/45%/55% (rcStage 함수)\n- 산점도 기본 축 변경: annual_volatility/cagr → sharpe/calmar (칼마-샤프 평면)\n- RISK_OPTIONS 체크리스트 5항목 → 7항목: 위험기여도 35%/45% 분리, 이탈폭 ±3%p/±5%p 분리\n- ActualOpsKpiStrip MDD 색상 단계별 처리: 정상(초록) / 경고(앰버) / 위험(빨강)\n- ActualOpsKpiStrip 연환산 변동성 색상 단계별 처리: 25%/30% 기준\n- ETF 드로다운 차트 -10%/-20% 손절 기준선 추가\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "feat"
+  },
+  {
     "hash": "96638e09",
     "date": "2026-05-31",
     "subject": "feat: 매매일지 전략 체크리스트 개편 + 문서 버전 표기 제거",
@@ -340,13 +347,6 @@
     "date": "2026-05-25",
     "subject": "fix: summarize_backtest nav index DatetimeIndex 변환 추가, output CSV 갱신",
     "body": "- src/backtest.py: nav.index를 DatetimeIndex로 변환 → win_rate_monthly 계산 가능\n  (샘플 데이터는 단일 월이라 여전히 None, 실거래 다월 데이터에서 정상 작동)\n- Sortino는 음수 수익일 2개 이상 필요 — 실거래 데이터에서 자동 계산\n- output/: run_sample_engine.py 최신 실행 결과 반영\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
-    "type": "fix"
-  },
-  {
-    "hash": "b9ca4d49",
-    "date": "2026-05-25",
-    "subject": "fix: portfolio-summary API에 새 지표 컬럼 반환 누락 수정",
-    "body": "sortino·information_ratio·mdd_duration·win_rate_monthly·var_95·tail_ratio가\nCSV에는 있었으나 API 엔드포인트가 기존 9개 컬럼만 반환하도록 하드코딩되어\nKpiStrip에 값이 표시되지 않던 문제 수정\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
     "type": "fix"
   }
 ]
