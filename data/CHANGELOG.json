@@ -1,5 +1,12 @@
 [
   {
+    "hash": "fce9da69",
+    "date": "2026-06-01",
+    "subject": "사진 저장",
+    "body": "",
+    "type": "update"
+  },
+  {
     "hash": "ae50c577",
     "date": "2026-06-01",
     "subject": "fix: NavChart eokFormatter 변수 분리로 ESLint no-explicit-any 위치 수정",
@@ -341,12 +348,5 @@
     "subject": "docs: 2026-05-26 개발 계획 파일 추가 (그룹 A~E 실행 순서 및 체크리스트)",
     "body": "Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
     "type": "docs"
-  },
-  {
-    "hash": "88efdf57",
-    "date": "2026-05-26",
-    "subject": "feat: 운용 대시보드 통합 + 데모 포트폴리오 구축 (10억 초기자본)",
-    "body": "[UI]\n- frontend/app/page.tsx: 홈+운용현황 통합 → \"운용 대시보드\" 단일 페이지\n  섹션 순서: Header → KpiStrip → NAV/Drawdown → 보유종목 → LivePortfolioSpec\n            → 회전율 → 투자규칙 → 구성비중 파이차트 → 일별수익률 히트맵\n- frontend/app/layout.tsx: \"홈\"+\"운용현황\" 두 항목 → \"운용 대시보드\" 하나로 통합\n- frontend/app/operations/page.tsx: redirect(\"/\") 로 교체\n- frontend/components/ui/DailyHeatmap.tsx: 신규 — 일별 수익률 캘린더 히트맵 (월~금 + 주간 합계)\n- frontend/components/ui/HoldingsCompositionPanel.tsx: 신규 — 위험구분/자산구분 파이차트\n- frontend/components/ui/LivePortfolioSpec.tsx: 신규 — 현 포트폴리오 온디맨드 백테스트 스펙\n\n[데이터/엔진]\n- src/backtest.py, src/run_engine.py, src/run_sample_engine.py: 초기자본 1억 → 10억\n- data/trades.csv: 데모 포트폴리오 매수 내역 (2026-05-04 기준 6종목)\n- scripts/reset_and_setup_demo.py, scripts/insert_demo_trade_log.py: 데모 세팅 스크립트\n- output/: run_engine.py 재실행 결과 갱신 (2026-05-22 기준)\n  CAGR 71.40%, MDD -11.55%, Sharpe 2.52\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
-    "type": "feat"
   }
 ]
