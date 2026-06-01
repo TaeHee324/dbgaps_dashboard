@@ -1,5 +1,12 @@
 [
   {
+    "hash": "22d85a19",
+    "date": "2026-06-01",
+    "subject": "데스크톱으로 이동",
+    "body": "",
+    "type": "update"
+  },
+  {
     "hash": "fce9da69",
     "date": "2026-06-01",
     "subject": "사진 저장",
@@ -341,12 +348,5 @@
     "subject": "chore: regenerate output CSVs after turnover formula fix",
     "body": "Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
     "type": "chore"
-  },
-  {
-    "hash": "3cb298fd",
-    "date": "2026-05-26",
-    "subject": "docs: 2026-05-26 개발 계획 파일 추가 (그룹 A~E 실행 순서 및 체크리스트)",
-    "body": "Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
-    "type": "docs"
   }
 ]
