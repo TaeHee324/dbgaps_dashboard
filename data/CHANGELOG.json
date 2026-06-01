@@ -1,5 +1,12 @@
 [
   {
+    "hash": "23ae67c3",
+    "date": "2026-06-01",
+    "subject": "fix: NavChart priceFormat any 타입 ESLint 오류 수정",
+    "body": "Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "fix"
+  },
+  {
     "hash": "265d3674",
     "date": "2026-06-01",
     "subject": "feat: 비중 분모 버그 수정, 수수료 0.1% 반영, NAV차트·룰탭 업데이트",
@@ -341,12 +348,5 @@
     "subject": "docs: CLAUDE.md에 Sync Rules 섹션 추가 (SYNC-1~5)",
     "body": "이번 세션 유지보수 중 발생한 반복 실수 방지를 위해 하네스에 내장.\n- SYNC-1: 메트릭 필드 추가 시 6곳 동시 수정 규칙\n- SYNC-2: 비교 CSV 두 생성 경로(run_engine / portfolios upsert) 동기화\n- SYNC-3: output/ 파일 커밋 필수 (Railway git 직독)\n- SYNC-4: summarize_backtest() DatetimeIndex 변환 필수\n- SYNC-5: 운용현황 보유종목 useLiveHoldings() 사용 (useCurrentHoldings 레거시)\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
     "type": "docs"
-  },
-  {
-    "hash": "04d78e3b",
-    "date": "2026-05-25",
-    "subject": "fix: 포트폴리오 비교 탭 — drawdown 차트 + 소르티노·연간변동성·승률 수정",
-    "body": "- src/run_engine.py: comparison nav CSV에 drawdown 컬럼 추가, summary에 sortino·annual_volatility·win_rate 추가\n- api/routers/portfolios.py: 포트폴리오 저장 시 comparison 갱신에도 동일하게 반영\n- api/schemas.py: ComparisonNavPoint에 drawdown 필드 추가\n- api/routers/dashboard.py: /comparison/nav에서 drawdown 컬럼 읽기\n- frontend: ComparisonNavPoint 타입 drawdown 추가, Drawdown 모드에서 실제 데이터 차트로 표시\n- output/comparison/: drawdown·새 지표 컬럼 재계산 반영\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
-    "type": "fix"
   }
 ]
