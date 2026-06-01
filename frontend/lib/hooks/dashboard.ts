@@ -315,7 +315,8 @@ export type EtfRiskItem = {
   target_weight: number | null;
   weight_drift: number | null;
   individual_mdd: number;
-  current_drawdown: number;
+  entry_return: number;
+  mdd_exhaustion: number;
   vol_20d: number | null;
   risk_contribution_pct: number | null;
 };

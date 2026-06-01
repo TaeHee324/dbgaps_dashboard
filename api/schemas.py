@@ -273,7 +273,8 @@ class EtfRiskItem(BaseModel):
     target_weight: float | None = None
     weight_drift: float | None = None
     individual_mdd: float
-    current_drawdown: float
+    entry_return: float = 0.0
+    mdd_exhaustion: float = 0.0
     vol_20d: float | None = None
     risk_contribution_pct: float | None = None
 

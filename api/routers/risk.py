@@ -229,7 +229,6 @@ def etf_analysis():
         weight_drift = (current_weight - target_weight) if target_weight is not None else None
 
         individual_mdd = 0.0
-        current_drawdown = 0.0
         vol_20d = None
 
         if not price_pivot.empty and code in price_pivot.columns:
@@ -238,10 +237,14 @@ def etf_analysis():
                 rolling_max = closes.cummax()
                 drawdowns = (closes - rolling_max) / rolling_max
                 individual_mdd = float(drawdowns.min())
-                current_drawdown = float(drawdowns.iloc[-1])
             rets = closes.pct_change().dropna()
             if len(rets) >= 10:
                 vol_20d = float(rets.tail(20).std() * np.sqrt(252))
+
+        avg_price = h["cost_basis"] / h["quantity"] if h["quantity"] > 0 else 0.0
+        entry_return = (h["current_price"] - avg_price) / avg_price if avg_price > 0 else 0.0
+        loss_from_entry = max(0.0, -entry_return)
+        mdd_exhaustion = loss_from_entry / abs(individual_mdd) if individual_mdd != 0.0 else 0.0
 
         result.append({
             "code": code,
@@ -250,7 +253,8 @@ def etf_analysis():
             "target_weight": target_weight,
             "weight_drift": weight_drift,
             "individual_mdd": individual_mdd,
-            "current_drawdown": current_drawdown,
+            "entry_return": entry_return,
+            "mdd_exhaustion": mdd_exhaustion,
             "vol_20d": vol_20d,
             "risk_contribution_pct": None,
         })

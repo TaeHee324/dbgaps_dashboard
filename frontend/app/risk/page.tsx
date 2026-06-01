@@ -270,9 +270,9 @@ function RebalancingBanner({ items }: { items: EtfRiskItem[] }) {
 }
 
 // ─── ETF Risk Table ───────────────────────────────────────────────────────────
-function drawdownCellStyle(dd: number): React.CSSProperties {
-  if (dd < -0.20) return { background: C.dangerBg, color: C.danger };
-  if (dd < -0.10) return { background: C.warningBg, color: C.warning };
+function exhaustionCellStyle(ratio: number): React.CSSProperties {
+  if (ratio >= 0.80) return { background: C.dangerBg, color: C.danger };
+  if (ratio >= 0.50) return { background: C.warningBg, color: C.warning };
   return { color: C.inkSecondary };
 }
 
@@ -407,17 +407,18 @@ function EtfRiskTable({
             <th style={TH}>현재비중</th>
             <th style={TH}>목표비중</th>
             <th style={TH}>이탈폭</th>
-            <th style={TH}>개별 MDD</th>
-            <th style={TH}>현재낙폭</th>
+            <th style={TH}>역사적 MDD</th>
+            <th style={TH}>매수가 대비</th>
+            <th style={TH}>MDD 소진율</th>
             <th style={TH}>20일 변동성</th>
             <th style={TH}>위험기여도</th>
           </tr>
         </thead>
         <tbody>
           {items.map((item) => {
-            const rowBg = item.current_drawdown < -0.20 ? "#FFF1F2" : "transparent";
+            const rowBg = item.mdd_exhaustion >= 0.80 ? "#FFF1F2" : "transparent";
             const dd = driftCell(item.weight_drift);
-            const ddStyle = drawdownCellStyle(item.current_drawdown);
+            const exhaustionStyle = exhaustionCellStyle(item.mdd_exhaustion);
             const rcLevel = rcStage(item.risk_contribution_pct);
             const rcOverweight = rcLevel !== "normal";
 
@@ -450,14 +451,17 @@ function EtfRiskTable({
                 </td>
                 <td style={{ ...TD_BASE, color: dd.color }}>{dd.text}</td>
                 <td style={{ ...TD_BASE, color: C.danger }}>{pct(item.individual_mdd)}</td>
+                <td style={{ ...TD_BASE, color: item.entry_return < 0 ? C.danger : C.inkSecondary }}>
+                  {pct(item.entry_return)}
+                </td>
                 <td
                   style={{
                     ...TD_BASE,
-                    ...ddStyle,
-                    borderRadius: ddStyle.background ? 3 : 0,
+                    ...exhaustionStyle,
+                    borderRadius: exhaustionStyle.background ? 3 : 0,
                   }}
                 >
-                  {pct(item.current_drawdown)}
+                  {`${(item.mdd_exhaustion * 100).toFixed(0)}%`}
                 </td>
                 <td style={{ ...TD_BASE, color: C.inkSecondary }}>{pct(item.vol_20d)}</td>
                 <td
@@ -564,8 +568,9 @@ function SelectedEtfPanel({
             ["현재비중", pct(item.current_weight)],
             ["목표비중", item.target_weight !== null ? pct(item.target_weight) : "N/A"],
             ["이탈폭", pctP(item.weight_drift)],
-            ["개별 MDD", pct(item.individual_mdd)],
-            ["현재낙폭", pct(item.current_drawdown)],
+            ["역사적 MDD", pct(item.individual_mdd)],
+            ["매수가 대비", pct(item.entry_return)],
+            ["MDD 소진율", `${(item.mdd_exhaustion * 100).toFixed(0)}%`],
             ["20일 변동성", pct(item.vol_20d)],
             ["위험기여도", item.risk_contribution_pct !== null ? pct(item.risk_contribution_pct) : "N/A"],
           ].map(([label, value]) => (
