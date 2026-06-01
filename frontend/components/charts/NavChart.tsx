@@ -78,13 +78,14 @@ export function NavChart({ data, tradeMarkers = [] }: NavChartProps) {
         lastValueVisible: false,
       });
 
+      const eokFormatter = (price: number) => (price / 1e8).toFixed(2) + "억";
       lineSeries.applyOptions({
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         priceFormat: {
           type: "custom",
-          formatter: (price: number) => (price / 1e8).toFixed(2) + "억",
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          formatter: eokFormatter as any,
           minMove: 1_000_000,
-        } as any,
+        },
       });
 
       lineSeries.setData(data);
