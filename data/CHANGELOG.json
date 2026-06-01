@@ -1,5 +1,12 @@
 [
   {
+    "hash": "265d3674",
+    "date": "2026-06-01",
+    "subject": "feat: 비중 분모 버그 수정, 수수료 0.1% 반영, NAV차트·룰탭 업데이트",
+    "body": "- 이슈 1: ETF 비중 분모를 ETF시가 합계 → 전체 포트폴리오(ETF+현금)로 수정\n  (dashboard.py _calc_live_holdings/live_rules/actual_nav, risk.py risk_portfolio/etf_analysis, portfolio.py evaluate_holdings, run_engine.py)\n- 이슈 2: 운용대시보드 파이차트 레이블 '자산군별' → '투자자산군별'\n- 이슈 3: 백테스트 NAV 차트 y축 억 단위 formatter 추가\n- 이슈 4: 거래수수료 0.1% 전면 반영 (schemas, trades, dashboard, risk, backtest)\n- 이슈 5: 룰 탭에 자본금/거래비용, 수익률순위공개방식, 운용보고서 3행 상세 추가\n- 이슈 6: HoldingsCompositionPanel market_value 기준 정규화\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "feat"
+  },
+  {
     "hash": "c19024e7",
     "date": "2026-06-01",
     "subject": "feat: 리스크 관리 전략 기준 대시보드 전면 동기화",
@@ -340,13 +347,6 @@
     "date": "2026-05-25",
     "subject": "fix: 포트폴리오 비교 탭 — drawdown 차트 + 소르티노·연간변동성·승률 수정",
     "body": "- src/run_engine.py: comparison nav CSV에 drawdown 컬럼 추가, summary에 sortino·annual_volatility·win_rate 추가\n- api/routers/portfolios.py: 포트폴리오 저장 시 comparison 갱신에도 동일하게 반영\n- api/schemas.py: ComparisonNavPoint에 drawdown 필드 추가\n- api/routers/dashboard.py: /comparison/nav에서 drawdown 컬럼 읽기\n- frontend: ComparisonNavPoint 타입 drawdown 추가, Drawdown 모드에서 실제 데이터 차트로 표시\n- output/comparison/: drawdown·새 지표 컬럼 재계산 반영\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
-    "type": "fix"
-  },
-  {
-    "hash": "1f932817",
-    "date": "2026-05-25",
-    "subject": "fix: summarize_backtest nav index DatetimeIndex 변환 추가, output CSV 갱신",
-    "body": "- src/backtest.py: nav.index를 DatetimeIndex로 변환 → win_rate_monthly 계산 가능\n  (샘플 데이터는 단일 월이라 여전히 None, 실거래 다월 데이터에서 정상 작동)\n- Sortino는 음수 수익일 2개 이상 필요 — 실거래 데이터에서 자동 계산\n- output/: run_sample_engine.py 최신 실행 결과 반영\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
     "type": "fix"
   }
 ]
