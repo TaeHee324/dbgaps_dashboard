@@ -1,5 +1,12 @@
 [
   {
+    "hash": "4f8c46f4",
+    "date": "2026-06-01",
+    "subject": "feat(risk): replace current_drawdown with entry_return and mdd_exhaustion",
+    "body": "MDD 소진율(위험 예산 소진 비율)과 매수가 대비 등락률을 도입하여\n매수 전 고점 기준 낙폭이 표시되던 문제를 해결한다.\n\n- api/routers/risk.py: avg_price·entry_return·mdd_exhaustion 계산 (current_drawdown 제거)\n- api/schemas.py: EtfRiskItem 필드 교체\n- frontend/lib/hooks/dashboard.ts: EtfRiskItem 타입 동기화\n- frontend/app/risk/page.tsx: 테이블 컬럼 교체, MDD 소진율 50%/80% 색상 임계값 적용\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "feat"
+  },
+  {
     "hash": "22d85a19",
     "date": "2026-06-01",
     "subject": "데스크톱으로 이동",
@@ -341,12 +348,5 @@
     "subject": "feat(backend): 그룹 B — actual-nav, live-rules 엔드포인트 추가 + 회전율 공식 수정",
     "body": "- api/schemas.py: NavPoint에 cash 필드(Optional[float]) 추가\n- api/routers/dashboard.py: GET /api/actual-nav 신설 (trade_log DB 기반 실제 NAV + cash 시계열)\n- api/routers/dashboard.py: GET /api/live-rules 신설 (live holdings 기반 규칙 체크, src/ import 없음)\n- src/turnover.py: 회전율 공식을 대회 룰 기준으로 수정 (총 매매금액 / 평균 자산, 평균 자산 = (기초+기말)/2)\n- src/run_engine.py: check_turnover_limits 호출에 initial_start_date, nav 인자 추가\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
     "type": "feat"
-  },
-  {
-    "hash": "60380e17",
-    "date": "2026-05-26",
-    "subject": "chore: regenerate output CSVs after turnover formula fix",
-    "body": "Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
-    "type": "chore"
   }
 ]
