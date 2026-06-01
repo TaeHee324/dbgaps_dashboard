@@ -186,6 +186,7 @@ class TradeLogEntry(BaseModel):
     quantity: float | None = None
     price: float | None = None
     amount: float | None = None
+    fee: float | None = None
 
 
 class AddTradeRequest(BaseModel):
@@ -201,6 +202,7 @@ class AddTradeRequest(BaseModel):
     quantity: float | None = None
     price: float | None = None
     amount: float | None = None
+    fee: float | None = None
 
 
 class AddTradeResponse(BaseModel):
@@ -227,6 +229,7 @@ class UpdateTradeRequest(BaseModel):
     quantity: float | None = None
     price: float | None = None
     amount: float | None = None
+    fee: float | None = None
 
 
 class ReportListItem(BaseModel):

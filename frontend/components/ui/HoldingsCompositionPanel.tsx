@@ -72,11 +72,12 @@ function aggregateByKey(
   const map = new Map<string, number>();
   for (const h of holdings) {
     const key = keyFn(h);
-    map.set(key, (map.get(key) ?? 0) + h.current_weight);
+    map.set(key, (map.get(key) ?? 0) + h.market_value);
   }
-  return Array.from(map.entries()).map(([label, value], idx) => ({
+  const total = Array.from(map.values()).reduce((s, v) => s + v, 0);
+  return Array.from(map.entries()).map(([label, mv], idx) => ({
     label,
-    value,
+    value: total > 0 ? mv / total : 0,
     color: colorFn(label, idx),
   }));
 }

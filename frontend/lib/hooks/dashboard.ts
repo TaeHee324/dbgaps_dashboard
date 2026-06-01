@@ -141,6 +141,7 @@ export type TradeLogEntry = {
   quantity?: number | null;
   price?: number | null;
   amount?: number | null;
+  fee?: number | null;
 };
 
 export type LiveHolding = {

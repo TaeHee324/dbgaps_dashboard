@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 
 from fastapi import APIRouter, HTTPException
 
@@ -25,7 +26,7 @@ def _calc_weights(
     with db.get_connection() as conn:
         with conn.cursor() as cur:
             query = """
-                SELECT action, etf_code, quantity, price
+                SELECT action, etf_code, quantity, price, COALESCE(fee, 0) as fee
                 FROM trade_log
                 WHERE date < %s
                   AND quantity IS NOT NULL AND price IS NOT NULL
@@ -41,12 +42,15 @@ def _calc_weights(
     positions: dict[str, dict] = {}
     total_buy = 0.0
     total_sell = 0.0
+    total_buy_fee = 0.0
+    total_sell_fee = 0.0
 
     for r in rows:
         code = str(r["etf_code"])
         qty = float(r["quantity"])
         p = float(r["price"])
         act = str(r["action"])
+        fee = float(r.get("fee") or 0)
         if code not in positions:
             positions[code] = {"qty": 0.0, "cost": 0.0}
         pos = positions[code]
@@ -54,12 +58,14 @@ def _calc_weights(
             pos["qty"] += qty
             pos["cost"] += qty * p
             total_buy += qty * p
+            total_buy_fee += fee
         elif act == "매도" and pos["qty"] > 0:
             avg = pos["cost"] / pos["qty"]
             sold = min(qty, pos["qty"])
             pos["qty"] -= sold
             pos["cost"] -= avg * sold
             total_sell += sold * p
+            total_sell_fee += fee
 
     with db.get_connection() as conn:
         with conn.cursor() as cur:
@@ -86,7 +92,7 @@ def _calc_weights(
         for code, pos in positions.items()
         if pos["qty"] > 0
     )
-    cash_before = INITIAL_CAPITAL - total_buy + total_sell
+    cash_before = INITIAL_CAPITAL - total_buy - total_buy_fee + total_sell - total_sell_fee
     total_nav_before = etf_market_value + cash_before
 
     etf_qty_before = positions.get(etf_code, {}).get("qty", 0.0)
@@ -127,7 +133,7 @@ def trade_log():
             cur.execute(
                 "SELECT id, date::text, action, etf_code, etf_name, "
                 "weight_before, weight_after, reason, strategy_checklist, strategy_notes, "
-                "quantity, price, amount "
+                "quantity, price, amount, COALESCE(fee, 0) as fee "
                 "FROM trade_log ORDER BY date DESC, id DESC"
             )
             rows = cur.fetchall()
@@ -150,6 +156,7 @@ def trade_log():
             "quantity": float(row["quantity"]) if row["quantity"] is not None else None,
             "price": float(row["price"]) if row["price"] is not None else None,
             "amount": float(row["amount"]) if row["amount"] is not None else None,
+            "fee": float(row["fee"]) if row.get("fee") is not None else 0.0,
         })
     return result
 
@@ -165,17 +172,21 @@ def add_trade(payload: schemas.AddTradeRequest):
             payload.date, payload.etf_code, payload.action,
             float(payload.quantity), float(payload.price)
         )
+    if payload.quantity and payload.price:
+        fee = math.floor(float(payload.quantity) * float(payload.price) * 0.001)
+    else:
+        fee = int(payload.fee or 0)
     with db.get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
                 INSERT INTO trade_log
                   (date, action, etf_code, etf_name, weight_before, weight_after,
-                   reason, strategy_checklist, strategy_notes, quantity, price, amount)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                   reason, strategy_checklist, strategy_notes, quantity, price, amount, fee)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id, date::text, action, etf_code, etf_name,
                           weight_before, weight_after, reason, strategy_checklist, strategy_notes,
-                          quantity, price, amount
+                          quantity, price, amount, COALESCE(fee, 0) as fee
                 """,
                 (
                     payload.date,
@@ -190,6 +201,7 @@ def add_trade(payload: schemas.AddTradeRequest):
                     payload.quantity,
                     payload.price,
                     payload.amount,
+                    fee,
                 ),
             )
             row = cur.fetchone()
@@ -211,6 +223,7 @@ def add_trade(payload: schemas.AddTradeRequest):
         "quantity": float(row["quantity"]) if row["quantity"] is not None else None,
         "price": float(row["price"]) if row["price"] is not None else None,
         "amount": float(row["amount"]) if row["amount"] is not None else None,
+        "fee": float(row["fee"]) if row.get("fee") is not None else 0.0,
     }
 
 
@@ -226,6 +239,10 @@ def update_trade(trade_id: int, payload: schemas.UpdateTradeRequest):
             float(payload.quantity), float(payload.price),
             exclude_trade_id=trade_id,
         )
+    if payload.quantity and payload.price:
+        fee = math.floor(float(payload.quantity) * float(payload.price) * 0.001)
+    else:
+        fee = int(payload.fee or 0)
     with db.get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -234,11 +251,11 @@ def update_trade(trade_id: int, payload: schemas.UpdateTradeRequest):
                 SET date = %s, action = %s, etf_code = %s, etf_name = %s,
                     weight_before = %s, weight_after = %s, reason = %s,
                     strategy_checklist = %s, strategy_notes = %s,
-                    quantity = %s, price = %s, amount = %s
+                    quantity = %s, price = %s, amount = %s, fee = %s
                 WHERE id = %s
                 RETURNING id, date::text, action, etf_code, etf_name,
                           weight_before, weight_after, reason, strategy_checklist, strategy_notes,
-                          quantity, price, amount
+                          quantity, price, amount, COALESCE(fee, 0) as fee
                 """,
                 (
                     payload.date,
@@ -253,6 +270,7 @@ def update_trade(trade_id: int, payload: schemas.UpdateTradeRequest):
                     payload.quantity,
                     payload.price,
                     payload.amount,
+                    fee,
                     trade_id,
                 ),
             )
@@ -277,6 +295,7 @@ def update_trade(trade_id: int, payload: schemas.UpdateTradeRequest):
         "quantity": float(row["quantity"]) if row["quantity"] is not None else None,
         "price": float(row["price"]) if row["price"] is not None else None,
         "amount": float(row["amount"]) if row["amount"] is not None else None,
+        "fee": float(row["fee"]) if row.get("fee") is not None else 0.0,
     }
 
 

@@ -625,7 +625,7 @@ export default function TradesPage() {
             <table className="w-full text-sm">
               <thead className="bg-surfaceMuted text-xs text-inkSecondary">
                 <tr>
-                  {["날짜", "구분", "ETF 코드", "ETF 명", "비중 전", "비중 후", "수량", "단가", "거래금액", "수익/손실", ""].map((h, i) => (
+                  {["날짜", "구분", "ETF 코드", "ETF 명", "비중 전", "비중 후", "수량", "단가", "거래수수료", "거래금액", "수익/손실", ""].map((h, i) => (
                     <th key={i} className="px-3 py-2 text-left font-medium">{h}</th>
                   ))}
                 </tr>
@@ -648,6 +648,9 @@ export default function TradesPage() {
                       </td>
                       <td className="px-3 py-2 tabular-nums">
                         {row.price != null ? row.price.toLocaleString("ko-KR") : "—"}
+                      </td>
+                      <td className="px-3 py-2 tabular-nums">
+                        {row.fee != null ? row.fee.toLocaleString("ko-KR") + "원" : "—"}
                       </td>
                       <td className="px-3 py-2 tabular-nums">
                         {row.quantity != null && row.price != null
@@ -687,7 +690,7 @@ export default function TradesPage() {
                     </tr>
                     {expandedIdx === idx && (
                       <tr className="border-t border-border bg-surfaceMuted">
-                        <td colSpan={11} className="px-3 py-2 text-xs text-inkSecondary space-y-1">
+                        <td colSpan={12} className="px-3 py-2 text-xs text-inkSecondary space-y-1">
                           <div>이유: {row.reason && row.reason.trim() !== "" ? row.reason : "이유 없음"}</div>
                           {row.strategy_checklist && row.strategy_checklist.length > 0 && (
                             <div className="mt-1 space-y-0.5">

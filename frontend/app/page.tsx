@@ -175,7 +175,7 @@ function AssetStatusCard({ holdings }: { holdings: LiveHolding[] | undefined }) 
   const charts = [
     { title: "현금/투자자산", data: cashInvestData },
     { title: "위험/안전자산", data: riskData },
-    { title: "자산군별", data: assetData },
+    { title: "투자자산군별", data: assetData },
   ];
 
   return (

@@ -20,6 +20,8 @@ OUTPUT_DIR = ROOT / "output"
 DATA_DIR = ROOT / "data"
 DOCS_BASE = ROOT / "docs"
 
+INITIAL_CAPITAL = 1_000_000_000
+
 
 def _parse_frontmatter(text: str) -> tuple[dict[str, str], str]:
     """YAML frontmatter를 파싱해 (메타dict, 본문) 반환."""
@@ -429,27 +431,33 @@ def docs_detail(category: str, slug: str):
     }
 
 
-def _calc_live_holdings() -> list[dict]:
+def _calc_live_holdings() -> tuple[list[dict], float]:
     """trade_log DB에서 FIFO로 현재 보유종목 계산. src/ import 없이 직접 구현."""
     try:
         with db.get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "SELECT date, action, etf_code, etf_name, quantity, price "
+                    "SELECT date, action, etf_code, etf_name, quantity, price, COALESCE(fee, 0) as fee "
                     "FROM trade_log "
                     "WHERE quantity IS NOT NULL AND price IS NOT NULL "
                     "ORDER BY date ASC, id ASC"
                 )
                 rows = cur.fetchall()
     except Exception:
-        return []
+        return [], float(INITIAL_CAPITAL)
 
     holdings: dict[str, dict] = {}
+    total_buy_cost = 0.0
+    total_buy_fee = 0.0
+    total_sell_proceeds = 0.0
+    total_sell_fee = 0.0
+
     for row in rows:
         code = str(row["etf_code"])
         name = str(row["etf_name"])
         qty = float(row["quantity"])
         price = float(row["price"])
+        fee = float(row["fee"])
         action = str(row["action"])
 
         if code not in holdings:
@@ -459,12 +467,16 @@ def _calc_live_holdings() -> list[dict]:
         if action in ("매수", "리밸런싱"):
             h["quantity"] += qty
             h["cost_basis"] += qty * price
+            total_buy_cost += qty * price
+            total_buy_fee += fee
         elif action == "매도":
             if h["quantity"] > 0:
                 avg = h["cost_basis"] / h["quantity"]
                 sold = min(qty, h["quantity"])
                 h["quantity"] -= sold
                 h["cost_basis"] -= avg * sold
+                total_sell_proceeds += sold * price
+                total_sell_fee += fee
                 if h["quantity"] <= 0:
                     h["quantity"] = 0.0
                     h["cost_basis"] = 0.0
@@ -524,16 +536,18 @@ def _calc_live_holdings() -> list[dict]:
 
     # current_weight 계산
     total_mv = sum(h["market_value"] for h in result)
-    if total_mv > 0:
+    cash = INITIAL_CAPITAL - total_buy_cost - total_buy_fee + total_sell_proceeds - total_sell_fee
+    total_portfolio = total_mv + cash
+    if total_portfolio > 0:
         for h in result:
-            h["current_weight"] = round(h["market_value"] / total_mv, 6)
+            h["current_weight"] = round(h["market_value"] / total_portfolio, 6)
 
-    return result
+    return result, cash
 
 
 @router.get("/actual-nav", response_model=list[schemas.NavPoint])
 def actual_nav():
-    """trade_log DB 기반 실제 운용 NAV 시계열. cash = 초기자본 - 누적 매수원금 + 매도 회수금."""
+    """trade_log DB 기반 실제 운용 NAV 시계열. cash = 초기자본 - 누적 매수원금 - 수수료 + 매도 회수금 - 매도수수료."""
     INITIAL_CAPITAL = 1_000_000_000
 
     # 1. DB에서 거래 내역 전체 읽기
@@ -541,7 +555,7 @@ def actual_nav():
         with db.get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "SELECT date, action, etf_code, quantity, price "
+                    "SELECT date, action, etf_code, quantity, price, COALESCE(fee, 0) as fee "
                     "FROM trade_log "
                     "WHERE quantity IS NOT NULL AND price IS NOT NULL "
                     "ORDER BY date ASC, id ASC"
@@ -569,6 +583,7 @@ def actual_nav():
             "code": _normalize_code(r["etf_code"]),
             "quantity": float(r["quantity"]),
             "price": float(r["price"]),
+            "fee": float(r["fee"]),
         })
 
     # 4. 거래 첫날부터 가격 데이터 마지막 날까지 일별 포트폴리오 가치 계산
@@ -585,7 +600,9 @@ def actual_nav():
     holdings: dict[str, float] = {}   # code -> quantity
     cost_basis: dict[str, float] = {} # code -> total cost
     cumulative_buy_cost = 0.0         # 누적 매수원금
+    cumulative_buy_fee = 0.0          # 누적 매수수수료
     cumulative_sell_proceeds = 0.0    # 누적 매도 회수금
+    cumulative_sell_fee = 0.0         # 누적 매도수수료
 
     trade_idx = 0
     nav_list: list[dict] = []
@@ -598,12 +615,14 @@ def actual_nav():
             code = t["code"]
             qty = t["quantity"]
             price = t["price"]
+            fee = t["fee"]
             action = t["action"]
 
             if action in ("매수", "리밸런싱"):
                 holdings[code] = holdings.get(code, 0.0) + qty
                 cost_basis[code] = cost_basis.get(code, 0.0) + qty * price
                 cumulative_buy_cost += qty * price
+                cumulative_buy_fee += fee
             elif action == "매도":
                 held = holdings.get(code, 0.0)
                 sold = min(qty, held)
@@ -612,6 +631,7 @@ def actual_nav():
                     avg = cost_basis.get(code, 0.0) / held
                     cost_basis[code] = cost_basis.get(code, 0.0) - avg * sold
                 cumulative_sell_proceeds += sold * price
+                cumulative_sell_fee += fee
             trade_idx += 1
 
         # 해당 날짜 포트폴리오 가치 계산
@@ -624,7 +644,7 @@ def actual_nav():
                 if not pd.isna(close):
                     portfolio_value += qty * close
 
-        cash = INITIAL_CAPITAL - cumulative_buy_cost + cumulative_sell_proceeds
+        cash = INITIAL_CAPITAL - cumulative_buy_cost - cumulative_buy_fee + cumulative_sell_proceeds - cumulative_sell_fee
         total_value = portfolio_value + cash
 
         if total_value <= 0:
@@ -670,13 +690,14 @@ def actual_nav():
 
 @router.get("/live-holdings", response_model=list[schemas.LiveHolding])
 def live_holdings():
-    return _calc_live_holdings()
+    holdings, _ = _calc_live_holdings()
+    return holdings
 
 
 @router.get("/portfolio-etfs", response_model=list[schemas.EtfItem])
 def portfolio_etfs():
     """현재 보유 중인 ETF 목록 (trade_log 기반). 없으면 current_holdings.csv fallback."""
-    live = _calc_live_holdings()
+    live, _ = _calc_live_holdings()
     if live:
         return [{"code": h["code"], "name": h["name"], "risk_type": "", "asset_class": ""} for h in live]
     # fallback: output/current_holdings.csv
@@ -702,13 +723,15 @@ def report_image(filename: str):
 @router.get("/live-rules", response_model=schemas.RulesResponse | None)
 def live_rules():
     """live holdings 기반 규칙 체크. src/rules.py import 없이 직접 구현."""
-    live = _calc_live_holdings()
+    live, cash = _calc_live_holdings()
     if not live:
         return None
 
     total_mv = sum(h["market_value"] for h in live)
     if total_mv <= 0:
         return None
+
+    total_portfolio = total_mv + cash
 
     INDIVIDUAL_LIMIT = 0.20
     RISK_ASSET_LIMIT = 0.70
@@ -729,7 +752,7 @@ def live_rules():
 
     individual: list[dict] = []
     for h in live:
-        w = h["market_value"] / total_mv
+        w = h["market_value"] / total_portfolio
         individual.append({
             "code": h["code"],
             "name": h["name"],
@@ -742,7 +765,7 @@ def live_rules():
     # 위험자산 비중 (risk_type == "위험")
     risky_labels = {"위험", "위험자산", "risk", "risky"}
     risky_weight = sum(
-        h["market_value"] / total_mv
+        h["market_value"] / total_portfolio
         for h in live
         if str(h.get("risk_type", "")).lower() in {lbl.lower() for lbl in risky_labels}
     )
@@ -751,7 +774,7 @@ def live_rules():
     asset_class_weights: dict[str, float] = {}
     for h in live:
         ac = str(h.get("asset_class", ""))
-        w = h["market_value"] / total_mv
+        w = h["market_value"] / total_portfolio
         asset_class_weights[ac] = asset_class_weights.get(ac, 0.0) + w
 
     # 자산군 한도 위반 시 risk_asset 항목에 반영 (가장 심각한 위반 우선)

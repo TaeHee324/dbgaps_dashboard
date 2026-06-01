@@ -42,7 +42,7 @@ def _get_fifo_holdings() -> tuple[list[dict], float]:
         with db.get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "SELECT date, action, etf_code, etf_name, quantity, price "
+                    "SELECT date, action, etf_code, etf_name, quantity, price, COALESCE(fee, 0) as fee "
                     "FROM trade_log "
                     "WHERE quantity IS NOT NULL AND price IS NOT NULL "
                     "ORDER BY date ASC, id ASC"
@@ -53,13 +53,16 @@ def _get_fifo_holdings() -> tuple[list[dict], float]:
 
     holdings: dict[str, dict] = {}
     total_buy_cost = 0.0
+    total_buy_fee = 0.0
     total_sell_proceeds = 0.0
+    total_sell_fee = 0.0
 
     for row in rows:
         code = str(row["etf_code"])
         name = str(row["etf_name"])
         qty = float(row["quantity"])
         price = float(row["price"])
+        fee = float(row["fee"])
         action = str(row["action"])
 
         if code not in holdings:
@@ -70,6 +73,7 @@ def _get_fifo_holdings() -> tuple[list[dict], float]:
             h["quantity"] += qty
             h["cost_basis"] += qty * price
             total_buy_cost += qty * price
+            total_buy_fee += fee
         elif action == "매도":
             if h["quantity"] > 0:
                 avg = h["cost_basis"] / h["quantity"]
@@ -77,6 +81,7 @@ def _get_fifo_holdings() -> tuple[list[dict], float]:
                 h["quantity"] -= sold
                 h["cost_basis"] -= avg * sold
                 total_sell_proceeds += sold * price
+                total_sell_fee += fee
                 if h["quantity"] <= 0:
                     h["quantity"] = 0.0
                     h["cost_basis"] = 0.0
@@ -126,7 +131,7 @@ def _get_fifo_holdings() -> tuple[list[dict], float]:
                 "asset_class": asset_class,
             })
 
-    cash = INITIAL_CAPITAL - total_buy_cost + total_sell_proceeds
+    cash = INITIAL_CAPITAL - total_buy_cost - total_buy_fee + total_sell_proceeds - total_sell_fee
     return result, cash
 
 
@@ -153,11 +158,12 @@ def _get_target_weights() -> dict[str, float]:
 
 @router.get("/portfolio", response_model=schemas.RiskPortfolioResponse)
 def risk_portfolio():
-    holdings, _ = _get_fifo_holdings()
+    holdings, cash = _get_fifo_holdings()
 
     total_mv = sum(h["market_value"] for h in holdings)
-    if total_mv > 0:
-        weights = [h["market_value"] / total_mv for h in holdings]
+    total_portfolio = total_mv + cash
+    if total_portfolio > 0:
+        weights = [h["market_value"] / total_portfolio for h in holdings]
         hhi = sum(w ** 2 for w in weights)
     else:
         hhi = 0.0
@@ -192,7 +198,7 @@ def risk_portfolio():
 
 @router.get("/etf-analysis", response_model=list[schemas.EtfRiskItem])
 def etf_analysis():
-    holdings, _ = _get_fifo_holdings()
+    holdings, cash = _get_fifo_holdings()
     target_weights = _get_target_weights()
 
     held = [h for h in holdings if h["quantity"] > 0]
@@ -200,6 +206,7 @@ def etf_analysis():
         return []
 
     total_mv = sum(h["market_value"] for h in held)
+    total_portfolio = total_mv + cash
     held_codes = [h["code"] for h in held]
 
     # 가격 이력 pivot
@@ -217,7 +224,7 @@ def etf_analysis():
     result = []
     for h in held:
         code = h["code"]
-        current_weight = h["market_value"] / total_mv if total_mv > 0 else 0.0
+        current_weight = h["market_value"] / total_portfolio if total_portfolio > 0 else 0.0
         target_weight = target_weights.get(code)
         weight_drift = (current_weight - target_weight) if target_weight is not None else None
 
@@ -257,7 +264,7 @@ def etf_analysis():
                 w_arr = np.array([
                     next(h["market_value"] for h in held if h["code"] == c)
                     for c in available
-                ]) / total_mv
+                ]) / total_portfolio
                 cov = rets_1y.cov().values * 252
                 port_var = float(w_arr @ cov @ w_arr)
                 if port_var > 0:

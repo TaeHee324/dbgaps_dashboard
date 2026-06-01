@@ -88,6 +88,30 @@ export default function RulesPage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold text-ink">대회 룰</h1>
 
+      {/* 0. 자본금 및 거래비용 */}
+      <div className="rounded-lg border border-border bg-surface">
+        <div className="border-b border-border px-4 py-3">
+          <span className="text-sm font-semibold text-ink">자본금 및 거래비용</span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <tbody className="divide-y divide-border">
+              {([
+                ["초기 자본금", "10억원 (국내계좌)"],
+                ["NAV 기준", "원단위 기준 수익률 산정"],
+                ["거래수수료", "국내 ETF 0.1% (원단위 미만 절사)"],
+                ["제세금", "없음"],
+              ] as const).map(([item, value], i) => (
+                <tr key={i} className={i % 2 === 1 ? "bg-surfaceMuted/40" : ""}>
+                  <td className="px-3 py-2 font-medium text-ink whitespace-nowrap w-40">{item}</td>
+                  <td className="px-3 py-2 text-ink">{value}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       {/* 1. 평가 구조 */}
       <div className="rounded-lg border border-border bg-surface">
         <div className="border-b border-border px-4 py-3">
@@ -140,7 +164,9 @@ export default function RulesPage() {
                 ["투자계획서 제출", "2026.5.11 ~ 2026.5.28", "DB GAPS 홈페이지 업로드"],
                 ["대회 운용기간", "2026.6.1 ~ 2026.8.31", "MTS 기반 3개월 실전 운용"],
                 ["초기 포트폴리오 설정", "2026.6.1 포함 5영업일 이내 (~2026.6.8)", "초기 누적 회전율 80% 이상 충족 필수"],
-                ["운용보고서 제출", "6월·7월·8월 총 3회", "Word 4장 이상, 미제출·불성실 시 컷오프/감점"],
+                ["6월 운용보고서", "2026-07-05(일) 23:59", "Word 2장 이상(A4), Font Size 10, 파일명: 팀이름_6월운용보고서.docx / 미제출 시 자동 Cut-off"],
+                ["7월 운용보고서", "2026-08-05(수) 23:59", "동일 형식, 파일명: 팀이름_7월운용보고서.docx / 미제출 시 자동 Cut-off"],
+                ["8월 운용보고서", "2026-09-01(화) 23:59", "동일 형식, 파일명: 팀이름_8월운용보고서.docx / 미제출 시 자동 Cut-off"],
                 ["PT 자료 제출", "2026.9.7", "계획서·운용보고서·실제 운용의 일관성 정리"],
                 ["PT·토론", "2026.10.2 예정", "질의응답에서 투자 논리와 리스크 대응 설명"],
               ] as const).map(([item, date, note], i) => (
@@ -153,6 +179,25 @@ export default function RulesPage() {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* 수익률·순위 공개 방식 */}
+      <div className="rounded-lg border border-border bg-surface">
+        <div className="border-b border-border px-4 py-3">
+          <span className="text-sm font-semibold text-ink">수익률·순위 공개 방식</span>
+        </div>
+        <ul className="divide-y divide-border">
+          {[
+            "당일 20시: 팀 수익률 및 순위 공개",
+            "공개 범위: 본인 소속팀 + 1~100위 팀 수익률·순위",
+            "2026-07-31: 블라인드 처리 시작 (본인 소속팀 수익률만 확인 가능)",
+          ].map((item, i) => (
+            <li key={i} className="flex items-start gap-3 px-4 py-3">
+              <span className="mt-0.5 flex-shrink-0 text-xs text-inkSecondary">·</span>
+              <span className="text-sm text-ink">{item}</span>
+            </li>
+          ))}
+        </ul>
       </div>
 
       {/* 3. 컷오프 및 주의 규칙 */}

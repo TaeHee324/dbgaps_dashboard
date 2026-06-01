@@ -84,6 +84,7 @@ def evaluate_holdings(
     prices: pd.DataFrame,
     etf_master: pd.DataFrame | None = None,
     as_of: str | pd.Timestamp | None = None,
+    initial_capital: float = 1_000_000_000,
 ) -> pd.DataFrame:
     holdings = current_holdings(trades)
     if holdings.empty:
@@ -94,8 +95,21 @@ def evaluate_holdings(
     evaluated["market_value"] = evaluated["quantity"] * evaluated["current_price"]
     evaluated["unrealized_pnl"] = evaluated["market_value"] - evaluated["cost_basis"]
     evaluated["unrealized_return"] = evaluated["unrealized_pnl"] / evaluated["cost_basis"]
-    total_value = evaluated["market_value"].sum()
-    evaluated["current_weight"] = evaluated["market_value"] / total_value if total_value else 0.0
+
+    t = trades.copy()
+    if "fee" not in t.columns:
+        t["fee"] = 0.0
+    if "amount" not in t.columns:
+        t["amount"] = t["quantity"] * t["price"]
+    buy_mask = t["side"] == "buy"
+    sell_mask = t["side"] == "sell"
+    total_buy_cost = (t.loc[buy_mask, "amount"] + t.loc[buy_mask, "fee"]).sum()
+    total_sell_proceeds = (t.loc[sell_mask, "amount"] - t.loc[sell_mask, "fee"]).sum()
+    cash = initial_capital - total_buy_cost + total_sell_proceeds
+
+    total_mv = evaluated["market_value"].sum()
+    total_portfolio = total_mv + cash
+    evaluated["current_weight"] = evaluated["market_value"] / total_portfolio if total_portfolio else 0.0
 
     if etf_master is not None and not etf_master.empty:
         master_cols = [c for c in ["code", "risk_type", "asset_class"] if c in etf_master.columns]

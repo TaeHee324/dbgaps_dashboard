@@ -11,6 +11,8 @@ try:
 except ImportError:  # pragma: no cover - supports direct script execution from src/
     from metrics import drawdown_series, summarize_performance
 
+FEE_RATE = 0.001
+
 
 def load_prices(path: str | Path) -> pd.DataFrame:
     prices = pd.read_csv(path, dtype={"code": str})
@@ -67,18 +69,24 @@ def run_backtest(
     normalized = matrix / matrix.iloc[0]
 
     if rebalance is None:
-        portfolio_nav = normalized.mul(weights, axis=1).sum(axis=1) * initial_value
+        # 초기 매수 수수료 차감 후 NAV 시뮬레이션
+        initial_after_fee = initial_value * (1 - FEE_RATE)
+        portfolio_nav = normalized.mul(weights, axis=1).sum(axis=1) * initial_after_fee
     else:
         returns = matrix.pct_change().fillna(0)
         nav = pd.Series(index=matrix.index, dtype=float)
         current_weights = weights.copy()
-        nav.iloc[0] = initial_value
+        # 초기 매수 수수료 차감
+        nav.iloc[0] = initial_value * (1 - FEE_RATE)
         periods = matrix.index.to_period(rebalance)
         for i in range(1, len(matrix)):
             nav.iloc[i] = nav.iloc[i - 1] * (1 + (current_weights * returns.iloc[i]).sum())
             drifted = current_weights * (1 + returns.iloc[i])
             current_weights = drifted / drifted.sum()
             if periods[i] != periods[i - 1]:
+                # 리밸런싱 시 turnover(가중치 변화량) 합산해 수수료 적용
+                turnover = (weights - current_weights).abs().sum() / 2
+                nav.iloc[i] *= (1 - FEE_RATE * turnover)
                 current_weights = weights.copy()
         portfolio_nav = nav
 

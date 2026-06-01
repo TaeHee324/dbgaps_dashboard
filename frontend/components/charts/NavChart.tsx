@@ -78,6 +78,14 @@ export function NavChart({ data, tradeMarkers = [] }: NavChartProps) {
         lastValueVisible: false,
       });
 
+      lineSeries.applyOptions({
+        priceFormat: {
+          type: "custom",
+          formatter: ((price: number) => (price / 1e8).toFixed(2) + "억") as any,
+          minMove: 1_000_000,
+        },
+      });
+
       lineSeries.setData(data);
 
       if (tradeMarkers.length > 0) {
