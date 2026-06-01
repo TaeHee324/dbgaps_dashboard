@@ -79,11 +79,12 @@ export function NavChart({ data, tradeMarkers = [] }: NavChartProps) {
       });
 
       lineSeries.applyOptions({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         priceFormat: {
           type: "custom",
-          formatter: ((price: number) => (price / 1e8).toFixed(2) + "억") as any,
+          formatter: (price: number) => (price / 1e8).toFixed(2) + "억",
           minMove: 1_000_000,
-        },
+        } as any,
       });
 
       lineSeries.setData(data);
