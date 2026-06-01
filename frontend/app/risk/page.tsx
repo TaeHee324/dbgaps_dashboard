@@ -317,8 +317,9 @@ function RiskContributionBars({ items }: { items: EtfRiskItem[] }) {
       <div style={{ display: "grid", gap: 10, padding: "13px 14px" }}>
         {rows.map((item) => {
           const value = item.risk_contribution_pct ?? 0;
+          const isNegative = value < 0;
           const stage = rcStage(item.risk_contribution_pct);
-          const barColor = stage === "reduce" || stage === "force" ? C.danger : stage === "watch" ? C.warning : C.primary;
+          const barColor = isNegative ? C.inkSecondary : (stage === "reduce" || stage === "force" ? C.danger : stage === "watch" ? C.warning : C.primary);
           const textColor = stage === "reduce" || stage === "force" ? C.danger : stage === "watch" ? C.warning : C.inkSecondary;
           return (
             <div
@@ -331,13 +332,15 @@ function RiskContributionBars({ items }: { items: EtfRiskItem[] }) {
                 </div>
                 <div style={{ ...MONO, fontSize: 10, color: C.inkSecondary }}>{item.code}</div>
               </div>
-              <div style={{ height: 8, borderRadius: 999, background: C.border, overflow: "hidden" }}>
+              <div style={{ height: 8, borderRadius: 999, background: C.border, overflow: "hidden", position: "relative" }}>
                 <div
                   style={{
-                    width: `${Math.min(value * 100, 100)}%`,
+                    width: `${Math.min(Math.abs(value) * 100, 100)}%`,
                     height: "100%",
                     borderRadius: 999,
                     background: barColor,
+                    position: "absolute",
+                    ...(isNegative ? { right: 0 } : { left: 0 }),
                   }}
                 />
               </div>

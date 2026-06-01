@@ -69,6 +69,7 @@ Key scripts:
 - `update_changelog.py`: 변경이력 자동 갱신
 - `migrate_prices_to_db.py`: data/prices_daily.csv → DB 1회성 마이그레이션
 - `recalc_trade_weights.py`: trade_log 전체 레코드의 weight_before/weight_after 일괄 재계산 (1회성; 실행 전 DB 백업 권장)
+- `recalc_fees.py`: trade_log 전체 레코드의 fee 10원 단위 절사 일괄 재계산 (1회성; 실행 전 DB 백업 권장)
 
 Expected `src/` roles:
 

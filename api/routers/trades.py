@@ -173,7 +173,7 @@ def add_trade(payload: schemas.AddTradeRequest):
             float(payload.quantity), float(payload.price)
         )
     if payload.quantity and payload.price:
-        fee = math.floor(float(payload.quantity) * float(payload.price) * 0.001)
+        fee = math.floor(float(payload.quantity) * float(payload.price) * 0.001 / 10) * 10
     else:
         fee = int(payload.fee or 0)
     with db.get_connection() as conn:
@@ -240,7 +240,7 @@ def update_trade(trade_id: int, payload: schemas.UpdateTradeRequest):
             exclude_trade_id=trade_id,
         )
     if payload.quantity and payload.price:
-        fee = math.floor(float(payload.quantity) * float(payload.price) * 0.001)
+        fee = math.floor(float(payload.quantity) * float(payload.price) * 0.001 / 10) * 10
     else:
         fee = int(payload.fee or 0)
     with db.get_connection() as conn:
