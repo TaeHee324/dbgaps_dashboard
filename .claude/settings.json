@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python -c \"import subprocess,pathlib,sys; p=pathlib.Path('tests'); fs=list(p.glob('test_*.py')) if p.exists() else []; (print('no tests yet') or sys.exit(0)) if not fs else sys.exit(subprocess.run(['python','-m','pytest','tests/','-q']).returncode)\""
+            "command": "python -c \"from pathlib import Path; import subprocess,sys; fs=list(Path('tests').glob('test_*.py')); sys.exit(print('no tests yet') or 0) if not fs else sys.exit(subprocess.run(['python','-m','pytest','tests/','-q','--tb=short']).returncode)\""
           }
         ]
       }
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python -c \"import os,sys; t=os.environ.get('CLAUDE_TOOL_INPUT',''); [sys.exit(print('BLOCKED: 위험한 명령어 감지됨 —',b,file=sys.stderr) or 1) for b in ['rm -rf','git push --force','git reset --hard','DROP TABLE'] if b.lower() in t.lower()]\""
+            "command": "python -c \"import os,sys; t=os.environ.get('CLAUDE_TOOL_INPUT',''); blocked=['rm -rf','git push --force','git reset --hard','git checkout --','DROP TABLE','TRUNCATE TABLE','DELETE FROM trade_log','DELETE FROM portfolios','DELETE FROM prices_daily']; [sys.exit(print('BLOCKED: 위험한 명령어 감지됨 —',b,file=sys.stderr) or 1) for b in blocked if b.lower() in t.lower()]\""
           }
         ]
       }

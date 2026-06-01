@@ -1,6 +1,6 @@
 # DBGAPS Dashboard — 코드베이스 전체 구조 리뷰
 
-> Streamlit → FastAPI + Next.js 마이그레이션 이후 작성. 2026-05-30 기준 업데이트.
+> Streamlit → FastAPI + Next.js 마이그레이션 이후 작성. 2026-06-01 기준 업데이트.
 
 ---
 
@@ -16,7 +16,7 @@ portfolios/*.csv → db.py(PostgreSQL) → src/ 계산 엔진 → output/
                                                frontend/ Next.js (표시)
 ```
 
-> **주의:** `data/prices_daily.csv`는 일부 레거시 경로(`etf-list`, `etf-prices` 엔드포인트)에서 여전히 읽힘. `actual-nav`·`live-holdings`·`risk` 등 주요 계산은 `db.load_prices_from_db()` 사용.
+> **주의:** `data/prices_daily.csv`는 레거시. 주요 가격 조회(etf-list, etf-prices, actual-nav, live-holdings, risk 등)는 모두 `db.load_prices_from_db()` 사용.
 
 마이그레이션 결과: Streamlit 단일 프로세스 → Python 계산 엔진 + FastAPI 서버 + Next.js 클라이언트로 명확하게 3-tier 분리됨.
 
@@ -37,18 +37,18 @@ portfolios/*.csv → db.py(PostgreSQL) → src/ 계산 엔진 → output/
 
 ## `db.py` 세부 명세
 
-**역할:** PostgreSQL 포트폴리오 + 매매일지 테이블의 단일 진입점.
+**역할:** PostgreSQL 포트폴리오 + 매매일지 + 가격 테이블의 단일 진입점.
 
 | 함수 | 입/출력 | 주의사항 |
 |------|---------|---------|
 | `get_connection()` | psycopg2 연결 반환. `DATABASE_URL` 없으면 RuntimeError | `postgres://` → `postgresql://` 자동 변환 포함 |
 | `init_db()` | `portfolios` 테이블 생성 + `base/aggressive/conservative` CSV 시딩 | `ON CONFLICT DO NOTHING`으로 중복 시딩 방지 |
-| `init_trade_log_table()` | `trade_log` 테이블 생성 | `api/routers/trades.py` 및 `api/routers/dashboard.py` 시작 시 호출 |
+| `init_trade_log_table()` | `trade_log` 테이블 생성 + 컬럼 증설(quantity, price, amount, strategy_notes) | `api/routers/trades.py` 및 `api/routers/dashboard.py` 시작 시 호출. `fee` 컬럼은 ALTER TABLE 없이 DB에 직접 추가됨 |
 | `list_portfolios()` | `[{name, is_protected, group_name}]` — protected 먼저 정렬 | `group_name` 컬럼 없는 구형 DB도 안전 처리 |
 | `get_portfolio(name)` | `[{code, weight}]` 또는 `None` | holdings는 JSONB로 저장 |
 | `upsert_portfolio(name, holdings, group_name=None)` | INSERT OR UPDATE. `is_protected=FALSE` 고정 | protected 포트폴리오의 holdings도 덮어씀 — 주의 |
 | `delete_portfolio(name)` | is_protected=TRUE면 `ValueError` | |
-| `load_prices_from_db()` | `prices_daily` 테이블 전체 → `pd.DataFrame(date, code, close)` | `actual-nav`·`live-holdings`·`risk` 라우터가 사용 |
+| `load_prices_from_db()` | `prices_daily` 테이블 전체 → `pd.DataFrame(date, code, close)` | 모든 가격 관련 라우터가 사용 |
 | `get_max_date_by_code()` | 종목별 최신 가격 날짜 → `dict[str, str]` | `update_prices.py`에서 증분 수집 기준으로 사용 |
 | `upsert_prices(rows)` | `[{date, code, close}]` 배치 삽입/업데이트 | `update_prices.py` 전용; API에서 직접 호출 금지 |
 
@@ -76,8 +76,8 @@ Pydantic 모델 집합. API 응답 계약 정의.
 | `IndividualRule` / `RiskAssetRule` / `RulesResponse` | `/api/rules`, `/api/live-rules` | 규칙 pass/fail 정보 |
 | `TurnoverBase` / `TurnoverWithDate` / `TurnoverResponse` | `/api/turnover` | 초기/주간/월간 |
 | `BacktestRequest` / `BacktestResponse` | `POST /api/backtest` | 온디맨드 백테스트 요청/응답 |
-| `TradeLogEntry` / `AddTradeRequest` / `UpdateTradeRequest` / `AddTradeResponse` | `/api/trade-log` | 매매일지 CRUD |
-| `Portfolio` / `PortfolioHolding` / `PortfolioDetail` | `/api/portfolios`, `/api/portfolios/active` | CRUD + active 조회 |
+| `TradeLogEntry` / `AddTradeRequest` / `UpdateTradeRequest` / `AddTradeResponse` | `/api/trade-log` | 매매일지 CRUD. `strategy_notes: dict[str,str]`·`fee: float \| None` 필드 포함 |
+| `Portfolio` / `PortfolioHolding` / `PortfolioDetail` | `/api/portfolios`, `/api/portfolios/active` | CRUD + active 조회. `Portfolio`에 `is_active: bool = False` 포함 |
 | `PortfolioUpsertRequest` / `PortfolioUpsertResponse` | `POST /api/portfolios` | upsert 요청/응답 |
 | `UpdateActiveHoldingRequest` | `PATCH /api/portfolios/active/holdings` | active 포트폴리오 ETF 비중 단건 업데이트 |
 | `EtfPricePoint` | `GET /api/etf-prices/{code}` | ETF 가격 이력 포인트 |
@@ -85,13 +85,14 @@ Pydantic 모델 집합. API 응답 계약 정의.
 | `ReportListItem` | `/api/reports` | 3개 (filename, title, period) |
 | `DataHealth` | (RiskPortfolioResponse 내부) | 데이터 최신성 상태 |
 | `RiskPortfolioResponse` | `/api/risk/portfolio` | HHI + DataHealth |
-| `EtfRiskItem` | `/api/risk/etf-analysis` | ETF별 위험 분석 결과 |
+| `EtfRiskItem` | `/api/risk/etf-analysis` | ETF별 위험 분석. `entry_return`(진입 이후 수익률)·`mdd_exhaustion`(MDD 소진률) 포함. `current_drawdown` 필드는 제거됨 |
+| `DocItem` / `DocResponse` | `/api/docs/{category}`, `/api/docs/{category}/{slug}` | 전략·연구 문서 목록/상세 |
 
 ---
 
 ### `api/routers/dashboard.py`
 
-**역할:** `output/` CSV 읽기 + trade_log DB 기반 라우터. `src/` import 없음. **엔드포인트 23개**.
+**역할:** `output/` CSV 읽기 + trade_log DB 기반 라우터. `src/` import 없음. **엔드포인트 25개**.
 
 **내부 유틸리티 함수:**
 
@@ -104,7 +105,10 @@ Pydantic 모델 집합. API 응답 계약 정의.
 | `_clean_bool(value)` | CSV의 `"True"/"False"` 문자열 → Python bool |
 | `_records(df, columns, date_columns)` | DataFrame → `list[dict]` 변환 (위 유틸 적용) |
 | `_calc_live_holdings()` | trade_log DB FIFO 보유 계산 (src/ 없이 인라인) |
-| `_active_portfolio_names()` | `is_active=TRUE` 포트폴리오 이름 집합 반환 (비교 탭 active 식별용) |
+| `_active_portfolio_names()` | 전체 포트폴리오 이름 집합 반환 (비교 탭 CSV 필터링용) |
+| `_parse_frontmatter(text)` | YAML frontmatter 파싱 → `(메타dict, 본문)` |
+| `_process_doc_content(text)` | frontmatter 제거 + Obsidian `![[]]` → 표준 markdown 변환 |
+| `_list_docs(category)` | `docs/{category}/` 스캔 → `DocItem` 목록 (date 내림차순) |
 
 **엔드포인트 목록:**
 
@@ -117,25 +121,28 @@ Pydantic 모델 집합. API 응답 계약 정의.
 | `GET /api/comparison/summary` | `output/comparison/summary.csv` | `list[ComparisonSummaryItem]` |
 | `GET /api/comparison/nav` | `output/comparison/*_nav.csv` (glob) | `dict[str, list[ComparisonNavPoint]]` |
 | `GET /api/rules` | `output/rule_individual_etf.csv` + `rule_risk_asset.csv` | `RulesResponse \| None` (레거시) |
-| `GET /api/turnover` | `output/turnover_initial/weekly/monthly.csv` | `TurnoverResponse \| None` |
+| `GET /api/turnover` | DB `trade_log` 직접 읽기 (quantity·price 기반 집계) | `TurnoverResponse \| None` |
 | `GET /api/data-date` | `output/*.csv` 파일 mtime 최신값 | `DataDateResponse` |
-| `GET /api/etf-prices/{code}` | `data/prices_daily.csv` (CSV) | `list[EtfPricePoint]` |
+| `GET /api/etf-list` | `db.load_prices_from_db()` + `data/etf_master.csv` | `list[EtfItem]` |
+| `GET /api/etf-prices/{code}` | `db.load_prices_from_db()` | `list[EtfPricePoint]` |
 | `GET /api/report` | `output/report_*.md` 최신 파일 | `ReportResponse \| None` |
+| `GET /api/reports` | `output/report_*.md` glob 목록 (202606 이후만) | `list[ReportListItem]` |
+| `GET /api/report/{filename}` | `output/report_{filename}.md` | `ReportResponse \| None` |
+| `GET /api/docs/{category}` | `docs/{category}/*.md` 스캔 | `list[DocItem]` |
+| `GET /api/docs/{category}/{slug}` | `docs/{category}/{slug}.md` | `DocResponse \| None` |
 | `GET /api/actual-nav` | trade_log DB + `db.load_prices_from_db()` | `list[NavPoint]` (cash 포함) |
 | `GET /api/live-holdings` | trade_log DB FIFO 계산 | `list[LiveHolding]` |
 | `GET /api/live-rules` | live-holdings 기반 직접 규칙 체크 (src/ 없음) | `RulesResponse \| None` |
 | `GET /api/portfolio-etfs` | live-holdings fallback | `list[{code, name}]` |
-| `GET /api/reports` | `output/report_*.md` glob 목록 | `list[ReportListItem]` |
-| `GET /api/report/{filename}` | `output/report_{filename}.md` | `ReportResponse \| None` |
 | `GET /api/report-image/{filename}` | `output/{filename}` 이미지 파일 | `FileResponse` |
 | `POST /api/refresh-prices` | `update_prices.py` + `run_engine.py` 백그라운드 실행 | `{status}` |
 | `GET /api/refresh-status` | 갱신 상태 조회 | `{status, last_updated}` |
 | `GET /api/update-log` | `data/CHANGELOG.json` | `list[dict]` |
-| `GET /api/etf-list` | `data/prices_daily.csv` (CSV) + `data/etf_master.csv` | `list[EtfItem]` |
-
-> **가격 소스 이원화:** `etf-list`·`etf-prices`는 CSV 읽기, `actual-nav`·`_calc_live_holdings()`·`live-rules` 등은 `db.load_prices_from_db()` 사용.
+| `GET /api/etf-list` | (위와 동일) | — |
 
 > **레거시 주의**: `/api/holdings` → `useLiveHoldings()` 사용 권장. `/api/rules` → `useLiveRules()` 사용 권장.
+
+> **turnover 소스**: `/api/turnover`는 `output/turnover_*.csv` 대신 DB `trade_log`를 직접 읽어 실시간 계산. `INITIAL_START = 2026-06-01`, `INITIAL_END = 2026-06-08` 상수가 소스코드에 하드코딩됨 (이슈 참조).
 
 ---
 
@@ -175,7 +182,10 @@ Pydantic 모델 집합. API 응답 계약 정의.
 | `PUT /api/trade-log/{id}` | 기존 항목 수정 |
 | `DELETE /api/trade-log/{id}` | 항목 삭제 |
 
-`db.init_trade_log_table()` 사용. `data/trade_log.json`은 더 이상 사용하지 않음.
+- `db.init_trade_log_table()` 사용. `data/trade_log.json`은 더 이상 사용하지 않음.
+- `_calc_weights()`: quantity·price가 있을 때 DB에서 이전 거래 내역과 prices_daily를 조회해 weight_before/after 자동 계산. 프론트엔드 수동 입력값은 무시됨.
+- `fee` 자동 계산: `math.floor(quantity × price × 0.001 / 10) × 10` (거래금액의 0.1%, 10원 단위 절사).
+- `strategy_notes: dict[str, str]` 필드 JSONB 저장 지원.
 
 ---
 
@@ -188,7 +198,11 @@ Pydantic 모델 집합. API 응답 계약 정의.
 | `GET /api/risk/portfolio` | HHI 분산도 + 데이터 헬스 상태 |
 | `GET /api/risk/etf-analysis` | ETF별 MDD/변동성/위험기여도 |
 
-내부 구현: trade_log DB에서 FIFO 보유 현황 계산, `db.load_prices_from_db()`로 최신 종가·이력 조회(CSV 아님), numpy로 공분산 기반 위험기여도 계산.
+내부 구현:
+- `_get_fifo_holdings()`: trade_log DB에서 FIFO 보유 현황 계산, `db.load_prices_from_db()`로 최신 종가 조회.
+- `_get_target_weights()`: active 포트폴리오 JSONB holdings에서 ETF별 목표 비중 반환.
+- `etf-analysis` 반환 필드: `entry_return`(진입 이후 수익률), `mdd_exhaustion`(손실/MDD 비율, MDD 소진률). 구버전의 `current_drawdown` 필드는 제거됨.
+- numpy 공분산 기반 위험기여도 계산. `risk_contribution_pct` 내림차순 정렬.
 
 ---
 
@@ -270,6 +284,7 @@ Pydantic 모델 집합. API 응답 계약 정의.
 | `update_changelog.py` | git 히스토리 → `data/CHANGELOG.json` 자동 생성 | pre-push 훅 자동 실행 |
 | `migrate_prices_to_db.py` | `data/prices_daily.csv` → DB 1회성 마이그레이션 | 1회성 |
 | `recalc_trade_weights.py` | trade_log 전체 레코드 weight_before/after 일괄 재계산 | 1회성 (실행 전 DB 백업 필수) |
+| `recalc_fees.py` | trade_log 전체 레코드 fee 10원 단위 절사 기준으로 일괄 재계산. `--dry-run` 옵션 지원 | 1회성 (실행 전 DB 백업 필수) |
 | `reset_and_setup_demo.py` | DB 초기화 + 데모 데이터 세팅 | 개발 시 |
 | `insert_demo_trade_log.py` | 데모 trade_log 삽입 | 개발 시 |
 
@@ -295,7 +310,7 @@ Pydantic 모델 집합. API 응답 계약 정의.
 
 | 파일 | 포함 훅 |
 |------|---------|
-| `dashboard.ts` | `usePortfolioSummary`, `useBacktestNav`, `useMonthlyReturns`, `useCurrentHoldings`(레거시), `useTurnover`, `useRules`(레거시), `useDataDate`, `useReport`, `useReports`, `useReportDetail`, `useComparisonSummary`, `useComparisonNav`, `useTradeLog`, `usePortfolioDetail`, `useLiveHoldings`, `useActualNav`, `useLiveRules`, `usePortfolioEtfs`, `useRiskPortfolio`, `useEtfRiskAnalysis` (**20개**) |
+| `dashboard.ts` | `usePortfolioSummary`, `useBacktestNav`, `useMonthlyReturns`, `useCurrentHoldings`(레거시), `useTurnover`, `useRules`(레거시), `useDataDate`, `useReport`, `useReports`, `useReportDetail`, `useComparisonSummary`, `useComparisonNav`, `useTradeLog`, `usePortfolioDetail`, `useLiveHoldings`, `useActualNav`, `useLiveRules`, `usePortfolioEtfs`, `useRiskPortfolio`, `useEtfRiskAnalysis`, `useEtfPrices`, `useDocs`, `useDoc` (**23개**) |
 | `portfolio.ts` | `usePortfolios`, `useRunBacktest` |
 | `trades.ts` | `useAddTrade` |
 
@@ -334,6 +349,7 @@ Pydantic 모델 집합. API 응답 계약 정의.
 | `DrawdownChart.tsx` | `NavPoint[]` | 낙폭 히스토그램 |
 | `MonthlyBarChart.tsx` | `MonthlyReturn[]` | 월별 수익률 막대 차트 |
 | `PieChart.tsx` | — | 파이 차트 |
+| `EtfRiskLineChart.tsx` | — | 리스크 탭 ETF별 위험 라인 차트 |
 
 **ui/**
 
@@ -350,6 +366,9 @@ Pydantic 모델 집합. API 응답 계약 정의.
 | `TurnoverRow.tsx` | 회전율 진행 바 + 최소 기준 표시 |
 | `KpiStrip.tsx` | 레거시 — 운용현황 페이지에서 ActualOpsKpiStrip + StrategyKpiStrip으로 교체됨 |
 | `StatusBar.tsx` | 데이터 최신화 시각 표시 |
+| `InfoTooltip.tsx` | 정보 툴팁 컴포넌트 |
+| `MermaidChart.tsx` | Mermaid 다이어그램 렌더러 |
+| `MarkdownDoc.tsx` | Markdown 문서 렌더러 (docs 뷰어용) |
 
 ---
 
@@ -375,7 +394,7 @@ Pydantic 모델 집합. API 응답 계약 정의.
 | `monthly_returns.csv` | `run_engine.py` | `GET /api/monthly-returns` |
 | `rule_individual_etf.csv` | `run_engine.py` | `GET /api/rules` (레거시) |
 | `rule_risk_asset.csv` | `run_engine.py` | `GET /api/rules` (레거시) |
-| `turnover_initial/weekly/monthly.csv` | `run_engine.py` | `GET /api/turnover` |
+| `turnover_initial/weekly/monthly.csv` | `run_engine.py` | 엔진 전용 (API turnover는 DB 직접 읽기로 대체됨) |
 | `comparison/*_nav.csv` | `run_engine.py` + `portfolios.py` POST 핸들러 | `GET /api/comparison/nav` |
 | `comparison/summary.csv` | `run_engine.py` + `portfolios.py` POST 핸들러 | `GET /api/comparison/summary` |
 | `report_YYYYMM.md` | `report_builder.py` | `GET /api/report`, `GET /api/reports`, `GET /api/report/{filename}` |
@@ -402,6 +421,7 @@ Pydantic 모델 집합. API 응답 계약 정의.
 | `test_metrics.py` | `src/metrics.py` 순수 함수 단위 테스트 |
 | `test_output_schema.py` | `output/*.csv` 컬럼 스키마 검증. `web/data_loader.py` 참조 테스트는 `@pytest.mark.skip` 처리됨 (무해) |
 | `test_smoke_engine.py` | 샘플 데이터로 전체 엔진 실행 스모크 테스트 |
+| `test_portfolio_deletion.py` | 포트폴리오 삭제 시 DB 정리·비교 CSV artifact 제거·고아 필터링 검증. FastAPI TestClient 대신 라우터 함수 직접 호출 패턴 사용 (Windows asyncio 호환성 이슈 회피) |
 | `conftest.py` | pytest fixture 설정 (`sample_trades`, `sample_prices`, `base_weights_path` 등) |
 
 ---
@@ -418,24 +438,30 @@ Pydantic 모델 집합. API 응답 계약 정의.
 | `DESIGN-LANGUAGE.md` | 디자인 판단 규칙 및 안티패턴 |
 | `design-tokens.json` | 색상/타이포 등 머신 가독 토큰 |
 | `QA_CHECKLIST.md` | UI 최종 검토 체크리스트 |
+| `UI_GUIDE.md` | UI 가이드 문서 |
 | `PROJECT_STATUS.md` | 현재 배포 상태 요약 |
 
 ---
 
 ## 잠재적 이슈 / 검토 포인트
 
-### 1. `db.py` 주석 잔재 (낮음)
+### 1. `db.py` docstring 잔재 (낮음)
 
 `db.py` docstring에 `"Used by both web/ (Streamlit dashboard) and src/"` 라고 되어 있음.
 현재 `web/`은 존재하지 않고 `api/`가 그 역할을 함. 주석만 업데이트하면 됨.
 
-### 2. `run_engine.py` 하드코딩 날짜 (중간)
+### 2. 소스코드 하드코딩 날짜 (중간)
 
+`api/routers/dashboard.py`:
+```python
+INITIAL_START = pd.Timestamp("2026-06-01")
+INITIAL_END   = pd.Timestamp("2026-06-08")
+```
+`src/run_engine.py`:
 ```python
 check_turnover_limits(trades, capital_base=INITIAL_VALUE, initial_end_date="2026-01-02")
 ```
-
-회전율 초기 구간 끝날짜가 소스코드에 박혀 있음. 운영 시 매년 변경 필요.
+두 파일 모두 초기 구간 날짜가 소스코드에 고정됨. 운영 시 매년 변경 필요.
 
 ### 3. `upsert_portfolio`의 protected 덮어쓰기 가능성 (중간)
 
@@ -457,5 +483,11 @@ check_turnover_limits(trades, capital_base=INITIAL_VALUE, initial_end_date="2026
 
 ### 7. `risk.py` docstring과 구현 불일치 (낮음)
 
-`risk.py` 모듈 docstring은 `"prices_daily.csv에서 최신 종가·이력 조회"`라고 적혀 있으나,
+`_get_fifo_holdings()` docstring은 `"prices_daily.csv에서 최신 종가·이력 조회"`라고 적혀 있으나,
 실제 코드는 `db.load_prices_from_db()` 사용. 주석만 수정하면 됨.
+
+### 8. `init_trade_log_table()`에서 `fee` 컬럼 누락 (낮음)
+
+`db.py`의 `init_trade_log_table()`에는 `fee` 컬럼 `ALTER TABLE`이 없음.
+현재 Railway DB에는 직접 추가되어 있으나, 신규 환경(테스트·로컬 초기화)에서는 `fee` 컬럼이 없어
+`COALESCE(fee, 0)` 쿼리가 실패할 수 있음. `init_trade_log_table()`에 `ALTER TABLE IF NOT EXISTS` 추가 권장.

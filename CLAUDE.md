@@ -84,7 +84,7 @@ Expected `src/` roles:
 Expected `api/` roles:
 
 - `main.py`: FastAPI app, CORS middleware, router registration
-- `routers/dashboard.py`: output/ 및 data/ CSV 읽기 엔드포인트
+- `routers/dashboard.py`: output/ CSV 읽기 엔드포인트 + DB trade_log·prices_daily 직접 읽기 (turnover·live-holdings·actual-nav·etf-list·etf-prices·docs 등은 DB/파일시스템 기반)
 - `routers/portfolios.py`: PostgreSQL CRUD + POST /api/backtest (src/ import 허용 예외); `GET /api/portfolios/active` (현재 운용중 포트폴리오), `POST /api/portfolios/{name}/activate` (운용중 지정), `PATCH /api/portfolios/active/holdings` (특정 ETF 목표 비중 단건 업데이트)
 - `routers/trades.py`: PostgreSQL DB `trade_log` 테이블 CRUD (`data/trade_log.json`은 존재하지 않음); `_calc_weights()`가 quantity·price 있을 때 DB prices_daily로 weight_before/after 자동 계산 (프론트 수동 입력값 무시)
 - `routers/risk.py`: HHI·데이터헬스·ETF별 MDD/변동성/위험기여도 (FIFO 인라인, DB+CSV 직접 읽기)
@@ -351,7 +351,8 @@ UI 레이블도 "한도"(상한 뉘앙스) 대신 "최소"를 사용할 것.
 현재 테이블 목록:
 - `portfolios`: 포트폴리오 정의 (name, holdings JSONB, is_protected, group_name, is_active BOOLEAN)
   — `is_active = TRUE`인 행이 현재 운용중 포트폴리오 (단 1행); 변경 시 기존 active를 FALSE로 먼저 업데이트
-- `trade_log`: 매매 거래내역 (date, action, etf_code, etf_name, weight_before, weight_after, reason, note, strategy_checklist, quantity, price, amount)
+- `trade_log`: 매매 거래내역 (date, action, etf_code, etf_name, weight_before, weight_after, reason, note, strategy_checklist, strategy_notes JSONB, quantity, price, amount, fee NUMERIC)
+  — `fee`는 `init_trade_log_table()`에 ALTER TABLE이 없으므로 신규 환경에서는 Railway 콘솔에서 직접 추가 필요: `ALTER TABLE trade_log ADD COLUMN IF NOT EXISTS fee NUMERIC DEFAULT NULL;`
 - `prices_daily`: ETF 일별 종가 (date DATE, code VARCHAR(6), close NUMERIC) — PRIMARY KEY (date, code)
   초기 데이터 투입: `python scripts/migrate_prices_to_db.py` (data/prices_daily.csv → DB, 1회성)
 
@@ -405,6 +406,17 @@ For UI changes:
 - 대신 라우터 함수를 직접 import해서 호출하고, 모듈 변수를 `unittest.mock.patch`로 교체한다.
 - 패턴: `patch("api.routers.portfolios.db", mock_db)` + `patch("api.routers.portfolios.COMPARISON_OUTPUT", tmp_path)` → `delete_portfolio(name)` 직접 호출.
 - `tests/test_portfolio_deletion.py`가 이 패턴의 레퍼런스 구현.
+
+### SYNC-13: trade_log fee는 10원 단위 절사로 자동 계산됨
+
+`api/routers/trades.py`의 `POST /api/trade-log`·`PUT /api/trade-log/{id}` 핸들러는 quantity·price가 있을 때 fee를 자동 계산한다.
+
+```python
+fee = math.floor(quantity * price * 0.001 / 10) * 10  # 거래금액의 0.1%, 10원 단위 절사
+```
+
+프론트엔드에서 fee 값을 payload에 담아도 quantity·price가 있으면 백엔드가 덮어쓴다.
+기존 레코드 일괄 재계산 필요 시: `python scripts/recalc_fees.py` (1회성, 실행 전 DB 백업 필수).
 
 ## File Path Safety Rule
 
