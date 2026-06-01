@@ -22,6 +22,11 @@ DOCS_BASE = ROOT / "docs"
 
 INITIAL_CAPITAL = 1_000_000_000
 
+INITIAL_START = pd.Timestamp("2026-06-01")
+INITIAL_END   = pd.Timestamp("2026-06-08")
+INITIAL_TURNOVER_LIMIT = 0.80
+PERIOD_TURNOVER_LIMIT  = 0.10
+
 
 def _parse_frontmatter(text: str) -> tuple[dict[str, str], str]:
     """YAML frontmatter를 파싱해 (메타dict, 본문) 반환."""
@@ -290,26 +295,70 @@ def rules():
 
 @router.get("/turnover", response_model=schemas.TurnoverResponse | None)
 def turnover():
-    initial = _read_csv(OUTPUT_DIR / "turnover_initial.csv")
-    weekly = _read_csv(OUTPUT_DIR / "turnover_weekly.csv")
-    monthly = _read_csv(OUTPUT_DIR / "turnover_monthly.csv")
-    if initial.empty or weekly.empty or monthly.empty:
+    try:
+        with db.get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT date, COALESCE(amount, quantity * price) as amount "
+                    "FROM trade_log "
+                    "WHERE quantity IS NOT NULL AND price IS NOT NULL"
+                )
+                rows = cur.fetchall()
+    except Exception:
         return None
-    initial_records = _records(initial, ["traded_value", "turnover", "turnover_source", "limit", "passed"])
-    if not initial_records:
+
+    if not rows:
         return None
+
+    trades = pd.DataFrame(rows, columns=["date", "amount"])
+    trades["date"]   = pd.to_datetime(trades["date"])
+    trades["amount"] = trades["amount"].astype(float).abs()
+
+    today = pd.Timestamp.today().normalize()
+
+    # initial (6/1~6/8)
+    init_df = trades[(trades["date"] >= INITIAL_START) & (trades["date"] <= INITIAL_END)]
+    init_tv = float(init_df["amount"].sum())
+    init_to = init_tv / INITIAL_CAPITAL
+
+    # weekly (이번주 월~일)
+    week_start = today - pd.Timedelta(days=today.dayofweek)
+    week_end   = week_start + pd.Timedelta(days=6)
+    week_df = trades[(trades["date"] >= week_start) & (trades["date"] <= week_end)]
+    week_tv = float(week_df["amount"].sum())
+    week_to = week_tv / INITIAL_CAPITAL
+
+    # monthly (이번달 1일~말일)
+    month_start = today.replace(day=1)
+    month_end   = month_start + pd.offsets.MonthEnd(0)
+    mon_df = trades[(trades["date"] >= month_start) & (trades["date"] <= month_end)]
+    mon_tv = float(mon_df["amount"].sum())
+    mon_to = mon_tv / INITIAL_CAPITAL
+
     return {
-        "initial": initial_records[0],
-        "weekly": _records(
-            weekly,
-            ["date", "traded_value", "turnover", "turnover_source", "limit", "passed"],
-            {"date"},
-        ),
-        "monthly": _records(
-            monthly,
-            ["date", "traded_value", "turnover", "turnover_source", "limit", "passed"],
-            {"date"},
-        ),
+        "initial": {
+            "traded_value":    init_tv,
+            "turnover":        init_to,
+            "turnover_source": "trade_log",
+            "limit":           INITIAL_TURNOVER_LIMIT,
+            "passed":          init_to >= INITIAL_TURNOVER_LIMIT,
+        },
+        "weekly": [{
+            "date":            week_start.strftime("%Y-%m-%d"),
+            "traded_value":    week_tv,
+            "turnover":        week_to,
+            "turnover_source": "trade_log",
+            "limit":           PERIOD_TURNOVER_LIMIT,
+            "passed":          week_to >= PERIOD_TURNOVER_LIMIT,
+        }],
+        "monthly": [{
+            "date":            mon_df["date"].max().strftime("%Y-%m-%d") if not mon_df.empty else month_end.strftime("%Y-%m-%d"),
+            "traded_value":    mon_tv,
+            "turnover":        mon_to,
+            "turnover_source": "trade_log",
+            "limit":           PERIOD_TURNOVER_LIMIT,
+            "passed":          mon_to >= PERIOD_TURNOVER_LIMIT,
+        }],
     }
 
 
@@ -324,10 +373,10 @@ def data_date():
 
 @router.get("/etf-list", response_model=list[schemas.EtfItem])
 def etf_list():
-    prices = _read_csv(DATA_DIR / "prices_daily.csv", dtype={"code": "string"})
+    prices = db.load_prices_from_db()
     if prices.empty or "code" not in prices.columns:
         return []
-    codes = pd.DataFrame({"code": sorted({_normalize_code(code) for code in prices["code"].dropna()})})
+    codes = pd.DataFrame({"code": sorted({_normalize_code(c) for c in prices["code"].dropna()})})
     master = _read_csv(DATA_DIR / "etf_master.csv", dtype={"code": "string"})
     if not master.empty and {"code", "name"}.issubset(master.columns):
         keep_cols = [c for c in ["code", "name", "risk_type", "asset_class"] if c in master.columns]
@@ -346,7 +395,7 @@ def etf_list():
 
 @router.get("/etf-prices/{code}", response_model=list[schemas.EtfPricePoint])
 def etf_prices(code: str):
-    prices = _read_csv(DATA_DIR / "prices_daily.csv", dtype={"code": "string"})
+    prices = db.load_prices_from_db()
     if prices.empty or not {"date", "code", "close"}.issubset(prices.columns):
         return []
     target = _normalize_code(code)

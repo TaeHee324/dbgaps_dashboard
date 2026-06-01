@@ -71,7 +71,9 @@ export default function TradesPage() {
 
   const [form, setForm] = useState<AddTradeRequest>(makeDefaultForm);
   const [editId, setEditId] = useState<number | null>(null);
-  const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [openDates, setOpenDates] = useState<Set<string>>(new Set());
+  const hasInitialized = useRef<boolean>(false);
   const [calcTotalAssets, setCalcTotalAssets] = useState<number | null>(null);
   const [calcTargetWeight, setCalcTargetWeight] = useState<number>(0);
   // 사용자가 단가를 수동 수정했는지 추적
@@ -142,6 +144,26 @@ export default function TradesPage() {
   }, [priceOnDate, effectiveTotalAssets, calcTargetWeight, currentHoldingQty, form.action]);
 
   const sorted = [...tradeLog].sort((a, b) => b.date.localeCompare(a.date));
+
+  // 첫 로드 시 가장 최신 날짜만 열기
+  useEffect(() => {
+    if (!hasInitialized.current && sorted.length > 0) {
+      hasInitialized.current = true;
+      setOpenDates(new Set([sorted[0].date]));
+    }
+  }, [sorted]);
+
+  const groupedByDate = useMemo(() => {
+    const map = new Map<string, TradeLogEntry[]>();
+    for (const row of sorted) {
+      const arr = map.get(row.date) ?? [];
+      arr.push(row);
+      map.set(row.date, arr);
+    }
+    return map;
+  }, [sorted]);
+
+  const dateKeys = useMemo(() => Array.from(groupedByDate.keys()), [groupedByDate]);
 
   // P&L 계산: 날짜 오름차순으로 순회하며 ETF별 평균단가 누적
   const pnlMap = (() => {
@@ -265,6 +287,22 @@ export default function TradesPage() {
   async function handleDelete(id: number) {
     await deleteTrade.mutateAsync(id);
     await queryClient.invalidateQueries({ queryKey: ["trade-log"] });
+  }
+
+  function toggleDate(date: string) {
+    setOpenDates((prev) => {
+      const next = new Set(prev);
+      if (next.has(date)) next.delete(date);
+      else next.add(date);
+      return next;
+    });
+  }
+
+  function actionColor(action: string): string {
+    if (action === "매수") return "text-indigo-700";
+    if (action === "매도") return "text-red-600";
+    if (action === "리밸런싱") return "text-amber-600";
+    return "";
   }
 
   const isPending = addTrade.isPending || updateTrade.isPending;
@@ -631,108 +669,133 @@ export default function TradesPage() {
                 </tr>
               </thead>
               <tbody>
-                {sorted.map((row, idx) => (
-                  <Fragment key={row.id}>
-                    <tr
-                      onClick={() => setExpandedIdx(expandedIdx === idx ? null : idx)}
-                      className="cursor-pointer border-t border-border hover:bg-surfaceMuted"
-                    >
-                      <td className="px-3 py-2 tabular-nums">{row.date}</td>
-                      <td className="px-3 py-2">{row.action}</td>
-                      <td className="px-3 py-2 tabular-nums">{row.etf_code}</td>
-                      <td className="px-3 py-2">{row.etf_name}</td>
-                      <td className="px-3 py-2 tabular-nums">{formatWeight(row.weight_before)}</td>
-                      <td className="px-3 py-2 tabular-nums">{formatWeight(row.weight_after)}</td>
-                      <td className="px-3 py-2 tabular-nums">
-                        {row.quantity != null ? row.quantity.toLocaleString("ko-KR") : "—"}
-                      </td>
-                      <td className="px-3 py-2 tabular-nums">
-                        {row.price != null ? row.price.toLocaleString("ko-KR") : "—"}
-                      </td>
-                      <td className="px-3 py-2 tabular-nums">
-                        {row.fee != null ? row.fee.toLocaleString("ko-KR") + "원" : "—"}
-                      </td>
-                      <td className="px-3 py-2 tabular-nums">
-                        {row.quantity != null && row.price != null
-                          ? Math.round(row.quantity * row.price).toLocaleString("ko-KR")
-                          : "—"}
-                      </td>
-                      <td className="px-3 py-2 tabular-nums whitespace-nowrap">
-                        {row.action === "매도" ? (
-                          pnlMap[row.id] != null ? (
-                            <span className={pnlMap[row.id]! >= 0 ? "text-green-600" : "text-red-600"}>
-                              {pnlMap[row.id]! >= 0
-                                ? `+₩${Math.round(pnlMap[row.id]!).toLocaleString("ko-KR")}`
-                                : `-₩${Math.round(Math.abs(pnlMap[row.id]!)).toLocaleString("ko-KR")}`}
-                            </span>
-                          ) : (
-                            <span className="text-inkSecondary">—</span>
-                          )
-                        ) : (
-                          <span className="text-inkSecondary">—</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={() => handleEditClick(row)}
-                          className="mr-2 text-xs text-indigo-700 hover:underline"
+                {dateKeys.map((date) => {
+                  const rows = groupedByDate.get(date)!;
+                  const isOpen = openDates.has(date);
+                  return (
+                    <Fragment key={date}>
+                      {/* 날짜 헤더 행 */}
+                      <tr
+                        onClick={() => toggleDate(date)}
+                        className="cursor-pointer bg-surfaceMuted"
+                      >
+                        <td
+                          colSpan={12}
+                          className="px-3 py-2 text-xs font-semibold text-inkSecondary border-b border-border"
                         >
-                          수정
-                        </button>
-                        <button
-                          onClick={() => handleDelete(row.id)}
-                          disabled={deleteTrade.isPending}
-                          className="text-xs text-red-600 hover:underline disabled:opacity-50"
-                        >
-                          삭제
-                        </button>
-                      </td>
-                    </tr>
-                    {expandedIdx === idx && (
-                      <tr className="border-t border-border bg-surfaceMuted">
-                        <td colSpan={12} className="px-3 py-2 text-xs text-inkSecondary space-y-1">
-                          <div>이유: {row.reason && row.reason.trim() !== "" ? row.reason : "이유 없음"}</div>
-                          {row.strategy_checklist && row.strategy_checklist.length > 0 && (
-                            <div className="mt-1 space-y-0.5">
-                              <span className="font-medium">체크 항목:</span>
-                              {row.strategy_checklist.map((item) => {
-                                const note = (row.strategy_notes ?? {})[item];
-                                return (
-                                  <div key={item} className="pl-2">
-                                    ✓ {item}
-                                    {note && note.trim() !== "" && (
-                                      <span className="ml-1 text-inkMuted">— {note}</span>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                          {(() => {
-                            const allOpts = [...INVESTMENT_OPTIONS, ...RISK_OPTIONS];
-                            const uncheckedWithNotes = allOpts.filter(
-                              (opt) =>
-                                !row.strategy_checklist?.includes(opt) &&
-                                (row.strategy_notes ?? {})[opt] &&
-                                ((row.strategy_notes ?? {})[opt] ?? "").trim() !== ""
-                            );
-                            if (uncheckedWithNotes.length === 0) return null;
-                            return (
-                              <div className="mt-1 space-y-0.5">
-                                <span className="font-medium">미준수 이유:</span>
-                                {uncheckedWithNotes.map((opt) => (
-                                  <div key={opt} className="pl-2">
-                                    ✗ {opt} — {(row.strategy_notes ?? {})[opt]}
-                                  </div>
-                                ))}
-                              </div>
-                            );
-                          })()}
+                          {isOpen ? "▼" : "▶"} {date} ({rows.length}건)
                         </td>
                       </tr>
-                    )}
-                  </Fragment>
-                ))}
+
+                      {/* 해당 날짜 거래 행들 */}
+                      {isOpen &&
+                        rows.map((row) => (
+                          <Fragment key={row.id}>
+                            <tr
+                              onClick={() =>
+                                setExpandedId(expandedId === row.id ? null : row.id)
+                              }
+                              className="cursor-pointer border-t border-border hover:bg-surfaceMuted"
+                            >
+                              <td className="px-3 py-2 tabular-nums">{row.date}</td>
+                              <td className={`px-3 py-2 font-medium ${actionColor(row.action)}`}>{row.action}</td>
+                              <td className="px-3 py-2 tabular-nums">{row.etf_code}</td>
+                              <td className="px-3 py-2">{row.etf_name}</td>
+                              <td className="px-3 py-2 tabular-nums">{formatWeight(row.weight_before)}</td>
+                              <td className="px-3 py-2 tabular-nums">{formatWeight(row.weight_after)}</td>
+                              <td className="px-3 py-2 tabular-nums">
+                                {row.quantity != null ? row.quantity.toLocaleString("ko-KR") : "—"}
+                              </td>
+                              <td className="px-3 py-2 tabular-nums">
+                                {row.price != null ? row.price.toLocaleString("ko-KR") : "—"}
+                              </td>
+                              <td className="px-3 py-2 tabular-nums">
+                                {row.fee != null ? row.fee.toLocaleString("ko-KR") + "원" : "—"}
+                              </td>
+                              <td className="px-3 py-2 tabular-nums">
+                                {row.quantity != null && row.price != null
+                                  ? Math.round(row.quantity * row.price).toLocaleString("ko-KR")
+                                  : "—"}
+                              </td>
+                              <td className="px-3 py-2 tabular-nums whitespace-nowrap">
+                                {row.action === "매도" ? (
+                                  pnlMap[row.id] != null ? (
+                                    <span className={pnlMap[row.id]! >= 0 ? "text-green-600" : "text-red-600"}>
+                                      {pnlMap[row.id]! >= 0
+                                        ? `+₩${Math.round(pnlMap[row.id]!).toLocaleString("ko-KR")}`
+                                        : `-₩${Math.round(Math.abs(pnlMap[row.id]!)).toLocaleString("ko-KR")}`}
+                                    </span>
+                                  ) : (
+                                    <span className="text-inkSecondary">—</span>
+                                  )
+                                ) : (
+                                  <span className="text-inkSecondary">—</span>
+                                )}
+                              </td>
+                              <td className="px-3 py-2 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                                <button
+                                  onClick={() => handleEditClick(row)}
+                                  className="mr-2 text-xs text-indigo-700 hover:underline"
+                                >
+                                  수정
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(row.id)}
+                                  disabled={deleteTrade.isPending}
+                                  className="text-xs text-red-600 hover:underline disabled:opacity-50"
+                                >
+                                  삭제
+                                </button>
+                              </td>
+                            </tr>
+                            {expandedId === row.id && (
+                              <tr className="border-t border-border bg-surfaceMuted">
+                                <td colSpan={12} className="px-3 py-2 text-xs text-inkSecondary space-y-1">
+                                  <div>이유: {row.reason && row.reason.trim() !== "" ? row.reason : "이유 없음"}</div>
+                                  {row.strategy_checklist && row.strategy_checklist.length > 0 && (
+                                    <div className="mt-1 space-y-0.5">
+                                      <span className="font-medium">체크 항목:</span>
+                                      {row.strategy_checklist.map((item) => {
+                                        const note = (row.strategy_notes ?? {})[item];
+                                        return (
+                                          <div key={item} className="pl-2">
+                                            ✓ {item}
+                                            {note && note.trim() !== "" && (
+                                              <span className="ml-1 text-inkMuted">— {note}</span>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                  {(() => {
+                                    const allOpts = [...INVESTMENT_OPTIONS, ...RISK_OPTIONS];
+                                    const uncheckedWithNotes = allOpts.filter(
+                                      (opt) =>
+                                        !row.strategy_checklist?.includes(opt) &&
+                                        (row.strategy_notes ?? {})[opt] &&
+                                        ((row.strategy_notes ?? {})[opt] ?? "").trim() !== ""
+                                    );
+                                    if (uncheckedWithNotes.length === 0) return null;
+                                    return (
+                                      <div className="mt-1 space-y-0.5">
+                                        <span className="font-medium">미준수 이유:</span>
+                                        {uncheckedWithNotes.map((opt) => (
+                                          <div key={opt} className="pl-2">
+                                            ✗ {opt} — {(row.strategy_notes ?? {})[opt]}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    );
+                                  })()}
+                                </td>
+                              </tr>
+                            )}
+                          </Fragment>
+                        ))}
+                    </Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>

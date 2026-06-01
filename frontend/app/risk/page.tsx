@@ -410,8 +410,8 @@ function EtfRiskTable({
             <th style={TH}>현재비중</th>
             <th style={TH}>목표비중</th>
             <th style={TH}>이탈폭</th>
-            <th style={TH}>역사적 MDD</th>
             <th style={TH}>매수가 대비</th>
+            <th style={TH}>역사적 MDD</th>
             <th style={TH}>MDD 소진율</th>
             <th style={TH}>20일 변동성</th>
             <th style={TH}>위험기여도</th>
@@ -453,10 +453,10 @@ function EtfRiskTable({
                   {item.target_weight !== null ? pct(item.target_weight) : "—"}
                 </td>
                 <td style={{ ...TD_BASE, color: dd.color }}>{dd.text}</td>
-                <td style={{ ...TD_BASE, color: C.danger }}>{pct(item.individual_mdd)}</td>
                 <td style={{ ...TD_BASE, color: item.entry_return < 0 ? C.danger : C.inkSecondary }}>
                   {pct(item.entry_return)}
                 </td>
+                <td style={{ ...TD_BASE, color: C.danger }}>{pct(item.individual_mdd)}</td>
                 <td
                   style={{
                     ...TD_BASE,
@@ -571,8 +571,8 @@ function SelectedEtfPanel({
             ["현재비중", pct(item.current_weight)],
             ["목표비중", item.target_weight !== null ? pct(item.target_weight) : "N/A"],
             ["이탈폭", pctP(item.weight_drift)],
-            ["역사적 MDD", pct(item.individual_mdd)],
             ["매수가 대비", pct(item.entry_return)],
+            ["역사적 MDD", pct(item.individual_mdd)],
             ["MDD 소진율", `${(item.mdd_exhaustion * 100).toFixed(0)}%`],
             ["20일 변동성", pct(item.vol_20d)],
             ["위험기여도", item.risk_contribution_pct !== null ? pct(item.risk_contribution_pct) : "N/A"],
