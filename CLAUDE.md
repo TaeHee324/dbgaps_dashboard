@@ -191,6 +191,15 @@ cp .env.example .env
 
 Without `DATABASE_URL`, `run_engine.py` and the ETF portfolio page will fail.
 
+## Railway CLI 주의사항
+
+`railway run <cmd>`는 Railway 서버 원격 실행이 아님 — **로컬 Python에 Railway 환경변수만 주입**.
+- `railway run pip show yfinance` 결과는 로컬 패키지를 보여줌 (서버 상태와 무관)
+- `railway run`이 `postgres.railway.internal` DB URL을 주입하면 로컬에서 접속 불가
+- DB 직접 접근 스크립트는 `.env` 외부 URL(rlwy.net)로 `python src/...` 직접 실행할 것
+- 서버 실제 상태 확인: `railway logs --tail 50`
+- `railway login`은 대화형 터미널 필요 — Claude Code Bash 도구에서 실행 불가, 별도 터미널에서 실행
+
 ## Development Commands
 
 ```bash
@@ -307,6 +316,12 @@ UI 레이블도 "한도"(상한 뉘앙스) 대신 "최소"를 사용할 것.
 `update_prices.py`만 실행하면 prices DB만 바뀌고 dashboard output은 stale 상태 유지.
 `dashboard.py`의 `_calc_live_holdings()`와 `actual_nav()`도 `db.load_prices_from_db()` 사용 (CSV 아님).
 
+`_run_refresh()`는 subprocess stderr를 삼키고 `status=error`만 반환 — 실제 오류는 노출되지 않음.
+갱신 버튼 이상 시 진단 순서:
+1. `railway logs --tail 50` 으로 서버 로그 확인
+2. 로컬 직접 실행: `python src/update_prices.py --code 069500`
+갱신 버튼 클릭 후 아무 반응(오류·완료 모두 없음) = subprocess가 returncode=0으로 조용히 실패한 것 (yfinance 미설치 등).
+
 ### SYNC-9: `actual_nav()` NAV = ETF시가 + 현금
 
 `api/routers/dashboard.py::actual_nav()`가 반환하는 `portfolio_value` 필드 = ETF시가 합계 + 현금잔고(total_value).
@@ -417,6 +432,30 @@ fee = math.floor(quantity * price * 0.001 / 10) * 10  # 거래금액의 0.1%, 10
 
 프론트엔드에서 fee 값을 payload에 담아도 quantity·price가 있으면 백엔드가 덮어쓴다.
 기존 레코드 일괄 재계산 필요 시: `python scripts/recalc_fees.py` (1회성, 실행 전 DB 백업 필수).
+
+### SYNC-14: prices_daily 특정 날짜 오염 데이터는 자동 재수집되지 않음
+
+`update_prices.py`는 `max_date_by_code + 1`부터만 수집. 특정 날짜에 잘못된 종가가 있어도 "already up to date"로 skip — 갱신 버튼을 눌러도 덮어쓰이지 않음.
+
+**발생 징후**: 대시보드 현재가가 yfinance 직접 조회값과 다를 때.
+
+**정정 절차** (로컬 `.env` 외부 URL 사용):
+
+```bash
+# 1. 오염된 날짜 삭제
+python -c "
+from dotenv import load_dotenv; load_dotenv()
+import db; conn = db.get_connection(); cur = conn.cursor()
+cur.execute(\"DELETE FROM prices_daily WHERE date = 'YYYY-MM-DD'\")
+conn.commit(); print('삭제 완료')
+"
+# 2. yfinance로 재수집 → 엔진 재실행 → output 커밋 (SYNC-3)
+python src/update_prices.py
+python src/run_engine.py
+git add output/ && git commit -m "chore: regenerate output CSVs" && git push
+```
+
+**확인 쿼리**: `SELECT code, MAX(date) as max_date FROM prices_daily GROUP BY code ORDER BY max_date DESC LIMIT 5`
 
 ## File Path Safety Rule
 
