@@ -1,5 +1,12 @@
 [
   {
+    "hash": "3d318d39",
+    "date": "2026-06-02",
+    "subject": "변경 이미지 저장",
+    "body": "",
+    "type": "update"
+  },
+  {
     "hash": "e6d3676a",
     "date": "2026-06-02",
     "subject": "feat: 자산군별 한도 체크 추가 및 포트폴리오 행 빌더 ETF 정보 표시",
@@ -341,12 +348,5 @@
     "subject": "docs(claude): railway.toml 위치 및 run_sample_engine 배포 금지 규칙 추가",
     "body": "Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
     "type": "docs"
-  },
-  {
-    "hash": "3cb161a6",
-    "date": "2026-05-27",
-    "subject": "fix(railway): 시작 시 run_sample_engine.py 제거 — 샘플 CSV 덮어쓰기 방지",
-    "body": "run_sample_engine.py가 매 시작마다 sample_prices_daily.csv(2026-01 11행)로\noutput/backtest_nav.csv를 덮어써 히트맵에 1월 데이터만 표시되던 문제 수정.\nRailway는 git에 커밋된 output/ CSV를 직접 읽는다(SYNC-3).\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
-    "type": "fix"
   }
 ]
