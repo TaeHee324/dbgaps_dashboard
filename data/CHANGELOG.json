@@ -1,5 +1,40 @@
 [
   {
+    "hash": "e6d3676a",
+    "date": "2026-06-02",
+    "subject": "feat: 자산군별 한도 체크 추가 및 포트폴리오 행 빌더 ETF 정보 표시",
+    "body": "- portfolios.py: _rules_for_holdings()에 asset_class 한도 체크 추가\n  · _ASSET_CLASS_LIMITS 10개 자산군 상수 정의\n  · etf_master에서 asset_class 컬럼 merge\n  · 자산군별 비중 집계 후 [자산군] 그룹 행을 individual에 추가\n  · 백테스트 규칙 체크 결과에 자산군 한도 위반 여부 반영\n\n- portfolio/page.tsx: 행 빌더 ETF 이름·자산군 표시\n  · PortfolioRow 타입에 name, asset_class 필드 추가\n  · 코드 입력 시 etfList 자동 lookup (담기, 불러오기, 직접 입력 모두)\n  · 각 행 하단에 ETF명 + 자산군 배지 표시\n  · 비중 합계 아래 자산군 한도 확인 패널 실시간 표시\n\n- risk/page.tsx: 자산군 한도 준수 현황 패널 추가\n  · useLiveRules() 사용하여 자산군 그룹 행 추출\n  · 위험자산 합계 포함 현재비중/한도/통과·초과 테이블 삽입\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "feat"
+  },
+  {
+    "hash": "2b84d89e",
+    "date": "2026-06-01",
+    "subject": "feat(research): 리서치 탭 구현 및 FX·채권·원자재 통합 리서치 문서 추가",
+    "body": "- docs/research/ 에 5개 문서 추가 (원자재, FX, 채권, 매크로 전략방향, 핵심 모니터링지표)\n- 관련 이미지 13개 frontend/public/docs-images/ 에 추가\n- /research 페이지를 플레이스홀더에서 실제 문서 뷰어로 구현 (useDocs/useDoc 연결)\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "feat"
+  },
+  {
+    "hash": "f5020980",
+    "date": "2026-06-01",
+    "subject": "docs: CODEBASE_REVIEW 전체 갱신 + CLAUDE.md 동기화 + 하네스 보강",
+    "body": "- CODEBASE_REVIEW.md: 2026-06-01 기준 전면 업데이트\n  - /api/turnover: CSV → DB trade_log 실시간 계산으로 변경 반영\n  - /api/etf-list, etf-prices: prices_daily.csv → db.load_prices_from_db() 통일\n  - /api/docs/{category}, /api/docs/{category}/{slug} 엔드포인트 추가 (25개)\n  - EtfRiskItem: current_drawdown → entry_return·mdd_exhaustion 교체\n  - TradeLogEntry: fee·strategy_notes 필드 추가\n  - DocItem·DocResponse 스키마 추가\n  - 훅 3개 추가(useEtfPrices·useDocs·useDoc) → 23개\n  - 컴포넌트 4개 추가(InfoTooltip·MermaidChart·MarkdownDoc·EtfRiskLineChart)\n  - scripts/recalc_fees.py, tests/test_portfolio_deletion.py, docs/UI_GUIDE.md 추가\n  - 이슈 #8 신규: init_trade_log_table fee 컬럼 ALTER TABLE 누락\n- CLAUDE.md: 코드베이스와 불일치 항목 수정\n  - dashboard.py 역할 설명: DB 직접 읽기 포함으로 확장\n  - trade_log 테이블 컬럼: strategy_notes·fee 추가, fee 수동 마이그레이션 안내\n  - SYNC-13 추가: fee 10원 단위 절사 자동 계산 패턴\n- frontend/CLAUDE.md: useDocs·useDoc·useEtfPrices 훅 추가\n- .claude/settings.json 하네스 보강\n  - Stop 훅: --tb=short 옵션 추가\n  - PreToolUse: git checkout --, TRUNCATE TABLE, DELETE FROM 핵심 테이블 차단 추가\n- PNG 스크린샷·임시 문서 정리 (RISK_STRATEGY_SYNC.md, SESSION_NOTES_2026-06-01.md)\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "docs"
+  },
+  {
+    "hash": "2c39882d",
+    "date": "2026-06-01",
+    "subject": "feat: risk tab column swap, live turnover from DB, trades date toggle",
+    "body": "- risk/page.tsx: 열 순서 매수가 대비 | 역사적 MDD | MDD 소진율 (3곳 교환)\n- dashboard.py: /api/turnover을 trade_log DB 실시간 계산으로 교체 (stale CSV 제거)\n- dashboard.py: /etf-list, /etf-prices 에서 prices_daily.csv → db.load_prices_from_db()\n- trades/page.tsx: 날짜별 accordion 토글, 최신 날짜 자동 열림, 매수/매도/리밸런싱 색상\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "feat"
+  },
+  {
+    "hash": "d7539f79",
+    "date": "2026-06-01",
+    "subject": "fix: 수수료 10원 단위 절사 + 위험기여도 바 음수 방향 수정",
+    "body": "- trades.py: fee 공식을 1원->10원 단위 절사로 수정 (POST/PUT 2곳)\n- scripts/recalc_fees.py: 기존 레코드 일괄 재계산 스크립트 신규 추가\n- CLAUDE.md: recalc_fees.py 항목 추가\n- risk/page.tsx: 음수 위험기여도 바를 우->좌 방향으로 수정\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "fix"
+  },
+  {
     "hash": "4f8c46f4",
     "date": "2026-06-01",
     "subject": "feat(risk): replace current_drawdown with entry_return and mdd_exhaustion",
@@ -313,40 +348,5 @@
     "subject": "fix(railway): 시작 시 run_sample_engine.py 제거 — 샘플 CSV 덮어쓰기 방지",
     "body": "run_sample_engine.py가 매 시작마다 sample_prices_daily.csv(2026-01 11행)로\noutput/backtest_nav.csv를 덮어써 히트맵에 1월 데이터만 표시되던 문제 수정.\nRailway는 git에 커밋된 output/ CSV를 직접 읽는다(SYNC-3).\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
     "type": "fix"
-  },
-  {
-    "hash": "4b7a56e9",
-    "date": "2026-05-27",
-    "subject": "fix(heatmap): 월별 바 차트 제거 및 기본 월 선택 오늘 날짜 기준으로 수정",
-    "body": "- MonthlyBarChart 및 관련 import/state(monthlyQuery, barChartData) 전체 삭제\n- 2단 그리드 레이아웃을 단일 div로 교체하여 히트맵이 카드 전체 너비 사용\n- activeMonth 기본값을 오늘 날짜 기준 가장 최근 이하 월로 명시적 계산\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
-    "type": "fix"
-  },
-  {
-    "hash": "5a8e6dee",
-    "date": "2026-05-26",
-    "subject": "수정사항 md 파일 저장",
-    "body": "",
-    "type": "update"
-  },
-  {
-    "hash": "b487ac3e",
-    "date": "2026-05-26",
-    "subject": "feat: v3 스프린트 전면 적용 — P0 버그 수정 + P1 기능 추가",
-    "body": "P0 버그 수정:\n- fmtKRW divisor 버그: 억원/만원 기준값 교정 (100_000_000 / 10_000)\n- api/main.py 임시 subprocess 엔드포인트 제거\n- CHANGELOG.json 갱신 (2026-05-26 커밋 반영)\n- 매매일지 단가 레이블 조건부 렌더링 (매도/매수)\n\nP1 기능 추가:\n- 대시보드 총 자산 파이차트 3개 분리 (현금/투자자산·위험/안전·자산군별)\n- 투자 규칙 카드 2열 레이아웃 (개별 ETF / 섹터+위험자산)\n- 현재가 갱신 버튼 + 폴링 (POST /api/refresh-prices, GET /api/refresh-status)\n- 매매일지 거래금액 컬럼 추가 + 이유 accordion\n- 대회 룰 탭 구축 (5섹션 + 실시간 통과/위반 배지)\n- NAV/MDD 차트 Y축 scaleMargins 적용\n- 비교 탭 groupMap DB 연결 (usePortfolioList 기반)\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
-    "type": "feat"
-  },
-  {
-    "hash": "838773b3",
-    "date": "2026-05-26",
-    "subject": "feat: 그룹 C/D/E — 비교탭 전면 개선, 매매일지 수익/손실, 내비·룰·리서치·변경이력 탭",
-    "body": "- comparison/page.tsx: 기간 필터(1M/3M/6M/1Y/전체), 현재 운용 포트폴리오 pinned, 정렬, 삭제, y축 개선\n- page.tsx: 총 자산 카드, 카드 순서 정리, useActualNav 연결\n- trades/page.tsx: 매도 행 수익/손실 계산 표시\n- rules/page.tsx: 대회 룰 MD 전체 렌더링 (API route 경유)\n- frontend/app/api/rules-content/route.ts: 대회 룰 MD 파일 서빙 Next.js API route\n- ComparisonChart.tsx: pinnedName/pinnedColor/paletteOverride 지원\n- dashboard.ts, portfolio.ts: 훅 업데이트\n- api/schemas.py, portfolios.py, db.py: group_name 필드, 비교 요약 날짜 필터\n- CLAUDE.md: 프론트엔드 라우트 테이블 추가\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
-    "type": "feat"
-  },
-  {
-    "hash": "cbbbd245",
-    "date": "2026-05-26",
-    "subject": "feat(backend): 그룹 B — actual-nav, live-rules 엔드포인트 추가 + 회전율 공식 수정",
-    "body": "- api/schemas.py: NavPoint에 cash 필드(Optional[float]) 추가\n- api/routers/dashboard.py: GET /api/actual-nav 신설 (trade_log DB 기반 실제 NAV + cash 시계열)\n- api/routers/dashboard.py: GET /api/live-rules 신설 (live holdings 기반 규칙 체크, src/ import 없음)\n- src/turnover.py: 회전율 공식을 대회 룰 기준으로 수정 (총 매매금액 / 평균 자산, 평균 자산 = (기초+기말)/2)\n- src/run_engine.py: check_turnover_limits 호출에 initial_start_date, nav 인자 추가\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
-    "type": "feat"
   }
 ]
