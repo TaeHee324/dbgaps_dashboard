@@ -216,6 +216,14 @@ def upsert_portfolio(payload: schemas.PortfolioUpsertRequest):
     return {"name": payload.name, "holdings": holdings, "group_name": payload.group_name}
 
 
+@router.patch("/portfolios/{name}/group", status_code=200)
+def update_portfolio_group_endpoint(name: str, payload: schemas.PortfolioGroupRequest):
+    if not _ensure_db():
+        raise HTTPException(status_code=503, detail="DB unavailable")
+    db.update_portfolio_group(name, payload.group_name or None)
+    return {"name": name, "group_name": payload.group_name or None}
+
+
 @router.delete("/portfolios/{name}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_portfolio(name: str):
     if not _ensure_db() or db.get_portfolio(name) is None:

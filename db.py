@@ -140,6 +140,16 @@ def upsert_portfolio(name: str, holdings: list[dict], group_name: str | None = N
         conn.commit()
 
 
+def update_portfolio_group(name: str, group_name: str | None) -> None:
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE portfolios SET group_name = %s, updated_at = NOW() WHERE name = %s",
+                (group_name, name),
+            )
+        conn.commit()
+
+
 def delete_portfolio(name: str) -> None:
     """Delete a portfolio. Raises ValueError if not found or protected."""
     with get_connection() as conn:

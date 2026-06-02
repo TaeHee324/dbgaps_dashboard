@@ -4,9 +4,9 @@ This script keeps ``data/prices_daily.csv`` in long format:
 
     date,code,close
 
-It uses ``pykrx`` when available. Install it in the project environment with:
+It uses ``yfinance`` when available. Install it in the project environment with:
 
-    pip install pykrx pandas
+    pip install yfinance pandas
 
 Only this module should perform KRX network requests. Downstream calculation
 modules consume the generated CSV with pandas only.
@@ -28,12 +28,12 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 try:
-    from pykrx import stock
+    import yfinance as yf
 except ImportError as exc:  # pragma: no cover - environment dependent
-    stock = None
-    PYKRX_IMPORT_ERROR = exc
+    yf = None
+    YFINANCE_IMPORT_ERROR = exc
 else:
-    PYKRX_IMPORT_ERROR = None
+    YFINANCE_IMPORT_ERROR = None
 
 ROOT = Path(__file__).resolve().parents[1]
 ETF_MASTER_PATH = ROOT / "data" / "etf_master.csv"
@@ -44,10 +44,6 @@ BENCHMARK_CODE = "069500"
 
 def parse_yyyymmdd(value: str) -> date:
     return datetime.strptime(value, "%Y-%m-%d").date()
-
-
-def compact_day(value: date) -> str:
-    return value.strftime("%Y%m%d")
 
 
 def load_codes(master_path: Path = ETF_MASTER_PATH) -> list[str]:
@@ -80,29 +76,35 @@ def next_start_date(existing: pd.DataFrame, code: str, default_start: date) -> d
 
 
 def fetch_daily_close(code: str, start: date, end: date) -> pd.DataFrame:
-    if stock is None:
+    if yf is None:
         raise RuntimeError(
-            "pykrx is required to fetch prices. Install with `pip install pykrx pandas`."
-        ) from PYKRX_IMPORT_ERROR
+            "yfinance is required. Install with: pip install yfinance"
+        ) from YFINANCE_IMPORT_ERROR
     if start > end:
         return pd.DataFrame(columns=PRICE_COLUMNS)
 
-    raw = stock.get_etf_ohlcv_by_date(compact_day(start), compact_day(end), code)
-    if raw.empty:
-        raw = stock.get_market_ohlcv_by_date(compact_day(start), compact_day(end), code)
-    if raw.empty:
+    ticker = f"{code}.KS"
+    # yfinance end parameter is exclusive, so add 1 day
+    df = yf.download(
+        ticker,
+        start=start.isoformat(),
+        end=(end + timedelta(days=1)).isoformat(),
+        progress=False,
+        auto_adjust=True,
+    )
+    if df.empty:
         return pd.DataFrame(columns=PRICE_COLUMNS)
 
-    close_col = next((column for column in ("종가", "close", "Close") if column in raw.columns), None)
-    if close_col is None:
-        raise ValueError(f"unexpected pykrx columns for {code}: {list(raw.columns)}")
+    # yfinance >= 0.2.x may return MultiIndex columns for single ticker
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.get_level_values(0)
 
-    frame = raw.reset_index().rename(columns={raw.index.name or "index": "date", close_col: "close"})
-    frame = frame[["date", "close"]]
-    frame["date"] = pd.to_datetime(frame["date"]).dt.strftime("%Y-%m-%d")
-    frame["code"] = code
-    frame["close"] = pd.to_numeric(frame["close"], errors="coerce")
-    return frame[PRICE_COLUMNS].dropna(subset=["date", "close"])
+    df = df[["Close"]].reset_index()
+    df.columns = ["date", "close"]
+    df["date"] = pd.to_datetime(df["date"]).dt.strftime("%Y-%m-%d")
+    df["code"] = code
+    df["close"] = pd.to_numeric(df["close"], errors="coerce")
+    return df[PRICE_COLUMNS].dropna(subset=["date", "close"])
 
 
 def update_prices(

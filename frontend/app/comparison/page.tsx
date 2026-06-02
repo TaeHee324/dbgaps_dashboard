@@ -12,7 +12,81 @@ import {
   type ComparisonNavPoint,
   type ComparisonSummaryItem,
 } from "@/lib/hooks/dashboard";
-import { useDeletePortfolio, usePortfolioList } from "@/lib/hooks/portfolio";
+import { useDeletePortfolio, usePortfolioList, useUpdatePortfolioGroup } from "@/lib/hooks/portfolio";
+
+// ─── Group Select ────────────────────────────────────────────────────────────
+function GroupSelect({
+  portfolioName,
+  currentGroup,
+  existingGroups,
+  onUpdate,
+}: {
+  portfolioName: string;
+  currentGroup: string | null;
+  existingGroups: string[];
+  onUpdate: (args: { name: string; groupName: string | null }) => void;
+}) {
+  const [showNew, setShowNew] = useState(false);
+  const [newVal, setNewVal] = useState("");
+
+  const allOptions = ["기타", ...existingGroups.filter((g) => g !== "기타")];
+
+  if (showNew) {
+    return (
+      <div className="flex items-center gap-1">
+        <input
+          autoFocus
+          value={newVal}
+          onChange={(e) => setNewVal(e.target.value)}
+          className="w-24 rounded border border-border px-1.5 py-0.5 text-xs text-ink focus:outline-none focus:ring-1 focus:ring-primary/30"
+          placeholder="그룹명 입력"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && newVal.trim()) {
+              onUpdate({ name: portfolioName, groupName: newVal.trim() });
+              setShowNew(false);
+              setNewVal("");
+            }
+            if (e.key === "Escape") {
+              setShowNew(false);
+              setNewVal("");
+            }
+          }}
+        />
+        <button
+          onClick={() => {
+            setShowNew(false);
+            setNewVal("");
+          }}
+          className="text-xs text-inkMuted hover:text-ink"
+        >
+          취소
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <select
+      value={currentGroup ?? "기타"}
+      onChange={(e) => {
+        const val = e.target.value;
+        if (val === "__new__") {
+          setShowNew(true);
+          return;
+        }
+        onUpdate({ name: portfolioName, groupName: val === "기타" ? null : val });
+      }}
+      className="rounded border border-border bg-surface px-1.5 py-0.5 text-xs text-inkSecondary focus:outline-none focus:ring-1 focus:ring-primary/30"
+    >
+      {allOptions.map((g) => (
+        <option key={g} value={g}>
+          {g}
+        </option>
+      ))}
+      <option value="__new__">+ 새 그룹</option>
+    </select>
+  );
+}
 
 // ─── Portfolio Scatter Chart ─────────────────────────────────────────────────
 const METRIC_OPTIONS = [
@@ -393,6 +467,7 @@ export default function ComparisonPage() {
   const { data: liveHoldings = [] } = useLiveHoldings();
   const { data: actualNav = [] } = useActualNav();
   const deleteMutation = useDeletePortfolio();
+  const updateGroupMutation = useUpdatePortfolioGroup();
 
   // 전체 선택 초기화
   useEffect(() => {
@@ -546,6 +621,18 @@ export default function ComparisonPage() {
   const groupMap = useMemo(
     () =>
       Object.fromEntries((portfolioList ?? []).map((p) => [p.name, p.group_name])),
+    [portfolioList],
+  );
+
+  const existingGroups = useMemo(
+    () =>
+      [
+        ...new Set(
+          (portfolioList ?? [])
+            .map((p) => p.group_name)
+            .filter((g): g is string => Boolean(g))
+        ),
+      ].sort(),
     [portfolioList],
   );
 
@@ -817,7 +904,15 @@ export default function ComparisonPage() {
                             }`}
                           >
                             <td className="px-4 py-3 font-medium text-ink">
-                              {item.portfolio_name}
+                              <div className="flex flex-col gap-0.5">
+                                <span>{item.portfolio_name}</span>
+                                <GroupSelect
+                                  portfolioName={item.portfolio_name}
+                                  currentGroup={groupMap[item.portfolio_name] ?? null}
+                                  existingGroups={existingGroups}
+                                  onUpdate={updateGroupMutation.mutate}
+                                />
+                              </div>
                             </td>
                             <td className="px-4 py-3 text-right font-numeric tabular-nums text-ink">
                               {fmtPct(getMetric(item.portfolio_name, "cagr"))}

@@ -121,3 +121,14 @@ export function useUpdateActiveHolding() {
     },
   });
 }
+
+export function useUpdatePortfolioGroup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ name, groupName }: { name: string; groupName: string | null }) =>
+      patch(`/api/portfolios/${encodeURIComponent(name)}/group`, { group_name: groupName }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["portfolio-list"] });
+    },
+  });
+}

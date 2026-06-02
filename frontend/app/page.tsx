@@ -319,24 +319,29 @@ export default function HomePage() {
           >
             운용 대시보드
           </h1>
-          <button
-            onClick={handleRefresh}
-            disabled={refreshing}
-            style={{
-              padding: "4px 12px",
-              fontSize: 12,
-              fontFamily: "JetBrains Mono, monospace",
-              fontWeight: 600,
-              color: refreshing ? "#8595A6" : "#533AFD",
-              background: "#F4F2FF",
-              border: "1px solid #C4BBFC",
-              borderRadius: 4,
-              cursor: refreshing ? "not-allowed" : "pointer",
-              opacity: refreshing ? 0.7 : 1,
-            }}
-          >
-            {refreshLabel}
-          </button>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2 }}>
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              style={{
+                padding: "4px 12px",
+                fontSize: 12,
+                fontFamily: "JetBrains Mono, monospace",
+                fontWeight: 600,
+                color: refreshing ? "#8595A6" : "#533AFD",
+                background: "#F4F2FF",
+                border: "1px solid #C4BBFC",
+                borderRadius: 4,
+                cursor: refreshing ? "not-allowed" : "pointer",
+                opacity: refreshing ? 0.7 : 1,
+              }}
+            >
+              {refreshLabel}
+            </button>
+            <span style={{ fontSize: 10, color: "#8595A6", fontFamily: "JetBrains Mono, monospace" }}>
+              Yahoo Finance
+            </span>
+          </div>
           {refreshing && refreshStep === "fetching_prices" && (
             <span style={{ fontSize: 11, color: "#8595A6", fontFamily: "JetBrains Mono, monospace" }}>
               약 30~45초 소요

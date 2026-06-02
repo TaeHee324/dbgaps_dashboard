@@ -33,7 +33,7 @@ Design authority order:
 
 - Python 3.12
 - pandas >= 2.0
-- pykrx only for ETF price collection in `src/update_prices.py`
+- yfinance only for ETF price collection in `src/update_prices.py`
 - FastAPI + uvicorn (백엔드 API 서버)
 - Next.js 15 App Router + TypeScript + Tailwind CSS (프론트엔드)
 - TanStack Query v5 (클라이언트 상태관리)
@@ -78,7 +78,7 @@ Expected `src/` roles:
 - `portfolio.py`: current holdings evaluation from trades and prices
 - `rules.py`: ETF and risk-asset rule checks
 - `turnover.py`: turnover checks
-- `update_prices.py`: pykrx data collection only
+- `update_prices.py`: yfinance data collection only
 - `report_builder.py`: Markdown report generation
 
 Expected `api/` roles:
@@ -127,13 +127,13 @@ Reason: calculation and API must remain deployable and testable independently.
 파생 규칙: `dashboard.py`에서 기간별 메트릭(CAGR/MDD/Sharpe)을 동적 재계산해야 할 때는
 `/api/comparison/nav` nav 시계열을 그대로 내려보내고 프론트엔드 JS에서 계산할 것.
 
-### CRITICAL-2: `api/` must not import `pykrx` or fetch live data
+### CRITICAL-2: `api/` must not import `yfinance` or fetch live data
 
-`src/update_prices.py` is the only place where pykrx and network data collection belong.
+`src/update_prices.py` is the only place where yfinance and network data collection belong.
 
 Reason: the API server must stay read-only, lightweight, and deterministic.
 
-Note: `api/requirements.txt`에 pykrx가 설치됨 — `_run_refresh()` subprocess 실행을 위해 필요. import 금지 원칙과 무관 (모듈 import ≠ subprocess 실행).
+Note: `api/requirements.txt`에 yfinance가 설치됨 — `_run_refresh()` subprocess 실행을 위해 필요. import 금지 원칙과 무관 (모듈 import ≠ subprocess 실행).
 
 ### CRITICAL-3: Generated outputs are contracts
 
@@ -164,7 +164,7 @@ FastAPI에 도달하려면 반드시 `NEXT_PUBLIC_API_URL` 접두어를 붙인 �
 ## Data Flow
 
 ```text
-pykrx -> src/update_prices.py -> PostgreSQL prices_daily  (영구 보존, Railway 재배포에도 유지)
+yfinance -> src/update_prices.py -> PostgreSQL prices_daily  (영구 보존, Railway 재배포에도 유지)
 PostgreSQL prices_daily + data/*.csv -> src/ calculation engine -> output/
 output/*.csv -> api/ FastAPI -> frontend/ Next.js
 ```

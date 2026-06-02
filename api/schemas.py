@@ -159,6 +159,10 @@ class PortfolioUpsertResponse(BaseModel):
     group_name: str | None = None
 
 
+class PortfolioGroupRequest(BaseModel):
+    group_name: str | None = None
+
+
 class BacktestRequest(BaseModel):
     holdings: list[PortfolioHolding]
     start_date: str | None = None

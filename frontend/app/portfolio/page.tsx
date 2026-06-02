@@ -135,7 +135,7 @@ export default function PortfolioPage() {
 
   // 자산군별 비중 실시간 계산 (etfList 매핑)
   const assetClassStatus = useMemo(() => {
-    const base = totalWeight > 0 ? totalWeight : 100;
+    const base = 100;
     const weights: Record<string, number> = {};
     for (const row of validRows) {
       const ac = row.asset_class ?? etfList.find((e) => e.code === row.code)?.asset_class;
@@ -404,6 +404,16 @@ export default function PortfolioPage() {
             <div className="space-y-1.5">
               {portfolioRows.map((row, i) => (
                 <div key={i} className="space-y-0.5">
+                  {row.name && (
+                    <div className="flex items-center gap-1.5 pl-1">
+                      <span className="text-xs text-inkSecondary truncate max-w-[180px]">{row.name}</span>
+                      {row.asset_class && (
+                        <span className="shrink-0 rounded border border-border bg-surfaceMuted px-1.5 py-0.5 text-xs text-inkMuted">
+                          {row.asset_class}
+                        </span>
+                      )}
+                    </div>
+                  )}
                   <div className="flex gap-2">
                     <input
                       type="text"
@@ -433,16 +443,6 @@ export default function PortfolioPage() {
                       </button>
                     )}
                   </div>
-                  {row.name && (
-                    <div className="flex items-center gap-1.5 pl-1">
-                      <span className="text-xs text-inkSecondary truncate max-w-[180px]">{row.name}</span>
-                      {row.asset_class && (
-                        <span className="shrink-0 rounded border border-border bg-surfaceMuted px-1.5 py-0.5 text-xs text-inkMuted">
-                          {row.asset_class}
-                        </span>
-                      )}
-                    </div>
-                  )}
                 </div>
               ))}
             </div>
