@@ -16,8 +16,21 @@ import {
   useUpsertPortfolio,
 } from "@/lib/hooks/portfolio";
 
-type PortfolioRow = { code: string; weight: number };
+type PortfolioRow = { code: string; weight: number; name?: string; asset_class?: string };
 type PeriodKey = "1M" | "3M" | "6M" | "1Y" | "전체";
+
+const ASSET_CLASS_LIMITS: Record<string, number> = {
+  "국내주식_지수": 0.30,
+  "국내주식_섹터": 0.15,
+  "해외주식_지수": 0.30,
+  "해외주식_섹터": 0.10,
+  "FX 및 원자재": 0.20,
+  "국내채권_종합": 0.50,
+  "국내채권_회사채": 0.30,
+  "해외채권_종합": 0.50,
+  "해외채권_회사채": 0.30,
+  "금리연계형/초단기채권": 0.50,
+};
 
 const PERIODS: PeriodKey[] = ["1M", "3M", "6M", "1Y", "전체"];
 
@@ -120,6 +133,22 @@ export default function PortfolioPage() {
   const totalWeight = Math.round(validRows.reduce((s, r) => s + r.weight, 0) * 100) / 100;
   const weightOverflow = totalWeight > 100;
 
+  // 자산군별 비중 실시간 계산 (etfList 매핑)
+  const assetClassStatus = useMemo(() => {
+    const base = totalWeight > 0 ? totalWeight : 100;
+    const weights: Record<string, number> = {};
+    for (const row of validRows) {
+      const ac = row.asset_class ?? etfList.find((e) => e.code === row.code)?.asset_class;
+      if (ac) weights[ac] = (weights[ac] ?? 0) + row.weight / base;
+    }
+    return Object.entries(weights).map(([ac, w]) => ({
+      asset_class: ac,
+      current: w,
+      limit: ASSET_CLASS_LIMITS[ac] ?? null,
+      passed: ASSET_CLASS_LIMITS[ac] != null ? w <= ASSET_CLASS_LIMITS[ac] : true,
+    }));
+  }, [validRows, etfList, totalWeight]);
+
   // 행 조작
   function addRow() {
     setPortfolioRows((prev) => [...prev, { code: "", weight: 0 }]);
@@ -130,8 +159,14 @@ export default function PortfolioPage() {
   }
 
   function updateRowCode(i: number, value: string) {
+    const normalized = value.trim().replace(/^0+(\d{6})$/, "$1").padStart(6, "0");
+    const found = etfList.find((e) => e.code === normalized || e.code === value.trim());
     setPortfolioRows((prev) =>
-      prev.map((r, idx) => (idx === i ? { ...r, code: value } : r)),
+      prev.map((r, idx) =>
+        idx === i
+          ? { ...r, code: value, name: found?.name, asset_class: found?.asset_class }
+          : r,
+      ),
     );
   }
 
@@ -144,7 +179,17 @@ export default function PortfolioPage() {
   // 포트폴리오 불러오기
   function handleLoad() {
     if (portfolioDetail && portfolioDetail.length > 0) {
-      setPortfolioRows(portfolioDetail.map((h) => ({ code: h.code, weight: Math.round(h.weight * 10000) / 100 })));
+      setPortfolioRows(
+        portfolioDetail.map((h) => {
+          const found = etfList.find((e) => e.code === h.code);
+          return {
+            code: h.code,
+            weight: Math.round(h.weight * 10000) / 100,
+            name: found?.name,
+            asset_class: found?.asset_class,
+          };
+        }),
+      );
     }
   }
 
@@ -356,35 +401,47 @@ export default function PortfolioPage() {
             )}
 
             {/* 행 입력 */}
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {portfolioRows.map((row, i) => (
-                <div key={i} className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="코드 (예: 069500)"
-                    value={row.code}
-                    onChange={(e) => updateRowCode(i, e.target.value)}
-                    className="flex-1 rounded-md border border-border bg-surface px-3 py-2 font-mono text-sm text-ink placeholder:text-inkMuted focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  />
-                  <input
-                    type="number"
-                    placeholder="비중 (%)"
-                    value={row.weight}
-                    min={0}
-                    max={100}
-                    step={1}
-                    onChange={(e) =>
-                      updateRowWeight(i, parseFloat(e.target.value) || 0)
-                    }
-                    className="w-24 rounded-md border border-border bg-surface px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  />
-                  {portfolioRows.length > 1 && (
-                    <button
-                      onClick={() => removeRow(i)}
-                      className="rounded-md border border-border px-3 py-2 text-xs text-inkSecondary hover:bg-surfaceMuted"
-                    >
-                      ✕
-                    </button>
+                <div key={i} className="space-y-0.5">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="코드 (예: 069500)"
+                      value={row.code}
+                      onChange={(e) => updateRowCode(i, e.target.value)}
+                      className="flex-1 rounded-md border border-border bg-surface px-3 py-2 font-mono text-sm text-ink placeholder:text-inkMuted focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                    <input
+                      type="number"
+                      placeholder="비중 (%)"
+                      value={row.weight}
+                      min={0}
+                      max={100}
+                      step={1}
+                      onChange={(e) =>
+                        updateRowWeight(i, parseFloat(e.target.value) || 0)
+                      }
+                      className="w-24 rounded-md border border-border bg-surface px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                    {portfolioRows.length > 1 && (
+                      <button
+                        onClick={() => removeRow(i)}
+                        className="rounded-md border border-border px-3 py-2 text-xs text-inkSecondary hover:bg-surfaceMuted"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                  {row.name && (
+                    <div className="flex items-center gap-1.5 pl-1">
+                      <span className="text-xs text-inkSecondary truncate max-w-[180px]">{row.name}</span>
+                      {row.asset_class && (
+                        <span className="shrink-0 rounded border border-border bg-surfaceMuted px-1.5 py-0.5 text-xs text-inkMuted">
+                          {row.asset_class}
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
               ))}
@@ -404,6 +461,37 @@ export default function PortfolioPage() {
               비중 합계: {totalWeight.toFixed(1)}% / 100%
               {weightOverflow && " — 합계 초과"}
             </p>
+
+            {/* 자산군별 비중 실시간 확인 */}
+            {assetClassStatus.length > 0 && (
+              <div className="rounded-md border border-border bg-surfaceMuted/50 px-3 py-2 space-y-1">
+                <p className="text-xs font-medium text-inkSecondary">자산군 한도 확인</p>
+                {assetClassStatus.map(({ asset_class, current, limit, passed }) => (
+                  <div key={asset_class} className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-ink truncate">{asset_class}</span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="tabular-nums text-xs text-ink">
+                        {(current * 100).toFixed(1)}%
+                        {limit != null && (
+                          <span className="text-inkMuted"> / {(limit * 100).toFixed(0)}%</span>
+                        )}
+                      </span>
+                      {limit != null && (
+                        <span
+                          className={`rounded px-1.5 py-0.5 text-xs font-medium ${
+                            passed
+                              ? "bg-successSoft text-success"
+                              : "bg-dangerSoft text-danger"
+                          }`}
+                        >
+                          {passed ? "통과" : "초과"}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* 백테스트 실행 */}
             <button
@@ -502,6 +590,13 @@ export default function PortfolioPage() {
                   />
                   <button
                     onClick={() => {
+                      const found = etfList.find((e) => e.code === selectedCode);
+                      const newRow: PortfolioRow = {
+                        code: selectedCode,
+                        weight: addWeight,
+                        name: found?.name,
+                        asset_class: found?.asset_class,
+                      };
                       setPortfolioRows((prev) => {
                         const existing = prev.findIndex((r) => r.code === selectedCode);
                         if (existing !== -1) {
@@ -510,10 +605,8 @@ export default function PortfolioPage() {
                           );
                         }
                         const hasEmpty = prev.length === 1 && prev[0].code === "";
-                        if (hasEmpty) {
-                          return [{ code: selectedCode, weight: addWeight }];
-                        }
-                        return [...prev, { code: selectedCode, weight: addWeight }];
+                        if (hasEmpty) return [newRow];
+                        return [...prev, newRow];
                       });
                       setAddWeight(10);
                     }}

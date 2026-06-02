@@ -7,8 +7,10 @@ import {
   useEtfRiskAnalysis,
   useEtfPrices,
   useDoc,
+  useLiveRules,
   type EtfRiskItem,
   type EtfPricePoint,
+  type IndividualRule,
 } from "@/lib/hooks/dashboard";
 import { computeActualOpsMetrics } from "@/lib/utils/metrics";
 import { EtfRiskLineChart } from "@/components/charts/EtfRiskLineChart";
@@ -598,6 +600,7 @@ export default function RiskPage() {
   const actualNavQuery = useActualNav();
   const riskPortfolioQuery = useRiskPortfolio();
   const etfRiskQuery = useEtfRiskAnalysis();
+  const liveRulesQuery = useLiveRules();
 
   const actualOpsMetrics = useMemo(
     () => computeActualOpsMetrics(actualNavQuery.data ?? []),
@@ -792,6 +795,120 @@ export default function RiskPage() {
           helpAlign="right"
         />
       </div>
+
+      {/* 자산군 한도 준수 현황 */}
+      {(() => {
+        const groupRows = (liveRulesQuery.data?.individual ?? []).filter(
+          (r: IndividualRule) => r.code.startsWith("["),
+        );
+        if (groupRows.length === 0) return null;
+        const riskAsset = liveRulesQuery.data?.risk_asset;
+        const allRows = riskAsset
+          ? [
+              {
+                code: "[위험자산합계]",
+                name: "위험자산 합계",
+                current_weight: riskAsset.risky_weight,
+                limit: riskAsset.limit,
+                excess: riskAsset.excess,
+                passed: riskAsset.passed,
+              },
+              ...groupRows,
+            ]
+          : groupRows;
+        return (
+          <div style={PANEL}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "10px 14px",
+                borderBottom: `1px solid ${C.border}`,
+                background: C.surfaceMuted,
+              }}
+            >
+              <span style={{ fontSize: 12.5, fontWeight: 700, color: C.ink }}>자산군 한도 준수 현황</span>
+              {allRows.some((r) => !r.passed) && (
+                <span
+                  style={{
+                    ...MONO,
+                    fontSize: 10,
+                    fontWeight: 700,
+                    color: C.danger,
+                    background: "#FEE2E2",
+                    border: `1px solid ${C.danger}33`,
+                    borderRadius: 3,
+                    padding: "1px 6px",
+                  }}
+                >
+                  한도 초과
+                </span>
+              )}
+            </div>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ background: C.surfaceMuted }}>
+                    {["자산군", "현재 비중", "한도", "상태"].map((h) => (
+                      <th
+                        key={h}
+                        style={{
+                          padding: "6px 14px",
+                          textAlign: "left",
+                          fontWeight: 500,
+                          color: C.inkSecondary,
+                          fontSize: 11,
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {allRows.map((row, idx) => (
+                    <tr
+                      key={row.code}
+                      style={{
+                        borderTop: `1px solid ${C.border}`,
+                        background: idx % 2 === 1 ? C.surfaceMuted : C.surface,
+                      }}
+                    >
+                      <td style={{ padding: "6px 14px", color: C.ink }}>
+                        {row.name.replace("자산군: ", "")}
+                      </td>
+                      <td style={{ ...MONO, padding: "6px 14px", color: C.ink }}>
+                        {(row.current_weight * 100).toFixed(1)}%
+                      </td>
+                      <td style={{ ...MONO, padding: "6px 14px", color: C.inkSecondary }}>
+                        {(row.limit * 100).toFixed(0)}%
+                      </td>
+                      <td style={{ padding: "6px 14px" }}>
+                        <span
+                          style={{
+                            ...MONO,
+                            fontSize: 10,
+                            fontWeight: 700,
+                            color: row.passed ? C.success : C.danger,
+                            background: row.passed ? C.successBg : C.dangerBg,
+                            border: `1px solid ${(row.passed ? C.success : C.danger)}33`,
+                            borderRadius: 3,
+                            padding: "1px 6px",
+                          }}
+                        >
+                          {row.passed ? "통과" : "초과"}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 리밸런싱 경고 배너 */}
       {etfItems.length > 0 && <RebalancingBanner items={etfItems} />}

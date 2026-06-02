@@ -282,6 +282,20 @@ def _load_master() -> pd.DataFrame:
     return master
 
 
+_ASSET_CLASS_LIMITS: dict[str, float] = {
+    "국내주식_지수": 0.30,
+    "국내주식_섹터": 0.15,
+    "해외주식_지수": 0.30,
+    "해외주식_섹터": 0.10,
+    "FX 및 원자재": 0.20,
+    "국내채권_종합": 0.50,
+    "국내채권_회사채": 0.30,
+    "해외채권_종합": 0.50,
+    "해외채권_회사채": 0.30,
+    "금리연계형/초단기채권": 0.50,
+}
+
+
 def _rules_for_holdings(holdings: list[schemas.PortfolioHolding]) -> dict:
     from rules import check_individual_etf_limit, check_risk_asset_limit
 
@@ -289,7 +303,7 @@ def _rules_for_holdings(holdings: list[schemas.PortfolioHolding]) -> dict:
         [{"code": _normalize_code(item.code), "weight": float(item.weight)} for item in holdings]
     )
     master = _load_master()
-    merge_columns = [column for column in ["code", "name", "risk_type"] if column in master.columns]
+    merge_columns = [c for c in ["code", "name", "risk_type", "asset_class"] if c in master.columns]
     if merge_columns:
         portfolio = portfolio.merge(master[merge_columns], on="code", how="left")
     if "name" not in portfolio.columns:
@@ -298,22 +312,47 @@ def _rules_for_holdings(holdings: list[schemas.PortfolioHolding]) -> dict:
     if "risk_type" not in portfolio.columns:
         portfolio["risk_type"] = ""
     portfolio["risk_type"] = portfolio["risk_type"].fillna("")
+    if "asset_class" not in portfolio.columns:
+        portfolio["asset_class"] = ""
+    portfolio["asset_class"] = portfolio["asset_class"].fillna("")
 
     individual = check_individual_etf_limit(portfolio, limit=0.20, weight_col="weight")
     risk_asset = check_risk_asset_limit(portfolio, limit=0.70, weight_col="weight")
     individual = individual.rename(columns={"weight": "current_weight"})
+
+    individual_rows = [
+        {
+            "code": _normalize_code(row["code"]),
+            "name": str(row.get("name") or row["code"]),
+            "current_weight": _safe_float(row["current_weight"]),
+            "limit": _safe_float(row["limit"]),
+            "excess": _safe_float(row["excess"]),
+            "passed": bool(row["passed"]),
+        }
+        for _, row in individual.iterrows()
+    ]
+
+    # 세부 자산군 비중 집계 및 한도 체크
+    asset_class_weights: dict[str, float] = {}
+    for _, row in portfolio.iterrows():
+        ac = str(row.get("asset_class") or "")
+        if ac:
+            asset_class_weights[ac] = asset_class_weights.get(ac, 0.0) + _safe_float(row["weight"])
+
+    for ac, limit in _ASSET_CLASS_LIMITS.items():
+        w = asset_class_weights.get(ac, 0.0)
+        if w > 0:
+            individual_rows.append({
+                "code": f"[{ac}]",
+                "name": f"자산군: {ac}",
+                "current_weight": round(w, 6),
+                "limit": limit,
+                "excess": round(w - limit, 6),
+                "passed": w <= limit,
+            })
+
     return {
-        "individual": [
-            {
-                "code": _normalize_code(row["code"]),
-                "name": str(row.get("name") or row["code"]),
-                "current_weight": _safe_float(row["current_weight"]),
-                "limit": _safe_float(row["limit"]),
-                "excess": _safe_float(row["excess"]),
-                "passed": bool(row["passed"]),
-            }
-            for _, row in individual.iterrows()
-        ],
+        "individual": individual_rows,
         "risk_asset": {
             "rule": str(risk_asset["rule"]),
             "risky_weight": _safe_float(risk_asset["risky_weight"]),
