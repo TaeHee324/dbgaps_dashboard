@@ -28,7 +28,7 @@ def _calc_weights(
             query = """
                 SELECT action, etf_code, quantity, price, COALESCE(fee, 0) as fee
                 FROM trade_log
-                WHERE date < %s
+                WHERE date <= %s
                   AND quantity IS NOT NULL AND price IS NOT NULL
             """
             params: list = [trade_date]
