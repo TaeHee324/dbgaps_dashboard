@@ -1,5 +1,12 @@
 [
   {
+    "hash": "0a7d9ce1",
+    "date": "2026-06-04",
+    "subject": "fix: 매매일지 같은 날 비중 계산 오류 및 당일 가격 재수집 불가 버그 수정",
+    "body": "- trades.py: _calc_weights 쿼리를 date < 에서 date <= 로 변경하여 같은 날 거래를 비중 계산에 포함\n- update_prices.py: 오늘 가격이 이미 DB에 있어도 재수집하도록 수정 (장중→종가 덮어쓰기)\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "fix"
+  },
+  {
     "hash": "bb05a2c5",
     "date": "2026-06-04",
     "subject": "refactor: 매매일지 저장 시 목표비중 자동 업데이트 제거, 비교탭 현재 운용 이름 표시",
@@ -340,13 +347,6 @@
     "date": "2026-05-27",
     "subject": "docs(claude): 현재가 갱신 버그 수정 후 하네스 보완",
     "body": "- frontend/CLAUDE.md: fetch() 직접 사용 금지 패턴 추가\n  (상대 URL /api/...는 Next.js로 라우팅되어 FastAPI 미도달)\n- CLAUDE.md CRITICAL-2: pykrx가 api/requirements.txt에 설치됨 명시\n  (import 금지와 subprocess 실행은 별개임을 구분)\n- CLAUDE.md SYNC-8: 현재가 갱신 2단계 플로우 명시\n  (update_prices.py만으로는 output/ 미갱신)\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
-    "type": "docs"
-  },
-  {
-    "hash": "e12598a4",
-    "date": "2026-05-27",
-    "subject": "docs(claude): 회전율 기준 하한 명시 및 SYNC-7 추가",
-    "body": "Defaults 섹션의 'turnover limit' 표현이 상한으로 오해될 수 있어\n'minimum'으로 수정하고 passed 방향(>=)을 명시.\nSYNC-7: check_turnover_limits() passed 판정은 >= 임을 경고 노트로 추가.\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
     "type": "docs"
   }
 ]
