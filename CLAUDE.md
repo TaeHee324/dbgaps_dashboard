@@ -346,15 +346,14 @@ UI 레이블도 "한도"(상한 뉘앙스) 대신 "최소"를 사용할 것.
 
 기존 거래 내역 일괄 재계산 필요 시: `python scripts/recalc_trade_weights.py` (1회성, 실행 전 DB 백업 필수).
 
-### SYNC-12: active 포트폴리오 목표 비중은 거래 저장 시 자동 업데이트됨
+### SYNC-12: active 포트폴리오 목표 비중은 거래 저장 시 자동 업데이트되지 않음
 
-`trades/page.tsx`의 `handleSubmit`은 거래 저장 완료 후 `PATCH /api/portfolios/active/holdings`를 호출해 해당 ETF의 목표 비중을 업데이트한다.
-- 역산 계산기에 값이 있으면 `calcTargetWeight / 100` 사용
-- 역산 계산기 미사용 시 백엔드 반환 `weight_after` 사용
-- `weight_after === 0`이면 PATCH 미호출 (의도적)
-- active 포트폴리오 없으면 404 → `console.error`만 출력 (거래 저장 롤백 없음)
+`trades/page.tsx`의 `handleSubmit`은 거래 저장 완료 후 `PATCH /api/portfolios/active/holdings`를 호출하지 않는다.
+포트폴리오 목표 비중은 포트폴리오 탭(ETF 포트폴리오 관리)에서 직접 설정하며, 거래 기록에 의해 변경되지 않는다.
 
-리스크 탭의 "목표 비중" 드리프트 계산은 이 값을 참조하므로 거래 후 즉시 반영된다.
+역산 계산기(`calcTargetWeight`)는 UI 참조용으로만 사용되며 포트폴리오 비중에 영향을 주지 않는다.
+
+`useUpdateActiveHolding` 훅은 제거됨 — 개별 ETF 목표 비중 단건 PATCH가 필요한 경우 포트폴리오 전체 upsert(`useUpsertPortfolio`)를 사용할 것.
 
 ## DB Schema Changes
 

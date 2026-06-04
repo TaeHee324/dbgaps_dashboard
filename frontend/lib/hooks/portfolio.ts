@@ -108,20 +108,6 @@ export function useActivatePortfolio() {
   });
 }
 
-export function useUpdateActiveHolding() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ code, weight }: { code: string; weight: number }) =>
-      patch<{ updated: string; weight: number }>(`/api/portfolios/active/holdings`, { code, weight }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["portfolios"] });
-      queryClient.invalidateQueries({ queryKey: ["portfolio-list"] });
-      queryClient.invalidateQueries({ queryKey: ["risk-portfolio"] });
-      queryClient.invalidateQueries({ queryKey: ["etf-risk-analysis"] });
-    },
-  });
-}
-
 export function useUpdatePortfolioGroup() {
   const queryClient = useQueryClient();
   return useMutation({

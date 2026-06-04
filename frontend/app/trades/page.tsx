@@ -3,7 +3,7 @@
 import { useState, Fragment, useMemo, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTradeLog, usePortfolioEtfs, useLiveHoldings, useActualNav, type TradeLogEntry } from "@/lib/hooks/dashboard";
-import { useEtfList, useEtfPrices, useUpdateActiveHolding } from "@/lib/hooks/portfolio";
+import { useEtfList, useEtfPrices } from "@/lib/hooks/portfolio";
 import { useAddTrade, useUpdateTrade, useDeleteTrade, type AddTradeRequest } from "@/lib/hooks/trades";
 
 const INVESTMENT_OPTIONS = [
@@ -67,8 +67,6 @@ export default function TradesPage() {
   const addTrade = useAddTrade();
   const updateTrade = useUpdateTrade();
   const deleteTrade = useDeleteTrade();
-  const updateActiveHolding = useUpdateActiveHolding();
-
   const [form, setForm] = useState<AddTradeRequest>(makeDefaultForm);
   const [editId, setEditId] = useState<number | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -248,30 +246,10 @@ export default function TradesPage() {
       weight_before: form.weight_before / 100,
       weight_after: form.weight_after / 100,
     };
-    let savedTrade: TradeLogEntry;
     if (editId !== null) {
-      savedTrade = await updateTrade.mutateAsync({ id: editId, data: payload });
+      await updateTrade.mutateAsync({ id: editId, data: payload });
     } else {
-      savedTrade = await addTrade.mutateAsync(payload);
-    }
-
-    const weightToApply =
-      calcTargetWeight > 0
-        ? calcTargetWeight / 100
-        : savedTrade.weight_after > 0
-        ? savedTrade.weight_after
-        : null;
-
-    // active 포트폴리오 비중 자동 업데이트 (silent fail)
-    if (weightToApply !== null && form.etf_code) {
-      try {
-        await updateActiveHolding.mutateAsync({
-          code: form.etf_code,
-          weight: weightToApply,
-        });
-      } catch (err) {
-        console.error("[E-3] active 포트폴리오 비중 업데이트 실패:", err);
-      }
+      await addTrade.mutateAsync(payload);
     }
 
     setForm(makeDefaultForm());
@@ -282,11 +260,18 @@ export default function TradesPage() {
     await queryClient.invalidateQueries({ queryKey: ["live-holdings"] });
     await queryClient.invalidateQueries({ queryKey: ["current-holdings"] });
     await queryClient.invalidateQueries({ queryKey: ["portfolio-etfs"] });
+    await queryClient.invalidateQueries({ queryKey: ["risk-portfolio"] });
+    await queryClient.invalidateQueries({ queryKey: ["etf-risk-analysis"] });
   }
 
   async function handleDelete(id: number) {
     await deleteTrade.mutateAsync(id);
     await queryClient.invalidateQueries({ queryKey: ["trade-log"] });
+    await queryClient.invalidateQueries({ queryKey: ["live-holdings"] });
+    await queryClient.invalidateQueries({ queryKey: ["current-holdings"] });
+    await queryClient.invalidateQueries({ queryKey: ["portfolio-etfs"] });
+    await queryClient.invalidateQueries({ queryKey: ["risk-portfolio"] });
+    await queryClient.invalidateQueries({ queryKey: ["etf-risk-analysis"] });
   }
 
   function toggleDate(date: string) {

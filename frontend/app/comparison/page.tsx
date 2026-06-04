@@ -847,6 +847,7 @@ export default function ComparisonPage() {
                       <span className="mr-1.5 inline-block rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
                         현재 운용
                       </span>
+                      현재 운용
                     </td>
                     <td className="px-4 py-3 text-right font-numeric tabular-nums text-ink">
                       {fmtPct(liveMetrics.cagr)}
