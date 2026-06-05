@@ -12,7 +12,7 @@ const navigation = [
   { href: "/trades", label: "매매일지" },
   { href: "/research", label: "리서치" },
   { href: "/rules", label: "대회 룰" },
-  { href: "/market", label: "시황" },
+  { href: "/market", label: "시황·캘린더" },
   { href: "/report", label: "운용보고서" },
   { href: "/changelog", label: "업데이트 로그" },
 ];

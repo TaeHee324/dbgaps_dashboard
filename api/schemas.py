@@ -298,3 +298,40 @@ class DocResponse(BaseModel):
     slug: str
     title: str
     content: str
+
+
+# ── Calendar ──────────────────────────────────────────────────────────────────
+
+class CalendarEvent(BaseModel):
+    id: int
+    event_date: str
+    event_date_end: str | None
+    kst_time: str | None
+    title: str
+    event_type: str
+    category: str
+    country: str | None
+    importance: int
+    period: str | None
+    release_type: str | None
+    measurement: str | None
+    unit: str | None
+    previous: str | None
+    consensus: str | None
+    forecast: str | None
+    actual: str | None
+    surprise_dir: int | None
+    status: str
+    affected_assets: list[str]
+    portfolio_note: str | None
+    description: str | None
+    metadata: dict | None
+
+
+class CalendarWeeklySummary(BaseModel):
+    week_start: str
+    week_end: str
+    total_events: int
+    critical_count: int
+    major_count: int
+    key_events: list[str]
