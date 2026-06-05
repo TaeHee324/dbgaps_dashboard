@@ -21,9 +21,9 @@ def calc_weights(trade_date: str, etf_code: str, action: str,
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT action, etf_code, quantity, price
+                SELECT action, etf_code, quantity, price, COALESCE(fee, 0) as fee
                 FROM trade_log
-                WHERE date < %s AND id != %s
+                WHERE date <= %s AND id != %s
                   AND quantity IS NOT NULL AND price IS NOT NULL
                 ORDER BY date ASC, id ASC
                 """,
@@ -34,12 +34,15 @@ def calc_weights(trade_date: str, etf_code: str, action: str,
     positions: dict[str, dict] = {}
     total_buy = 0.0
     total_sell = 0.0
+    total_buy_fee = 0.0
+    total_sell_fee = 0.0
 
     for r in rows:
         code = str(r["etf_code"])
         qty = float(r["quantity"])
         p = float(r["price"])
         act = str(r["action"])
+        fee = float(r.get("fee") or 0)
         if code not in positions:
             positions[code] = {"qty": 0.0, "cost": 0.0}
         pos = positions[code]
@@ -47,12 +50,14 @@ def calc_weights(trade_date: str, etf_code: str, action: str,
             pos["qty"] += qty
             pos["cost"] += qty * p
             total_buy += qty * p
+            total_buy_fee += fee
         elif act == "매도" and pos["qty"] > 0:
             avg = pos["cost"] / pos["qty"]
             sold = min(qty, pos["qty"])
             pos["qty"] -= sold
             pos["cost"] -= avg * sold
             total_sell += sold * p
+            total_sell_fee += fee
 
     with db.get_connection() as conn:
         with conn.cursor() as cur:
@@ -79,7 +84,7 @@ def calc_weights(trade_date: str, etf_code: str, action: str,
         for code, pos in positions.items()
         if pos["qty"] > 0
     )
-    cash_before = INITIAL_CAPITAL - total_buy + total_sell
+    cash_before = INITIAL_CAPITAL - total_buy - total_buy_fee + total_sell - total_sell_fee
     total_nav_before = etf_market_value + cash_before
 
     etf_qty_before = positions.get(etf_code, {}).get("qty", 0.0)

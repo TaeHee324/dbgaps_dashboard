@@ -128,7 +128,11 @@ def update_prices(
         latest = max_dates.get(code)
         if latest is None:
             return start
-        return (datetime.strptime(latest, "%Y-%m-%d").date() + timedelta(days=1))
+        latest_date = datetime.strptime(latest, "%Y-%m-%d").date()
+        # 오늘 이미 가격이 있어도 재수집 — 장중 조회 시 종가로 덮어쓰기 위함
+        if latest_date >= date.today():
+            return date.today()
+        return latest_date + timedelta(days=1)
 
     codes_list = [str(c).zfill(6) for c in codes]
 

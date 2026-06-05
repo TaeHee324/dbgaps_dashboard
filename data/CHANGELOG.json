@@ -1,5 +1,47 @@
 [
   {
+    "hash": "b00e272a",
+    "date": "2026-06-04",
+    "subject": "docs: 세션 진행사항 기록 및 recalc_trade_weights 버그 수정",
+    "body": "- SESSION_NOTES.md: 이번 세션 수정 내역 및 미완료 작업(비중 일괄 재계산) 기록\n- recalc_trade_weights.py: date < 를 date <= 로 수정, fee 누락 반영\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "docs"
+  },
+  {
+    "hash": "0a7d9ce1",
+    "date": "2026-06-04",
+    "subject": "fix: 매매일지 같은 날 비중 계산 오류 및 당일 가격 재수집 불가 버그 수정",
+    "body": "- trades.py: _calc_weights 쿼리를 date < 에서 date <= 로 변경하여 같은 날 거래를 비중 계산에 포함\n- update_prices.py: 오늘 가격이 이미 DB에 있어도 재수집하도록 수정 (장중→종가 덮어쓰기)\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "fix"
+  },
+  {
+    "hash": "bb05a2c5",
+    "date": "2026-06-04",
+    "subject": "refactor: 매매일지 저장 시 목표비중 자동 업데이트 제거, 비교탭 현재 운용 이름 표시",
+    "body": "- trades/page.tsx: PATCH /api/portfolios/active/holdings 호출 제거\n  (포트폴리오 목표비중은 포트폴리오 탭에서 직접 설정, 거래 기록에 의해 변경되지 않음)\n- trades/page.tsx: handleSubmit/handleDelete invalidation 보완\n  (risk-portfolio, etf-risk-analysis, live-holdings 등 누락 쿼리키 추가)\n- portfolio.ts: useUpdateActiveHolding 훅 제거 (호출처 없어진 고아 코드)\n- comparison/page.tsx: 비교 테이블 현재 운용 행에 이름 텍스트 추가\n- CLAUDE.md: SYNC-12 내용 업데이트\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "refactor"
+  },
+  {
+    "hash": "00b1a790",
+    "date": "2026-06-02",
+    "subject": "docs: CLAUDE.md에 prices_daily 정정 절차 및 Railway CLI 주의사항 추가",
+    "body": "- SYNC-8: _run_refresh() 에러 진단 방법 추가\n- SYNC-14: prices_daily 오염 데이터 수동 정정 절차 추가\n- Railway CLI 주의사항: railway run 로컬 실행 특성, railway login 제약 문서화\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "docs"
+  },
+  {
+    "hash": "314e342c",
+    "date": "2026-06-02",
+    "subject": "chore: regenerate output CSVs with yfinance-corrected June 2 prices",
+    "body": "pykrx가 2026-06-02 데이터를 잘못 저장한 188행을 삭제하고\nyfinance로 재수집 후 run_engine.py 재실행.\n139290: 34700 → 35395, 069500: 138015 → 141575 등 전체 반영.\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "chore"
+  },
+  {
+    "hash": "189786e0",
+    "date": "2026-06-02",
+    "subject": "feat: pykrx→yfinance 교체, ETF 포트폴리오 UI 개선, 비교탭 그룹 관리 추가",
+    "body": "- T1: ETF 행 입력 UI 순서 반전 (이름·구분 뱃지를 코드·비중 인풋 위로 이동)\n- T2: 자산군 한도 계산 버그 수정 (base=totalWeight → base=100)\n- T3: pykrx → yfinance 교체, yfinance MultiIndex 컬럼 처리 추가\n- T4: 현재가 갱신 버튼에 Yahoo Finance 출처 표기 추가\n- T5: 포트폴리오 비교 탭 그룹 관리 드롭다운 추가 (db, schema, API, hook, UI)\n- CLAUDE.md: pykrx 관련 참조 4곳 yfinance로 업데이트\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+    "type": "feat"
+  },
+  {
     "hash": "3d318d39",
     "date": "2026-06-02",
     "subject": "변경 이미지 저장",
@@ -306,47 +348,5 @@
     "subject": "feat(kpi): KPI 이원화 — 실제 운용 성과 / 전략 특성 백테스트 분리",
     "body": "[수정사항_v5.md Step 1] actual_nav() 버그 2개 수정\n- Bug A: daily_return·cumulative_return을 portfolio_value(ETF 시가)만으로 계산하던 문제 수정\n  → total_value = portfolio_value + cash 기반으로 변경\n  → prev_value → prev_total_value 추적으로 매도 당일 NAV 폭락 방지\n- Bug B: price_pivot에 .ffill() 추가 → 국경일·거래중단 시 전일 종가로 대체, 가짜 급락 방지\n\n[수정사항_v5.md Step 2] frontend/lib/utils/metrics.ts 함수 분리\n- computeMetricsFromNav() 제거\n- computeActualOpsMetrics(): 실제 거래 NAV → 누적수익률·MDD·일간승률·변동성·MDD기간 5개\n- computeStrategyMetrics(): 백테스트 NAV(기간 필터 후 전달) → CAGR·샤프·칼마·소르티노·월별승률·VaR95% 6개\n\n[수정사항_v5.md Step 3~5] frontend/app/page.tsx KPI 스트립 교체\n- strategyPeriod 상태(1Y/6M/3M) 추가, useBacktestNav() 추가\n- KpiStrip 제거 → ActualOpsKpiStrip + StrategyKpiStrip 두 개로 교체\n\n[신규] frontend/components/ui/ActualOpsKpiStrip.tsx\n- \"실제 운용 성과 · since {날짜} · 실제 거래 기반\" 헤더\n- 5개 KPI 그리드\n\n[신규] frontend/components/ui/StrategyKpiStrip.tsx\n- \"전략 특성 · 백테스트 기반\" 헤더 + [1Y][6M][3M] 기간 토글\n- 3M 선택 시 샤프·소르티노에 낮은 신뢰도 경고(!·amber) 표시\n\n[기타 미커밋 변경 포함]\n- frontend/lib/hooks/dashboard.ts: PortfolioSummary의 alpha·beta·sharpe·calmar nullable 처리\n- frontend/app/portfolio/page.tsx: fmt() 함수 nullable 타입 수용\n- frontend/components/ui/DailyHeatmap.tsx: useBacktestNav → useActualNav 교체\n- 맨 위 대시보드 카드 이미지.png 삭제\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
     "type": "feat"
-  },
-  {
-    "hash": "1427cabb",
-    "date": "2026-05-27",
-    "subject": "docs(claude): 현재가 갱신 버그 수정 후 하네스 보완",
-    "body": "- frontend/CLAUDE.md: fetch() 직접 사용 금지 패턴 추가\n  (상대 URL /api/...는 Next.js로 라우팅되어 FastAPI 미도달)\n- CLAUDE.md CRITICAL-2: pykrx가 api/requirements.txt에 설치됨 명시\n  (import 금지와 subprocess 실행은 별개임을 구분)\n- CLAUDE.md SYNC-8: 현재가 갱신 2단계 플로우 명시\n  (update_prices.py만으로는 output/ 미갱신)\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
-    "type": "docs"
-  },
-  {
-    "hash": "e12598a4",
-    "date": "2026-05-27",
-    "subject": "docs(claude): 회전율 기준 하한 명시 및 SYNC-7 추가",
-    "body": "Defaults 섹션의 'turnover limit' 표현이 상한으로 오해될 수 있어\n'minimum'으로 수정하고 passed 방향(>=)을 명시.\nSYNC-7: check_turnover_limits() passed 판정은 >= 임을 경고 노트로 추가.\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
-    "type": "docs"
-  },
-  {
-    "hash": "3a0a55c7",
-    "date": "2026-05-27",
-    "subject": "fix(refresh): 현재가 갱신 버튼 작동 불량 3종 수정",
-    "body": "문제 1 — URL 불일치 (상태 조회 실패)\npage.tsx에서 fetch(\"/api/refresh-prices\"), fetch(\"/api/refresh-status\")를\n상대 URL로 호출해 Next.js 서버로 잘못 라우팅됨.\nNEXT_PUBLIC_API_URL 기반 절대 URL로 교체.\n\n문제 2 — pykrx 미설치\napi/requirements.txt에 pykrx가 없어 Railway 백엔드에서\nsubprocess로 update_prices.py 실행 시 ImportError로 즉시 실패.\napi/requirements.txt에 pykrx 추가.\n\n문제 3 — 엔진 미실행 + 실패 무시\n_run_refresh()가 update_prices.py 성공/실패 여부를 확인하지 않고\n항상 \"done\"으로 상태를 기록, 또한 output/ 재생성을 위한\nrun_engine.py를 실행하지 않아 가격 갱신이 화면에 반영되지 않음.\nreturncode 체크 추가 및 update_prices → run_engine 순차 실행으로 수정.\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
-    "type": "fix"
-  },
-  {
-    "hash": "f6bdbb62",
-    "date": "2026-05-27",
-    "subject": "fix(turnover): 회전율 통과/위반 판정 로직 반전 수정",
-    "body": "대회 규칙상 회전율은 상한(최대)이 아니라 하한(최소) 기준임.\n- 초기 누적: 80% 이상 충족 필요 (미달 시 위반)\n- 주간/월간: 10% 이상 유지 필요 (미달 시 위반)\n\nsrc/turnover.py check_turnover_limits()의 passed 판정을\n<= (초과 시 위반) → >= (미달 시 위반)으로 수정.\nUI 레이블 \"한도\"도 \"최소\"로 변경하여 하한 기준임을 명시.\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
-    "type": "fix"
-  },
-  {
-    "hash": "572a6802",
-    "date": "2026-05-27",
-    "subject": "Split investment rules into focused cards",
-    "body": "The dashboard now separates individual ETF limits from sector and risk asset limits so the risk asset rule appears once in the correct group.\n\nConstraint: Keep the change limited to frontend rule presentation without touching API, generated output, or calculation logic.\n\nTested: npm run lint; npx tsc --noEmit; npm run build\n\nCo-authored-by: OmX <omx@oh-my-codex.dev>",
-    "type": "update"
-  },
-  {
-    "hash": "2d801a09",
-    "date": "2026-05-27",
-    "subject": "docs(claude): railway.toml 위치 및 run_sample_engine 배포 금지 규칙 추가",
-    "body": "Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
-    "type": "docs"
   }
 ]
