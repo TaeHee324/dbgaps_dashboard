@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import "./globals.css";
 import { Providers } from "./providers";
+import { AnnouncementBar } from "@/components/ui/AnnouncementBar";
 
 const navigation = [
   { href: "/", label: "운용 대시보드" },
@@ -104,6 +105,7 @@ export default function RootLayout({
             </aside>
 
             <main className="min-h-screen flex-1 px-5 py-6 sm:px-8 lg:ml-56 lg:px-8 lg:py-6">
+              <AnnouncementBar />
               {children}
             </main>
           </div>
